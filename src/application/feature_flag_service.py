@@ -1,0 +1,47 @@
+from src.infra.database.repositories.base_repository import SortOrder
+from src.infra.database.repositories.feature_flag_repository import FeatureFlagRepository
+from src.models.feature_flags import FeatureFlags
+from src.schemas.feature_flags import (
+    FeatureFlagCreate,
+    FeatureFlagResponse,
+    FeatureFlagUpdateDefault,
+    PagedFeatureFlags,
+)
+
+
+class FeatureFlagService:
+    def __init__(self, repository: FeatureFlagRepository):
+        self.repository = repository
+
+    async def create_flag(self, flag_create: FeatureFlagCreate, created_by: str) -> FeatureFlagResponse:
+        flag = FeatureFlags(
+            key=flag_create.key,
+            type=flag_create.type,
+            default_value=flag_create.default_value,
+            description=flag_create.description,
+            created_by=created_by,
+        )
+        flag_read = await self.repository.create(flag)
+        return FeatureFlagResponse.model_validate(flag_read, from_attributes=True)
+
+    async def get_flag_by_key(self, key: str) -> FeatureFlagResponse:
+        flag_read = await self.repository.get_by_key(key)
+        return FeatureFlagResponse.model_validate(flag_read, from_attributes=True)
+
+    async def get_flag_by_id(self, id: str) -> FeatureFlagResponse:
+        flag_read = await self.repository.get(id)
+        return FeatureFlagResponse.model_validate(flag_read, from_attributes=True)
+
+    async def get_flags(self, page: int, size: int) -> PagedFeatureFlags:
+        offset = page * size
+        flags, total = await self.repository.get_all(size, offset, "createdAt", order=SortOrder.ASC)
+        return PagedFeatureFlags(
+            items=[FeatureFlagResponse.model_validate(f, from_attributes=True) for f in flags],
+            total=total,
+            page=page,
+            size=size,
+        )
+
+    async def update_default_value(self, key: str, update_data: FeatureFlagUpdateDefault) -> FeatureFlagResponse:
+        flag_read = await self.repository.update_default_value(key, update_data.default_value)
+        return FeatureFlagResponse.model_validate(flag_read, from_attributes=True)

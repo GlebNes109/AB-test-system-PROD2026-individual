@@ -11,6 +11,9 @@ from src.application.auth_service import authorize_roles
 
 from src.infra.utils.hash_creator import HashCreator
 from src.infra.utils.token_creator import TokenCreator
+from src.infra.database.repositories.feature_flag_repository import FeatureFlagRepository
+from src.models.feature_flags import FeatureFlags
+from src.application.feature_flag_service import FeatureFlagService
 from src.infra.utils.dsl_parser.parser import DslParser
 
 
@@ -59,6 +62,20 @@ def require_roles(allowed_roles: list[str]):
         authorize_roles(current_user, allowed_roles)
         return current_user
     return dependency
+
+def get_feature_flag_repository(
+    session: AsyncSession = Depends(get_session),
+) -> FeatureFlagRepository:
+    return FeatureFlagRepository(
+        session=session,
+        model=FeatureFlags,
+        read_schema=FeatureFlags,
+    )
+
+def get_feature_flag_service(
+    repo: FeatureFlagRepository = Depends(get_feature_flag_repository),
+) -> FeatureFlagService:
+    return FeatureFlagService(repo)
 
 def get_dsl_parser() -> DslParser:
     return DslParser()

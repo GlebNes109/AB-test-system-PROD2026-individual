@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 
 from src.api.deps import get_hash_creator
-from src.api.routes import auth, users
+from src.api.routes import auth, users, feature_flags
 from src.core.exceptions import AppException, ApiError, ErrorCode, ValidationErrorResponse, FieldError
 from src.core.init_data import create_tables, add_super_admin
 from src.core.settings import settings
@@ -33,6 +33,7 @@ app = FastAPI(lifespan=lifespan)
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(auth.router, prefix="/auth", tags=["Auth"])
 api_router.include_router(users.router, prefix="/users", tags=["Users"])
+api_router.include_router(feature_flags.router, prefix="/feature-flags", tags=["Feature Flags"])
 
 @api_router.get("/ping")
 def send():

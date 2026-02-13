@@ -13,7 +13,7 @@ from src.infra.utils.hash_creator import HashCreator
 async def add_super_admin(hash_creator: HashCreator, session: AsyncSession):
     # SQLModel.metadata.create_all(engine)
     res = await session.execute(
-        select(Users).where(Users.role == "ADMIN")
+        select(Users).where(Users.email == settings.admin_email)
     )
     obj = res.scalar_one_or_none()
     if obj is None:
