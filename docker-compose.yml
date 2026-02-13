@@ -1,13 +1,9 @@
 services:
-  api:
-    platform: linux/amd64
-    build: .
-    ports:
-      - "80:80"
-
+  # ── DEV profile ──────────────────────────────────────────────
   postgres:
     image: postgres:15-alpine
     container_name: abtest-postgres
+    profiles: [dev]
     ports:
       - "5432:5432"
     environment:
@@ -17,20 +13,83 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d testdb -h 127.0.0.1 -p 5432" ]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d testdb -h 127.0.0.1 -p 5432"]
       interval: 10s
       timeout: 3s
       retries: 10
       start_period: 10s
 
+  api:
+    build: .
+    profiles: [dev]
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: testdb
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   pgadmin:
     image: dpage/pgadmin4:latest
+    profiles: [dev]
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@example.com
       PGADMIN_DEFAULT_PASSWORD: admin
       PGADMIN_LISTEN_PORT: 5050
     ports:
       - "5050:5050"
+
+  # ── TEST profile ─────────────────────────────────────────────
+  test-postgres:
+    image: postgres:15-alpine
+    container_name: abtest-test-postgres
+    profiles: [test]
+    environment:
+      POSTGRES_DB: testdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d testdb -h 127.0.0.1 -p 5432"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  api-test:
+    build: .
+    profiles: [test]
+    environment:
+      DB_HOST: test-postgres
+      DB_PORT: 5432
+      DB_NAME: testdb
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    depends_on:
+      test-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  test-runner:
+    build: .
+    profiles: [test]
+    environment:
+      TEST_SERVER_URL: "http://api-test:8080"
+    depends_on:
+      api-test:
+        condition: service_healthy
+    command: ["pytest", "-o", "tavern-global-cfg=tests/config-docker.yml", "-v"]
 
 volumes:
   postgres_data:

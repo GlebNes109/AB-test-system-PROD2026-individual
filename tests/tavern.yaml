@@ -1,0 +1,8 @@
+# Tavern global configuration file
+# Variables will be injected via pytest_configure hook
+---
+test_backend:
+  type: http
+  follow_redirects: true
+  timeout: 30
+  verify: false
