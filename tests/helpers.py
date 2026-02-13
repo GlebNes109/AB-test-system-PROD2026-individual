@@ -33,6 +33,34 @@ def verify_users_list(response, request=None, **kwargs):
     return True
 
 
+def verify_feature_flag_response(response, request=None, **kwargs):
+    data = response.json()
+    assert "id" in data, "Missing id"
+    assert "key" in data, "Missing key"
+    assert "type" in data, "Missing type"
+    assert "default_value" in data, "Missing default_value"
+    assert isinstance(data["id"], str)
+    assert isinstance(data["key"], str)
+    assert data["type"] in ("string", "number", "bool"), f"Invalid type: {data['type']}"
+    assert "createdAt" in data, "Missing createdAt"
+    return True
+
+
+def verify_feature_flags_list(response, request=None, **kwargs):
+    data = response.json()
+    assert "items" in data, "Missing items"
+    assert "total" in data, "Missing total"
+    assert "page" in data, "Missing page"
+    assert "size" in data, "Missing size"
+    assert isinstance(data["items"], list)
+    for item in data["items"]:
+        assert "id" in item, "Missing id in item"
+        assert "key" in item, "Missing key in item"
+        assert "type" in item, "Missing type in item"
+        assert "default_value" in item, "Missing default_value in item"
+    return True
+
+
 def verify_error_response(response, request=None, **kwargs):
     data = response.json()
     assert "code" in data, "Missing code"

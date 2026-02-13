@@ -1,0 +1,385 @@
+---
+test_name: Admin creates feature flag
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create a feature flag
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "button_color"
+        type: "string"
+        default_value: "green"
+        description: "Color of the main CTA button"
+    response:
+      status_code: 201
+      strict: false
+      json:
+        key: "button_color"
+        type: "string"
+        default_value: "green"
+        description: "Color of the main CTA button"
+      verify_response_with:
+        function: tests.helpers:verify_feature_flag_response
+      save:
+        json:
+          flag_id: id
+
+---
+test_name: Create feature flag without auth
+stages:
+  - name: Try to create flag without token
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      json:
+        key: "no_auth_flag"
+        type: "bool"
+        default_value: "false"
+    response:
+      status_code: 401
+
+---
+test_name: Create feature flag as VIEWER - forbidden
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create a viewer user
+    request:
+      url: "{test_server_url}/api/v1/users"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        email: "ff_viewer@example.com"
+        password: "Viewer1234!"
+        role: "VIEWER"
+    response:
+      status_code: 201
+
+  - name: Login as viewer
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "ff_viewer@example.com"
+        password: "Viewer1234!"
+    response:
+      status_code: 200
+      save:
+        json:
+          viewer_token: accessToken
+
+  - name: Viewer tries to create flag
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {viewer_token}"
+      json:
+        key: "viewer_flag"
+        type: "string"
+        default_value: "nope"
+    response:
+      status_code: 403
+
+---
+test_name: Create feature flag with duplicate key
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create first flag
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "dup_flag"
+        type: "bool"
+        default_value: "true"
+    response:
+      status_code: 201
+
+  - name: Create flag with same key
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "dup_flag"
+        type: "bool"
+        default_value: "false"
+    response:
+      status_code: 409
+
+---
+test_name: Get feature flag by ID
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create a flag
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "get_by_id_flag"
+        type: "number"
+        default_value: "42"
+    response:
+      status_code: 201
+      save:
+        json:
+          flag_id: id
+
+  - name: Get flag by ID
+    request:
+      url: "{test_server_url}/api/v1/feature-flags/{flag_id}"
+      method: GET
+    response:
+      status_code: 200
+      strict: false
+      json:
+        id: "{flag_id}"
+        key: "get_by_id_flag"
+        type: "number"
+        default_value: "42"
+      verify_response_with:
+        function: tests.helpers:verify_feature_flag_response
+
+---
+test_name: Get non-existent feature flag
+stages:
+  - name: Get flag with fake ID
+    request:
+      url: "{test_server_url}/api/v1/feature-flags/00000000-0000-0000-0000-000000000000"
+      method: GET
+    response:
+      status_code: 404
+
+---
+test_name: Admin updates feature flag default value
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create a flag to update
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "updatable_flag"
+        type: "string"
+        default_value: "old_value"
+    response:
+      status_code: 201
+
+  - name: Update default value
+    request:
+      url: "{test_server_url}/api/v1/feature-flags/updatable_flag"
+      method: PATCH
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        default_value: "new_value"
+    response:
+      status_code: 200
+      strict: false
+      json:
+        key: "updatable_flag"
+        default_value: "new_value"
+      verify_response_with:
+        function: tests.helpers:verify_feature_flag_response
+
+---
+test_name: Update feature flag without auth
+stages:
+  - name: Try to update flag without token
+    request:
+      url: "{test_server_url}/api/v1/feature-flags/some_key"
+      method: PATCH
+      json:
+        default_value: "hacked"
+    response:
+      status_code: 401
+
+---
+test_name: Update non-existent feature flag
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Update flag that does not exist
+    request:
+      url: "{test_server_url}/api/v1/feature-flags/nonexistent_key"
+      method: PATCH
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        default_value: "whatever"
+    response:
+      status_code: 404
+
+---
+test_name: List feature flags
+stages:
+  - name: Get feature flags list
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: GET
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tests.helpers:verify_feature_flags_list
+
+---
+test_name: List feature flags with pagination
+stages:
+  - name: Get feature flags with pagination
+    request:
+      url: "{test_server_url}/api/v1/feature-flags?page=0&size=2"
+      method: GET
+    response:
+      status_code: 200
+      strict: false
+      json:
+        page: 0
+        size: 2
+      verify_response_with:
+        function: tests.helpers:verify_feature_flags_list
+
+---
+test_name: Create feature flags of each type
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create string flag
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "typed_string_flag"
+        type: "string"
+        default_value: "hello"
+    response:
+      status_code: 201
+      strict: false
+      json:
+        type: "string"
+
+  - name: Create number flag
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "typed_number_flag"
+        type: "number"
+        default_value: "100"
+    response:
+      status_code: 201
+      strict: false
+      json:
+        type: "number"
+
+  - name: Create bool flag
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "typed_bool_flag"
+        type: "bool"
+        default_value: "true"
+    response:
+      status_code: 201
+      strict: false
+      json:
+        type: "bool"
