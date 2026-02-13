@@ -1,0 +1,5 @@
+variables:
+  test_server_url: "http://api-test:8080"
+  ADMIN_EMAIL: admin@mail.ru
+  ADMIN_FULLNAME: Test Test
+  ADMIN_PASSWORD: 123123123aA!

@@ -1,0 +1,44 @@
+---
+test_name: Login success (admin)
+stages:
+  - name: Login with valid admin credentials
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tests.helpers:verify_auth_response
+
+---
+test_name: Login wrong password
+stages:
+  - name: Login with wrong password
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "WrongPassword1!"
+    response:
+      status_code: 401
+      verify_response_with:
+        function: tests.helpers:verify_error_response
+
+---
+test_name: Login non-existent email
+stages:
+  - name: Login with non-existent email
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "nobody@example.com"
+        password: "SomePassword1!"
+    response:
+      status_code: 401
+      verify_response_with:
+        function: tests.helpers:verify_error_response
