@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, func, asc, desc
 
 from src.core.exceptions import EntityNotFoundError, EntityAlreadyExistsError
-from src.models.models import ReadModelType, ModelType, UpdateModelType
+from src.models.models import ReadModelType, ModelType
 
 
 class SortOrder(str, Enum):
@@ -63,12 +63,12 @@ class BaseRepository():
             else:
                 raise
 
-    async def update(self, obj: UpdateModelType) -> ReadModelType:
+    async def update(self, obj: ModelType) -> ReadModelType:
         try:
             await self.session.execute(
                 update(self.model)
                 .where(self.model.id == obj.id)
-                .values(**obj.model_dump(exclude_none=False))
+                .values(**obj.model_dump(exclude_none=True))
             )
             await self.session.commit()
             return await self.get(obj.id)

@@ -15,11 +15,11 @@ router = APIRouter()
 async def create_user(user: UsersCreate, current_user: Users = Depends(require_roles(["ADMIN"])), service: UsersService = Depends(get_user_service)):
     return await service.create_user(user)
 
-@router.get("/{UserId}", summary="Получение пользователя", description="Создание пользователя", status_code=status.HTTP_201_CREATED)
+@router.get("/{UserId}", summary="Получение пользователя", description="Создание пользователя")
 async def get_user(UserId: str, service: UsersService = Depends(get_user_service)):
     return await service.get_user(UserId)
 
-@router.patch("/{UserId}", summary="Изменение пользователя", description="Создание пользователя", status_code=status.HTTP_201_CREATED)
+@router.patch("/{UserId}", summary="Изменение пользователя", description="Создание пользователя")
 async def update_user(UserId: str, user: UsersUpdate, current_user: Users = Depends(require_roles(["ADMIN"])), service: UsersService = Depends(get_user_service)):
     return await service.update_user(user, UserId)
 

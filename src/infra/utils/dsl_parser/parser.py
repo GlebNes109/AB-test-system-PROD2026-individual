@@ -5,7 +5,7 @@ from src.infra.utils.dsl_parser.exceptions import ParserError
 from src.infra.utils.dsl_parser.grammar import parser
 from src.infra.utils.dsl_parser.validation import ValidationContext, validate_rule
 from src.infra.utils.dsl_parser.ast_nodes import Expr
-from src.infra.utils.dsl_schemas import DslValidateResponse, DslError
+from src.infra.utils.dsl_parser.dsl_schemas import DslValidateResponse, DslError
 
 
 class DslParser:
