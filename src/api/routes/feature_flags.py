@@ -52,8 +52,8 @@ async def get_feature_flag_by_key(
 
 @router.get(
     "/{Id}",
-    summary="Получение флага по ключу",
-    description="Получение feature flag по уникальному ключу",
+    summary="Получение флага по id",
+    description="Получение feature flag по id",
     status_code=status.HTTP_200_OK,
 )
 async def get_feature_flag_by_key(

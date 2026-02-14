@@ -12,6 +12,27 @@ class FlagType(str, Enum):
     BOOL = "bool"
 
 
+def validate_value_for_flag_type(value: object, flag_type: FlagType, field_name: str = "value") -> str:
+    """Проверка, что фактический тип дефолтного значения или варианта совпадает с указанным типом"""
+    str_val = str(value)
+
+    if flag_type == FlagType.BOOL:
+        if str_val.lower() not in ("true", "false"):
+            raise ValueError(
+                f"{field_name}: expected bool ('true'/'false'), got '{value}'"
+            )
+
+    elif flag_type == FlagType.NUMBER:
+        try:
+            float(str_val)
+        except (ValueError, TypeError):
+            raise ValueError(
+                f"{field_name}: expected a number, got '{value}'"
+            )
+
+    return str_val
+
+
 class FeatureFlags(SQLModel, table=True):
     __tablename__ = "feature_flags"
 

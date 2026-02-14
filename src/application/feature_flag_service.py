@@ -1,6 +1,7 @@
+from src.core.exceptions import BadRequestError
 from src.infra.database.repositories.base_repository import SortOrder
 from src.infra.database.repositories.feature_flag_repository import FeatureFlagRepository
-from src.models.feature_flags import FeatureFlags
+from src.models.feature_flags import FeatureFlags, validate_value_for_flag_type
 from src.schemas.feature_flags import (
     FeatureFlagCreate,
     FeatureFlagResponse,
@@ -14,10 +15,17 @@ class FeatureFlagService:
         self.repository = repository
 
     async def create_flag(self, flag_create: FeatureFlagCreate, created_by: str) -> FeatureFlagResponse:
+        try:
+            validated_default = validate_value_for_flag_type(
+                flag_create.default_value, flag_create.type, "default_value"
+            )
+        except ValueError as exc:
+            raise BadRequestError(str(exc))
+
         flag = FeatureFlags(
             key=flag_create.key,
             type=flag_create.type,
-            default_value=flag_create.default_value,
+            default_value=validated_default,
             description=flag_create.description,
             created_by=created_by,
         )
@@ -43,5 +51,12 @@ class FeatureFlagService:
         )
 
     async def update_default_value(self, key: str, update_data: FeatureFlagUpdateDefault) -> FeatureFlagResponse:
-        flag_read = await self.repository.update_default_value(key, update_data.default_value)
+        flag = await self.repository.get_by_key(key)
+        try:
+            validated = validate_value_for_flag_type(
+                update_data.default_value, flag.type, "default_value"
+            )
+        except ValueError as exc:
+            raise BadRequestError(str(exc))
+        flag_read = await self.repository.update_default_value(key, validated)
         return FeatureFlagResponse.model_validate(flag_read, from_attributes=True)
