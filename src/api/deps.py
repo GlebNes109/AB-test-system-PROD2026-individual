@@ -15,6 +15,8 @@ from src.infra.database.repositories.feature_flag_repository import FeatureFlagR
 from src.models.feature_flags import FeatureFlags
 from src.application.feature_flag_service import FeatureFlagService
 from src.infra.utils.dsl_parser.parser import DslParser
+from src.infra.database.repositories.experiment_repository import ExperimentRepository
+from src.application.experiment_service import ExperimentService
 
 
 def get_user_repository(
@@ -79,6 +81,19 @@ def get_feature_flag_service(
 
 def get_dsl_parser() -> DslParser:
     return DslParser()
+
+
+def get_experiment_repository(
+    session: AsyncSession = Depends(get_session),
+) -> ExperimentRepository:
+    return ExperimentRepository(session=session)
+
+
+def get_experiment_service(
+    repo: ExperimentRepository = Depends(get_experiment_repository),
+    ff_repo: FeatureFlagRepository = Depends(get_feature_flag_repository)
+) -> ExperimentService:
+    return ExperimentService(repo, ff_repo)
 
 
 

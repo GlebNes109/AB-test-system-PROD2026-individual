@@ -1,77 +1,177 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, Query
 from starlette import status
 
-from src.api.deps import require_roles, get_feature_flag_service
-from src.application.feature_flag_service import FeatureFlagService
+from src.api.deps import require_roles, get_experiment_service
+from src.application.experiment_service import ExperimentService
 from src.models.users import Users
-from src.schemas.experiments import ExperimentsCreate
+from src.schemas.experiments import (
+    ExperimentCreate,
+    ExperimentUpdate,
+    ExperimentResponse,
+    PagedExperiments,
+)
 
 router = APIRouter()
+
+_ALL_ROLES = ["ADMIN", "EXPERIMENTER", "APPROVER", "VIEWER"]
+_EDITORS = ["ADMIN", "EXPERIMENTER"]
 
 
 @router.post(
     "",
     summary="Создание эксперимента",
-    description="Создание нового эксперимента с версией 1",
+    description="Создаёт эксперимент и первую версию конфигурации (version=1, status=draft).",
     status_code=status.HTTP_201_CREATED,
+    response_model=ExperimentResponse,
 )
-async def create_new_experiment(
-    new_expirement: ExperimentsCreate,
-    current_user: Users = Depends(require_roles(["ADMIN", "EXPERIMENTER"])),
-    service: ExperimentService = Depends(get_experiments_service),
-):
-    raise NotImplementedError
+async def create_experiment(
+    body: ExperimentCreate,
+    current_user: Users = Depends(require_roles(_EDITORS)),
+    service: ExperimentService = Depends(get_experiment_service),
+) -> ExperimentResponse:
+    return await service.create_experiment(body, current_user.id)
+
+
+@router.get(
+    "",
+    summary="Список экспериментов",
+    description="Возвращает постраничный список экспериментов. Можно фильтровать по статусу.",
+    status_code=status.HTTP_200_OK,
+    response_model=PagedExperiments,
+)
+async def list_experiments(
+    page: int = Query(0, ge=0),
+    size: int = Query(20, ge=1, le=100),
+    status_filter: Optional[str] = Query(None, alias="status", description="Фильтр по статусу"),
+    current_user: Users = Depends(require_roles(_ALL_ROLES)),
+    service: ExperimentService = Depends(get_experiment_service),
+) -> PagedExperiments:
+    return await service.get_experiments(page, size, status_filter)
+
+
+@router.get(
+    "/{experiment_id}",
+    summary="Получение эксперимента",
+    description="Возвращает эксперимент с данными текущей версии конфигурации.",
+    status_code=status.HTTP_200_OK,
+    response_model=ExperimentResponse,
+)
+async def get_experiment(
+    experiment_id: str,
+    current_user: Users = Depends(require_roles(_ALL_ROLES)),
+    service: ExperimentService = Depends(get_experiment_service),
+) -> ExperimentResponse:
+    return await service.get_experiment(experiment_id)
 
 
 @router.patch(
-    "/{Id}",
+    "/{experiment_id}",
     summary="Изменение эксперимента",
-    description="Приводит к созданию новой версии эксперимента и увеличению текущей версии на 1",
+    description=(
+        "Частичное изменение конфигурации эксперимента. "
+        "Создаёт новую версию (version+1). "
+        "Поля, не переданные в запросе, копируются из текущей версии. "
+        "Запрещено для экспериментов со статусом running или paused."
+    ),
     status_code=status.HTTP_200_OK,
+    response_model=ExperimentResponse,
 )
 async def update_experiment(
-    Id: str,
-    update_experiment: ExperimentsUpdate,
-    current_user: Users = Depends(require_roles(["ADMIN", "EXPERIMENTER"])),
-    service: ExperimentsService = Depends(get_experiments_service),
-):
-    raise NotImplementedError
+    experiment_id: str,
+    body: ExperimentUpdate,
+    current_user: Users = Depends(require_roles(_EDITORS)),
+    service: ExperimentService = Depends(get_experiment_service),
+) -> ExperimentResponse:
+    return await service.update_experiment(experiment_id, body, current_user.id)
 
-@router.get(
-    "/{Id}",
-    summary="Получение эксперимента",
-    description="Получение эксперимента",
-    status_code=status.HTTP_200_OK,
-)
-async def get_experiment(
-    Id: str,
-    current_user: Users = Depends(require_roles(["ADMIN", "EXPERIMENTER", "APPROVER", "VIEWER"])),
-    service: ExperimentsService = Depends(get_experiments_service),
-):
-    raise NotImplementedError
-
-@router.get(
-    "/{Id}",
-    summary="Получение всех экспериментов",
-    description="Получение всех экспериментов с параметрами и фильтрами",
-    status_code=status.HTTP_200_OK,
-)
-async def get_experiment(
-    Id: str,
-    page: int = Query(0, ge=0), size: int = Query(20, ge=1, le=100), status: str = Query(default=None),
-    current_user: Users = Depends(require_roles(["ADMIN", "EXPERIMENTER", "APPROVER", "VIEWER"])),
-    service: ExperimentsService = Depends(get_experiments_service),
-):
-    raise NotImplementedError
 
 @router.post(
-    "/{Id}/submit",
-    summary="Отправка эксперимента на ревью",
-    description="Отправка эксперимента на ревью приводит к изменению статуса эксперимента. Это делает либо админ, либо создатель эксперимента",
+    "/{experiment_id}/submit",
+    summary="Отправка на ревью",
+    description="Переводит эксперимент из draft в review.",
     status_code=status.HTTP_200_OK,
+    response_model=ExperimentResponse,
 )
-async def send_to_review_experiment(
-    current_user: Users = Depends(require_roles(["ADMIN", "EXPERIMENTER"])),
-    service: ExperimentService = Depends(get_experiments_service),
-):
-    raise NotImplementedError # TODO проверка что эксперимент принадлежит тому кто его создал, если роль пользователя EXPERIMENTER
+async def submit_experiment(
+    experiment_id: str,
+    current_user: Users = Depends(require_roles(_EDITORS)),
+    service: ExperimentService = Depends(get_experiment_service),
+) -> ExperimentResponse:
+    return await service.submit_for_review(experiment_id, current_user.id)
+
+
+@router.post(
+    "/{experiment_id}/start",
+    summary="Запуск эксперимента",
+    description="Переводит эксперимент из approved в running. Проверяет отсутствие другого активного эксперимента на том же флаге.",
+    status_code=status.HTTP_200_OK,
+    response_model=ExperimentResponse,
+)
+async def start_experiment(
+    experiment_id: str,
+    current_user: Users = Depends(require_roles(_EDITORS)),
+    service: ExperimentService = Depends(get_experiment_service),
+) -> ExperimentResponse:
+    return await service.start_experiment(experiment_id, current_user.id)
+
+
+@router.post(
+    "/{experiment_id}/pause",
+    summary="Пауза эксперимента",
+    description="Переводит эксперимент из running в paused.",
+    status_code=status.HTTP_200_OK,
+    response_model=ExperimentResponse,
+)
+async def pause_experiment(
+    experiment_id: str,
+    current_user: Users = Depends(require_roles(_EDITORS)),
+    service: ExperimentService = Depends(get_experiment_service),
+) -> ExperimentResponse:
+    return await service.pause_experiment(experiment_id, current_user.id)
+
+
+@router.post(
+    "/{experiment_id}/resume",
+    summary="Возобновление эксперимента",
+    description="Переводит эксперимент из paused в running.",
+    status_code=status.HTTP_200_OK,
+    response_model=ExperimentResponse,
+)
+async def resume_experiment(
+    experiment_id: str,
+    current_user: Users = Depends(require_roles(_EDITORS)),
+    service: ExperimentService = Depends(get_experiment_service),
+) -> ExperimentResponse:
+    return await service.resume_experiment(experiment_id, current_user.id)
+
+
+@router.post(
+    "/{experiment_id}/finish",
+    summary="Завершение эксперимента",
+    description="Переводит эксперимент из running или paused в finished.",
+    status_code=status.HTTP_200_OK,
+    response_model=ExperimentResponse,
+)
+async def finish_experiment(
+    experiment_id: str,
+    current_user: Users = Depends(require_roles(_EDITORS)),
+    service: ExperimentService = Depends(get_experiment_service),
+) -> ExperimentResponse:
+    return await service.finish_experiment(experiment_id, current_user.id)
+
+
+@router.post(
+    "/{experiment_id}/archive",
+    summary="Архивирование эксперимента",
+    description="Переводит эксперимент из finished в archived.",
+    status_code=status.HTTP_200_OK,
+    response_model=ExperimentResponse,
+)
+async def archive_experiment(
+    experiment_id: str,
+    current_user: Users = Depends(require_roles(_EDITORS)),
+    service: ExperimentService = Depends(get_experiment_service),
+) -> ExperimentResponse:
+    return await service.archive_experiment(experiment_id, current_user.id)
