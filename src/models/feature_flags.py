@@ -5,6 +5,8 @@ from enum import Enum
 from sqlalchemy import Column, DateTime, Text
 from sqlmodel import SQLModel, Field
 
+from src.core.exceptions import UnsupportableContentError
+
 
 class FlagType(str, Enum):
     STRING = "string"
@@ -13,12 +15,12 @@ class FlagType(str, Enum):
 
 
 def validate_value_for_flag_type(value: object, flag_type: FlagType, field_name: str = "value") -> str:
-    """Проверка, что фактический тип дефолтного значения или варианта совпадает с указанным типом"""
+    """Проверка, что значение совпадает с указанным типом флага. Райзит UnsupportableContentError."""
     str_val = str(value)
 
     if flag_type == FlagType.BOOL:
         if str_val.lower() not in ("true", "false"):
-            raise ValueError(
+            raise UnsupportableContentError(
                 f"{field_name}: expected bool ('true'/'false'), got '{value}'"
             )
 
@@ -26,7 +28,7 @@ def validate_value_for_flag_type(value: object, flag_type: FlagType, field_name:
         try:
             float(str_val)
         except (ValueError, TypeError):
-            raise ValueError(
+            raise UnsupportableContentError(
                 f"{field_name}: expected a number, got '{value}'"
             )
 

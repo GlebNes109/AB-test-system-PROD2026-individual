@@ -13,6 +13,7 @@ class ErrorCode(str, Enum):
     UNAUTHORIZED = "UNAUTHORIZED"
     FORBIDDEN = "FORBIDDEN"
     NOT_FOUND = "NOT_FOUND"
+    CONFLICT = "CONFLICT"
     USER_NOT_FOUND = "USER_NOT_FOUND"
     EMAIL_ALREADY_EXISTS = "EMAIL_ALREADY_EXISTS"
     USER_INACTIVE = "USER_INACTIVE"
@@ -21,6 +22,7 @@ class ErrorCode(str, Enum):
     DSL_INVALID_OPERATOR = "DSL_INVALID_OPERATOR"
     RULE_NAME_ALREADY_EXISTS = "RULE_NAME_ALREADY_EXISTS"
     INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR"
+
 
 class ApiError(BaseModel):
     code: ErrorCode
@@ -61,10 +63,6 @@ class AppException(Exception):
             self.message = message
         self.details = details
 
-class UserNotFoundError(AppException):
-    status_code = 404
-    error_code = ErrorCode.USER_NOT_FOUND
-    message = "Пользователь не найден"
 
 
 class EmailAlreadyExistsError(AppException):
@@ -85,35 +83,38 @@ class AccessDeniedError(AppException):
     message = "Недостаточно прав для выполнения операции"
 
 
-class BadRequestError(AppException):
-    status_code = 400
-    error_code = ErrorCode.BAD_REQUEST
-    message = "Ошибка в данных запроса"
-
 class UserInactiveError(AppException):
     status_code = 423
     error_code = ErrorCode.USER_INACTIVE
     message = "Пользователь деактивирован"
 
+
+
+class BadRequestError(AppException):
+    status_code = 400
+    error_code = ErrorCode.BAD_REQUEST
+    message = "Ошибка в данных запроса"
+
+
 class UnsupportableContentError(AppException):
     status_code = 422
     error_code = ErrorCode.VALIDATION_FAILED
     message = "Некоторые поля не прошли валидацию"
-    # fieldErrors = list[dict]
-
-class RepositoryError(AppException):
-    error_code = ErrorCode.INTERNAL_SERVER_ERROR
-    status_code = 500
 
 
-class EntityNotFoundError(RepositoryError):
+class ConflictError(AppException):
+    status_code = 409
+    error_code = ErrorCode.CONFLICT
+    message = "Операция конфликтует с текущим состоянием"
+
+
+class EntityNotFoundError(AppException):
     status_code = 404
     error_code = ErrorCode.NOT_FOUND
     message = "Entity not found"
 
 
-class EntityAlreadyExistsError(RepositoryError):
+class EntityAlreadyExistsError(AppException):
     status_code = 409
-    error_code = ErrorCode.BAD_REQUEST
+    error_code = ErrorCode.CONFLICT
     message = "Entity already exists"
-

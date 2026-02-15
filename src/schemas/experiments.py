@@ -4,6 +4,7 @@ from typing import Optional, List, Any
 
 from pydantic import BaseModel, field_validator, model_validator
 
+from src.core.exceptions import UnsupportableContentError
 from src.models.experiments import ExperimentStatus
 
 
@@ -56,7 +57,7 @@ class ExperimentCreate(BaseModel):
     @classmethod
     def validate_variants_not_empty(cls, v: List[VariantCreate]) -> List[VariantCreate]:
         if not v:
-            raise ValueError("variants must not be empty")
+            raise UnsupportableContentError("variants must not be empty")
         return v
 
     @model_validator(mode="after")
@@ -66,13 +67,13 @@ class ExperimentCreate(BaseModel):
 
         control_count = sum(1 for var in variants if var.is_control)
         if control_count != 1:
-            raise ValueError("Exactly one variant must be marked as control")
+            raise UnsupportableContentError("Exactly one variant must be marked as control")
 
-        total_weight = sum(var.weight for var in variants)
-        if total_weight != audience:
-            raise ValueError(
-                f"Sum of variant weights ({total_weight}) must equal audience_percentage ({audience})"
-            )
+        # total_weight = sum(var.weight for var in variants)
+        # if total_weight != audience:
+        #   raise ValueError(
+        #        f"Sum of variant weights ({total_weight}) must equal audience_percentage ({audience})"
+        #    )
         return self
 
 
@@ -86,8 +87,22 @@ class ExperimentUpdate(BaseModel):
     @classmethod
     def validate_audience(cls, v: Optional[int]) -> Optional[int]:
         if v is not None and not (1 <= v <= 100):
-            raise ValueError("audience_percentage must be between 1 and 100")
+            raise UnsupportableContentError("audience_percentage must be between 1 and 100")
         return v
+
+    @model_validator(mode="after")
+    def validate_variants(self) -> "ExperimentUpdate":
+        if self.variants is None:
+            return self
+
+        variants = self.variants
+        audience = self.audience_percentage
+
+        control_count = sum(1 for var in variants if var.is_control)
+        if control_count != 1:
+            raise UnsupportableContentError("Exactly one variant must be marked as control")
+
+        return self
 
 
 class ExperimentResponse(BaseModel):

@@ -1,6 +1,11 @@
 from typing import Optional
 
-from src.core.exceptions import BadRequestError, EntityNotFoundError, EntityAlreadyExistsError
+from src.core.exceptions import (
+    BadRequestError,
+    ConflictError,
+    EntityNotFoundError,
+    UnsupportableContentError,
+)
 from src.infra.database.repositories.experiment_repository import ExperimentRepository
 from src.infra.database.repositories.feature_flag_repository import FeatureFlagRepository
 from src.models.experiments import ExperimentStatus, ALLOWED_TRANSITIONS, FROZEN_STATUSES
@@ -22,10 +27,7 @@ class ExperimentService:
         # проверка что тип вариантов совпадает с типом в эксперименте
         flag = await self.feature_flags_repository.get(feature_flag_id)
         for var in variants:
-            try:
-                validate_value_for_flag_type(var.value, flag.type, f"variant '{var.name}'")
-            except ValueError as exc:
-                raise BadRequestError(str(exc))
+            validate_value_for_flag_type(var.value, flag.type, f"variant '{var.name}'")
 
     async def create_experiment(
         self, data: ExperimentCreate, created_by: str
@@ -65,13 +67,13 @@ class ExperimentService:
         experiment = await self.repository.get(experiment_id)
 
         if experiment.status in FROZEN_STATUSES:
-            raise BadRequestError(
+            raise ConflictError(
                 f"Cannot edit experiment in status '{experiment.status.value}'. "
                 "Config is frozen while the experiment is running or paused."
             )
 
         if experiment.status not in (ExperimentStatus.DRAFT, ExperimentStatus.REJECTED):
-            raise BadRequestError(
+            raise ConflictError(
                 f"Cannot edit experiment in status '{experiment.status.value}'. "
                 "Only DRAFT and REJECTED experiments can be edited."
             )
@@ -79,10 +81,7 @@ class ExperimentService:
         if data.variants is not None:
             await self._validate_variants_type(experiment.feature_flag_id, data.variants)
 
-        try:
-            return await self.repository.update(experiment_id, data, modified_by)
-        except ValueError as exc:
-            raise BadRequestError(str(exc))
+        return await self.repository.update(experiment_id, data, modified_by)
 
     async def _transition(
         self,
@@ -94,7 +93,7 @@ class ExperimentService:
         current_status = experiment.status
 
         if target_status not in ALLOWED_TRANSITIONS.get(current_status, []):
-            raise BadRequestError(
+            raise ConflictError(
                 f"Cannot transition from '{current_status.value}' to '{target_status.value}'"
             )
         return await self.repository.transition_status(experiment_id, target_status, actor_id)
@@ -108,7 +107,7 @@ class ExperimentService:
         experiment = await self.repository.get(experiment_id)
 
         if await self.repository.has_active_experiment_for_flag(experiment.feature_flag_id):
-            raise EntityAlreadyExistsError(
+            raise ConflictError(
                 "Another experiment is already RUNNING or PAUSED for this feature flag"
             )
 

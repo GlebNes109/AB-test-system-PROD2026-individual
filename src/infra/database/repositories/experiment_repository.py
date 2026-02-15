@@ -207,16 +207,6 @@ class ExperimentRepository:
         await self.session.flush()
 
         if data.variants is not None:
-            # валидация новых значений
-            audience = new_version.audience_percentage
-            total_weight = sum(v.weight for v in data.variants)
-            if total_weight != audience:
-                raise ValueError(
-                    f"Sum of variant weights ({total_weight}) must equal audience_percentage ({audience})"
-                )
-            control_count = sum(1 for v in data.variants if v.is_control)
-            if control_count != 1:
-                raise ValueError("Only one variant must be marked as control")
             for var in data.variants:
                 self.session.add(Variants(
                     id=str(uuid.uuid4()),
