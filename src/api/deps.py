@@ -2,13 +2,16 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.requests import Request
 
+from src.application.decisions_service import DecisionsService
 from src.application.reviews_service import ReviewsService
+from src.infra.database.repositories.decisions_repository import DecisionsRepository
 from src.infra.database.repositories.reviews_repository import ReviewsRepository
 from src.infra.database.repositories.user_repository import UserRepository
 
 from src.core.settings import settings
 from src.infra.database.session import get_session
 from src.models.approver_groups import ApproverGroups
+from src.models.decisions import Decisions
 from src.models.experiments import Experiments
 from src.models.reviews import Reviews
 from src.models.users import Users
@@ -117,7 +120,7 @@ def get_experiment_repository(
 
 def get_experiment_service(
     repo: ExperimentsRepository = Depends(get_experiment_repository),
-    ff_repo: FeatureFlagRepository = Depends(get_feature_flag_repository)
+    ff_repo: FeatureFlagRepository = Depends(get_feature_flag_repository),
 ) -> ExperimentService:
     return ExperimentService(repo, ff_repo)
 
@@ -145,6 +148,16 @@ async def check_experimenter_access(
     current_user: Users = Depends(get_current_user),
     service: ExperimentService = Depends(get_experiment_service),
 ):
-    await service.check_experimenter_create_this_experiment(
-        experiment_id, current_user.id
-    )
+    await service.check_experimenter_create_this_experiment(experiment_id, current_user)
+
+async def get_decisions_repository(
+    session: AsyncSession = Depends(get_session)
+) -> DecisionsRepository:
+    return DecisionsRepository(session=session, model=Decisions, read_schema=Decisions)
+
+async def get_decisions_service(
+    experiments_repository: ExperimentsRepository = Depends(get_experiment_repository),
+    decisions_repository: DecisionsRepository = Depends(get_decisions_repository),
+    feature_flag_repository: FeatureFlagRepository = Depends(get_feature_flag_repository)
+) -> DecisionsService:
+    return DecisionsService(experiments_repository=experiments_repository,decisions_repository=decisions_repository,feature_flag_repository=feature_flag_repository)
