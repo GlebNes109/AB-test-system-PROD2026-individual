@@ -5,7 +5,7 @@ from src.domain.interfaces.repositories.base_repository_interface import BaseRep
 from src.models.approver_groups import ApproverGroups
 
 
-class ApproveGroupsRepositoryInterface(Protocol, BaseRepositoryInterface):
+class ApproveGroupsRepositoryInterface(Protocol):
     @abstractmethod
     async def create_members(self, approver_ids: list[str], group_id: str):
         ...
