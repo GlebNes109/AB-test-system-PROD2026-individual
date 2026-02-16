@@ -1,0 +1,1524 @@
+---
+test_name: Experiment create
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create experimenter
+    request:
+      url: "{test_server_url}/api/v1/users"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        email: "exp_create_user@example.com"
+        password: "NewUser123!"
+        role: "EXPERIMENTER"
+    response:
+      status_code: 201
+      save:
+        json:
+          experimenter_id: id
+
+  - name: Login as experimenter
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "exp_create_user@example.com"
+        password: "NewUser123!"
+    response:
+      status_code: 200
+      save:
+        json:
+          experimenter_token: accessToken
+
+  - name: Create flag
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "testflag"
+        type: "string"
+        default_value: "true"
+    response:
+      status_code: 201
+      save:
+        json:
+          flag_id: id
+
+  - name: Create experiment
+    request:
+      url: "{test_server_url}/api/v1/experiments"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+      json:
+        {
+          "feature_flag_id": "{flag_id}",
+          "name": "test experiment",
+          "targeting_rule": "string",
+          "audience_percentage": 12,
+          "variants": [
+            {
+              "name": "control",
+              "value": "string1",
+              "weight": 11,
+              "is_control": true
+            },
+            {
+              "name": "variant_a",
+              "value": "string2",
+              "weight": 81,
+              "is_control": false
+            }
+          ]
+        }
+    response:
+      status_code: 201
+      strict: false
+      json:
+        feature_flag_id: "{flag_id}"
+        name: "test experiment"
+        status: "draft"
+        audience_percentage: 12
+        version: 1
+      verify_response_with:
+        function: tests.helpers:verify_experiment_response
+      save:
+        json:
+          experiment_id: id
+
+---
+test_name: Create experiment without auth
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create flag for no-auth test
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "noauth_exp_flag"
+        type: "string"
+        default_value: "val"
+    response:
+      status_code: 201
+      save:
+        json:
+          flag_id: id
+
+  - name: Try to create experiment without token
+    request:
+      url: "{test_server_url}/api/v1/experiments"
+      method: POST
+      json:
+        feature_flag_id: "{flag_id}"
+        name: "no auth experiment"
+        audience_percentage: 50
+        variants:
+          - name: "ctrl"
+            value: "a"
+            weight: 50
+            is_control: true
+    response:
+      status_code: 401
+
+---
+test_name: Create experiment as VIEWER - forbidden
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create viewer user
+    request:
+      url: "{test_server_url}/api/v1/users"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        email: "exp_viewer@example.com"
+        password: "Viewer1234!"
+        role: "VIEWER"
+    response:
+      status_code: 201
+
+  - name: Login as viewer
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "exp_viewer@example.com"
+        password: "Viewer1234!"
+    response:
+      status_code: 200
+      save:
+        json:
+          viewer_token: accessToken
+
+  - name: Create flag
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "viewer_exp_flag"
+        type: "string"
+        default_value: "x"
+    response:
+      status_code: 201
+      save:
+        json:
+          flag_id: id
+
+  - name: Viewer tries to create experiment
+    request:
+      url: "{test_server_url}/api/v1/experiments"
+      method: POST
+      headers:
+        Authorization: "Bearer {viewer_token}"
+      json:
+        feature_flag_id: "{flag_id}"
+        name: "viewer experiment"
+        audience_percentage: 30
+        variants:
+          - name: "ctrl"
+            value: "a"
+            weight: 30
+            is_control: true
+    response:
+      status_code: 403
+
+---
+test_name: Create experiment as ADMIN - forbidden
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create flag
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "admin_exp_flag"
+        type: "string"
+        default_value: "x"
+    response:
+      status_code: 201
+      save:
+        json:
+          flag_id: id
+
+  - name: Admin tries to create experiment
+    request:
+      url: "{test_server_url}/api/v1/experiments"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        feature_flag_id: "{flag_id}"
+        name: "admin experiment"
+        audience_percentage: 30
+        variants:
+          - name: "ctrl"
+            value: "a"
+            weight: 30
+            is_control: true
+    response:
+      status_code: 403
+
+---
+test_name: Create experiment with non-existent feature flag
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create experimenter
+    request:
+      url: "{test_server_url}/api/v1/users"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        email: "exp_noflag@example.com"
+        password: "NewUser123!"
+        role: "EXPERIMENTER"
+    response:
+      status_code: 201
+
+  - name: Login as experimenter
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "exp_noflag@example.com"
+        password: "NewUser123!"
+    response:
+      status_code: 200
+      save:
+        json:
+          experimenter_token: accessToken
+
+  - name: Create experiment with fake flag id
+    request:
+      url: "{test_server_url}/api/v1/experiments"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+      json:
+        feature_flag_id: "00000000-0000-0000-0000-000000000000"
+        name: "ghost experiment"
+        audience_percentage: 50
+        variants:
+          - name: "ctrl"
+            value: "x"
+            weight: 50
+            is_control: true
+    response:
+      status_code: 404
+
+---
+test_name: Create experiment without control variant
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create experimenter
+    request:
+      url: "{test_server_url}/api/v1/users"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        email: "exp_noctrl@example.com"
+        password: "NewUser123!"
+        role: "EXPERIMENTER"
+    response:
+      status_code: 201
+
+  - name: Login as experimenter
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "exp_noctrl@example.com"
+        password: "NewUser123!"
+    response:
+      status_code: 200
+      save:
+        json:
+          experimenter_token: accessToken
+
+  - name: Create flag
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "no_ctrl_flag"
+        type: "string"
+        default_value: "v"
+    response:
+      status_code: 201
+      save:
+        json:
+          flag_id: id
+
+  - name: Create experiment with no control variant
+    request:
+      url: "{test_server_url}/api/v1/experiments"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+      json:
+        feature_flag_id: "{flag_id}"
+        name: "bad variants"
+        audience_percentage: 50
+        variants:
+          - name: "v1"
+            value: "a"
+            weight: 25
+            is_control: false
+          - name: "v2"
+            value: "b"
+            weight: 25
+            is_control: false
+    response:
+      status_code: 422
+
+---
+test_name: Get experiment by ID
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create experimenter
+    request:
+      url: "{test_server_url}/api/v1/users"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        email: "exp_getbyid@example.com"
+        password: "NewUser123!"
+        role: "EXPERIMENTER"
+    response:
+      status_code: 201
+
+  - name: Login as experimenter
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "exp_getbyid@example.com"
+        password: "NewUser123!"
+    response:
+      status_code: 200
+      save:
+        json:
+          experimenter_token: accessToken
+
+  - name: Create flag
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "get_exp_flag"
+        type: "string"
+        default_value: "v"
+    response:
+      status_code: 201
+      save:
+        json:
+          flag_id: id
+
+  - name: Create experiment
+    request:
+      url: "{test_server_url}/api/v1/experiments"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+      json:
+        feature_flag_id: "{flag_id}"
+        name: "get by id experiment"
+        audience_percentage: 40
+        variants:
+          - name: "ctrl"
+            value: "a"
+            weight: 20
+            is_control: true
+          - name: "test"
+            value: "b"
+            weight: 20
+            is_control: false
+    response:
+      status_code: 201
+      save:
+        json:
+          experiment_id: id
+
+  - name: Get experiment by ID
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}"
+      method: GET
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 200
+      strict: false
+      json:
+        id: "{experiment_id}"
+        name: "get by id experiment"
+        status: "draft"
+      verify_response_with:
+        function: tests.helpers:verify_experiment_response
+
+---
+test_name: Get non-existent experiment
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Get experiment with fake ID
+    request:
+      url: "{test_server_url}/api/v1/experiments/00000000-0000-0000-0000-000000000000"
+      method: GET
+      headers:
+        Authorization: "Bearer {admin_token}"
+    response:
+      status_code: 404
+
+---
+test_name: List experiments
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Get experiments list
+    request:
+      url: "{test_server_url}/api/v1/experiments"
+      method: GET
+      headers:
+        Authorization: "Bearer {admin_token}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tests.helpers:verify_experiments_list
+
+---
+test_name: List experiments with pagination
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Get experiments with pagination
+    request:
+      url: "{test_server_url}/api/v1/experiments?page=0&size=2"
+      method: GET
+      headers:
+        Authorization: "Bearer {admin_token}"
+    response:
+      status_code: 200
+      strict: false
+      json:
+        page: 0
+        size: 2
+      verify_response_with:
+        function: tests.helpers:verify_experiments_list
+
+---
+test_name: List experiments filtered by status
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Get experiments filtered by draft status
+    request:
+      url: "{test_server_url}/api/v1/experiments?status=draft"
+      method: GET
+      headers:
+        Authorization: "Bearer {admin_token}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tests.helpers:verify_experiments_list
+
+---
+test_name: List experiments with invalid status filter
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Get experiments with invalid status
+    request:
+      url: "{test_server_url}/api/v1/experiments?status=invalid_status"
+      method: GET
+      headers:
+        Authorization: "Bearer {admin_token}"
+    response:
+      status_code: 400
+
+---
+test_name: Update experiment in draft
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create experimenter
+    request:
+      url: "{test_server_url}/api/v1/users"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        email: "exp_update@example.com"
+        password: "NewUser123!"
+        role: "EXPERIMENTER"
+    response:
+      status_code: 201
+
+  - name: Login as experimenter
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "exp_update@example.com"
+        password: "NewUser123!"
+    response:
+      status_code: 200
+      save:
+        json:
+          experimenter_token: accessToken
+
+  - name: Create flag
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "upd_exp_flag"
+        type: "string"
+        default_value: "v"
+    response:
+      status_code: 201
+      save:
+        json:
+          flag_id: id
+
+  - name: Create experiment
+    request:
+      url: "{test_server_url}/api/v1/experiments"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+      json:
+        feature_flag_id: "{flag_id}"
+        name: "original name"
+        audience_percentage: 30
+        variants:
+          - name: "ctrl"
+            value: "a"
+            weight: 15
+            is_control: true
+          - name: "test"
+            value: "b"
+            weight: 15
+            is_control: false
+    response:
+      status_code: 201
+      save:
+        json:
+          experiment_id: id
+
+  - name: Update experiment name and audience
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}"
+      method: PATCH
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+      json:
+        name: "updated name"
+        audience_percentage: 50
+    response:
+      status_code: 200
+      strict: false
+      json:
+        name: "updated name"
+        audience_percentage: 50
+        version: 2
+      verify_response_with:
+        function: tests.helpers:verify_experiment_response
+
+---
+test_name: Update experiment without auth
+stages:
+  - name: Try to update without token
+    request:
+      url: "{test_server_url}/api/v1/experiments/00000000-0000-0000-0000-000000000000"
+      method: PATCH
+      json:
+        name: "hacked"
+    response:
+      status_code: 401
+
+---
+test_name: Update non-existent experiment
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create experimenter
+    request:
+      url: "{test_server_url}/api/v1/users"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        email: "exp_upd404@example.com"
+        password: "NewUser123!"
+        role: "EXPERIMENTER"
+    response:
+      status_code: 201
+
+  - name: Login as experimenter
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "exp_upd404@example.com"
+        password: "NewUser123!"
+    response:
+      status_code: 200
+      save:
+        json:
+          experimenter_token: accessToken
+
+  - name: Update experiment that does not exist
+    request:
+      url: "{test_server_url}/api/v1/experiments/00000000-0000-0000-0000-000000000000"
+      method: PATCH
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+      json:
+        name: "ghost update"
+    response:
+      status_code: 404
+
+---
+test_name: Full experiment lifecycle - draft to archived
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create experimenter
+    request:
+      url: "{test_server_url}/api/v1/users"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        email: "exp_lifecycle@example.com"
+        password: "NewUser123!"
+        role: "EXPERIMENTER"
+    response:
+      status_code: 201
+
+  - name: Login as experimenter
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "exp_lifecycle@example.com"
+        password: "NewUser123!"
+    response:
+      status_code: 200
+      save:
+        json:
+          experimenter_token: accessToken
+
+  - name: Create approver user
+    request:
+      url: "{test_server_url}/api/v1/users"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        email: "lifecycle_approver@example.com"
+        password: "Approver123!"
+        role: "APPROVER"
+    response:
+      status_code: 201
+
+  - name: Login as approver
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "lifecycle_approver@example.com"
+        password: "Approver123!"
+    response:
+      status_code: 200
+      save:
+        json:
+          approver_token: accessToken
+
+  - name: Create flag for lifecycle test
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "lifecycle_flag"
+        type: "string"
+        default_value: "base"
+    response:
+      status_code: 201
+      save:
+        json:
+          flag_id: id
+
+  - name: Create experiment
+    request:
+      url: "{test_server_url}/api/v1/experiments"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+      json:
+        feature_flag_id: "{flag_id}"
+        name: "lifecycle experiment"
+        audience_percentage: 50
+        variants:
+          - name: "ctrl"
+            value: "base"
+            weight: 25
+            is_control: true
+          - name: "variant_a"
+            value: "new"
+            weight: 25
+            is_control: false
+    response:
+      status_code: 201
+      strict: false
+      json:
+        status: "draft"
+      save:
+        json:
+          experiment_id: id
+
+  - name: Submit for review (draft -> review)
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}/submit"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 200
+      strict: false
+      json:
+        status: "review"
+      verify_response_with:
+        function: tests.helpers:verify_experiment_response
+
+  - name: Approve via review (review -> approved)
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}/review"
+      method: POST
+      headers:
+        Authorization: "Bearer {approver_token}"
+      json:
+        decision: "ACCEPT"
+        comment: "Looks good"
+    response:
+      status_code: 200
+
+  - name: Verify experiment is approved
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}"
+      method: GET
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 200
+      strict: false
+      json:
+        status: "approved"
+
+  - name: Start experiment (approved -> running)
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}/start"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 200
+      strict: false
+      json:
+        status: "running"
+      verify_response_with:
+        function: tests.helpers:verify_experiment_response
+
+  - name: Pause experiment (running -> paused)
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}/pause"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 200
+      strict: false
+      json:
+        status: "paused"
+      verify_response_with:
+        function: tests.helpers:verify_experiment_response
+
+  - name: Resume experiment (paused -> running)
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}/resume"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 200
+      strict: false
+      json:
+        status: "running"
+      verify_response_with:
+        function: tests.helpers:verify_experiment_response
+
+  - name: Finish experiment (running -> finished)
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}/finish"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 200
+      strict: false
+      json:
+        status: "finished"
+      verify_response_with:
+        function: tests.helpers:verify_experiment_response
+
+  - name: Archive experiment (finished -> archived)
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}/archive"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 200
+      strict: false
+      json:
+        status: "archived"
+      verify_response_with:
+        function: tests.helpers:verify_experiment_response
+
+---
+test_name: Cannot submit non-existent experiment
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create experimenter
+    request:
+      url: "{test_server_url}/api/v1/users"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        email: "exp_submit404@example.com"
+        password: "NewUser123!"
+        role: "EXPERIMENTER"
+    response:
+      status_code: 201
+
+  - name: Login as experimenter
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "exp_submit404@example.com"
+        password: "NewUser123!"
+    response:
+      status_code: 200
+      save:
+        json:
+          experimenter_token: accessToken
+
+  - name: Submit non-existent experiment
+    request:
+      url: "{test_server_url}/api/v1/experiments/00000000-0000-0000-0000-000000000000/submit"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 404
+
+---
+test_name: Cannot make invalid status transition
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create experimenter
+    request:
+      url: "{test_server_url}/api/v1/users"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        email: "exp_badtrans@example.com"
+        password: "NewUser123!"
+        role: "EXPERIMENTER"
+    response:
+      status_code: 201
+
+  - name: Login as experimenter
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "exp_badtrans@example.com"
+        password: "NewUser123!"
+    response:
+      status_code: 200
+      save:
+        json:
+          experimenter_token: accessToken
+
+  - name: Create flag
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "bad_transition_flag"
+        type: "string"
+        default_value: "v"
+    response:
+      status_code: 201
+      save:
+        json:
+          flag_id: id
+
+  - name: Create experiment in draft
+    request:
+      url: "{test_server_url}/api/v1/experiments"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+      json:
+        feature_flag_id: "{flag_id}"
+        name: "draft experiment"
+        audience_percentage: 20
+        variants:
+          - name: "ctrl"
+            value: "a"
+            weight: 10
+            is_control: true
+          - name: "test"
+            value: "b"
+            weight: 10
+            is_control: false
+    response:
+      status_code: 201
+      save:
+        json:
+          experiment_id: id
+
+  - name: Try to start experiment from draft (invalid transition)
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}/start"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 409
+
+---
+test_name: Cannot update running experiment
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create experimenter
+    request:
+      url: "{test_server_url}/api/v1/users"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        email: "exp_frozen@example.com"
+        password: "NewUser123!"
+        role: "EXPERIMENTER"
+    response:
+      status_code: 201
+
+  - name: Login as experimenter
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "exp_frozen@example.com"
+        password: "NewUser123!"
+    response:
+      status_code: 200
+      save:
+        json:
+          experimenter_token: accessToken
+
+  - name: Create approver
+    request:
+      url: "{test_server_url}/api/v1/users"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        email: "frozen_approver@example.com"
+        password: "Approver123!"
+        role: "APPROVER"
+    response:
+      status_code: 201
+
+  - name: Login as approver
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "frozen_approver@example.com"
+        password: "Approver123!"
+    response:
+      status_code: 200
+      save:
+        json:
+          approver_token: accessToken
+
+  - name: Create flag
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "frozen_upd_flag"
+        type: "string"
+        default_value: "v"
+    response:
+      status_code: 201
+      save:
+        json:
+          flag_id: id
+
+  - name: Create experiment
+    request:
+      url: "{test_server_url}/api/v1/experiments"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+      json:
+        feature_flag_id: "{flag_id}"
+        name: "frozen experiment"
+        audience_percentage: 20
+        variants:
+          - name: "ctrl"
+            value: "a"
+            weight: 10
+            is_control: true
+          - name: "test"
+            value: "b"
+            weight: 10
+            is_control: false
+    response:
+      status_code: 201
+      save:
+        json:
+          experiment_id: id
+
+  - name: Submit
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}/submit"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 200
+
+  - name: Approve via review
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}/review"
+      method: POST
+      headers:
+        Authorization: "Bearer {approver_token}"
+      json:
+        decision: "ACCEPT"
+        comment: "approved"
+    response:
+      status_code: 200
+
+  - name: Start
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}/start"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 200
+
+  - name: Try to update running experiment
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}"
+      method: PATCH
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+      json:
+        name: "should be rejected"
+    response:
+      status_code: 409
+
+---
+test_name: Cannot start two experiments on same feature flag
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create experimenter
+    request:
+      url: "{test_server_url}/api/v1/users"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        email: "exp_collision@example.com"
+        password: "NewUser123!"
+        role: "EXPERIMENTER"
+    response:
+      status_code: 201
+
+  - name: Login as experimenter
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "exp_collision@example.com"
+        password: "NewUser123!"
+    response:
+      status_code: 200
+      save:
+        json:
+          experimenter_token: accessToken
+
+  - name: Create approver for collision test
+    request:
+      url: "{test_server_url}/api/v1/users"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        email: "collision_approver@example.com"
+        password: "Approver123!"
+        role: "APPROVER"
+    response:
+      status_code: 201
+
+  - name: Login as approver
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "collision_approver@example.com"
+        password: "Approver123!"
+    response:
+      status_code: 200
+      save:
+        json:
+          approver_token: accessToken
+
+  - name: Create flag
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "collision_flag"
+        type: "string"
+        default_value: "v"
+    response:
+      status_code: 201
+      save:
+        json:
+          flag_id: id
+
+  - name: Create first experiment
+    request:
+      url: "{test_server_url}/api/v1/experiments"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+      json:
+        feature_flag_id: "{flag_id}"
+        name: "first experiment"
+        audience_percentage: 20
+        variants:
+          - name: "ctrl"
+            value: "a"
+            weight: 10
+            is_control: true
+          - name: "test"
+            value: "b"
+            weight: 10
+            is_control: false
+    response:
+      status_code: 201
+      save:
+        json:
+          experiment_id_1: id
+
+  - name: Create second experiment
+    request:
+      url: "{test_server_url}/api/v1/experiments"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+      json:
+        feature_flag_id: "{flag_id}"
+        name: "second experiment"
+        audience_percentage: 20
+        variants:
+          - name: "ctrl"
+            value: "a"
+            weight: 10
+            is_control: true
+          - name: "test"
+            value: "b"
+            weight: 10
+            is_control: false
+    response:
+      status_code: 201
+      save:
+        json:
+          experiment_id_2: id
+
+  - name: Submit first experiment
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id_1}/submit"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 200
+
+  - name: Approve first experiment via review
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id_1}/review"
+      method: POST
+      headers:
+        Authorization: "Bearer {approver_token}"
+      json:
+        decision: "ACCEPT"
+        comment: "approved"
+    response:
+      status_code: 200
+
+  - name: Start first experiment
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id_1}/start"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 200
+
+  - name: Submit second experiment
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id_2}/submit"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 200
+
+  - name: Approve second experiment via review
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id_2}/review"
+      method: POST
+      headers:
+        Authorization: "Bearer {approver_token}"
+      json:
+        decision: "ACCEPT"
+        comment: "approved"
+    response:
+      status_code: 200
+
+  - name: Try to start second experiment while first is running
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id_2}/start"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 409

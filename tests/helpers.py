@@ -61,6 +61,41 @@ def verify_feature_flags_list(response, request=None, **kwargs):
     return True
 
 
+def verify_experiment_response(response, request=None, **kwargs):
+    data = response.json()
+    assert "id" in data, "Missing id"
+    assert "feature_flag_id" in data, "Missing feature_flag_id"
+    assert "created_by" in data, "Missing created_by"
+    assert "created_at" in data, "Missing created_at"
+    assert "version" in data, "Missing version"
+    assert "name" in data, "Missing name"
+    assert "status" in data, "Missing status"
+    assert "audience_percentage" in data, "Missing audience_percentage"
+    assert "variants" in data, "Missing variants"
+    assert isinstance(data["id"], str)
+    assert isinstance(data["variants"], list)
+    assert len(data["variants"]) > 0, "variants must not be empty"
+    valid_statuses = ("draft", "review", "approved", "rejected", "running", "paused", "finished", "archived")
+    assert data["status"] in valid_statuses, f"Invalid status: {data['status']}"
+    control_variants = [v for v in data["variants"] if v.get("is_control")]
+    assert len(control_variants) == 1, "Exactly one variant must be control"
+    return True
+
+
+def verify_experiments_list(response, request=None, **kwargs):
+    data = response.json()
+    assert "items" in data, "Missing items"
+    assert "total" in data, "Missing total"
+    assert "page" in data, "Missing page"
+    assert "size" in data, "Missing size"
+    assert isinstance(data["items"], list)
+    for item in data["items"]:
+        assert "id" in item, "Missing id in item"
+        assert "name" in item, "Missing name in item"
+        assert "status" in item, "Missing status in item"
+    return True
+
+
 def verify_error_response(response, request=None, **kwargs):
     data = response.json()
     assert "code" in data, "Missing code"
