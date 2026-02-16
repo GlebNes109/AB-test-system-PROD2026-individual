@@ -8,6 +8,7 @@ from src.infra.database.session import engine
 from src.models.users import Users, UserRole
 from src.models.feature_flags import FeatureFlags  # noqa: F401 — needed for metadata
 from src.models.experiments import Experiments, ExperimentVersions, Variants  # noqa: F401 — needed for metadata
+from src.models.approver_groups import ApproverGroups, ApproverGroupMembers  # noqa: F401 — needed for metadata
 
 from src.infra.utils.hash_creator import HashCreator
 
