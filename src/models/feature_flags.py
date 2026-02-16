@@ -15,7 +15,6 @@ class FlagType(str, Enum):
 
 
 def validate_value_for_flag_type(value: object, flag_type: FlagType, field_name: str = "value") -> str:
-    """Проверка, что значение совпадает с указанным типом флага. Райзит UnsupportableContentError."""
     str_val = str(value)
 
     if flag_type == FlagType.BOOL:

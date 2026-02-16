@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.core.exceptions import EntityNotFoundError
+from src.infra.database.repositories.base_repository import BaseRepository
 from src.models.experiments import (
     Experiments,
     ExperimentVersions,
@@ -21,10 +22,7 @@ from src.schemas.experiments import (
 )
 
 
-class ExperimentRepository:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-
+class ExperimentsRepository(BaseRepository):
     async def _get_experiment_row(self, experiment_id: str) -> Experiments:
         stmt = select(Experiments).where(Experiments.id == experiment_id)
         result = await self.session.execute(stmt)
@@ -57,7 +55,7 @@ class ExperimentRepository:
             version=experiment.version,
             name=version.name,
             targeting_rule=version.targeting_rule,
-            status=version.status,
+            status=experiment.status,
             audience_percentage=version.audience_percentage,
             modified_by=version.modified_by,
             variants=[
@@ -72,7 +70,7 @@ class ExperimentRepository:
             ],
         )
 
-    async def create(self, data: ExperimentCreate, created_by: str) -> ExperimentResponse:
+    async def create_experiment(self, data: ExperimentCreate, created_by: str) -> ExperimentResponse:
         experiment_id = str(uuid.uuid4())
         version_id = str(uuid.uuid4())
 
@@ -80,6 +78,7 @@ class ExperimentRepository:
             id=experiment_id,
             feature_flag_id=data.feature_flag_id,
             created_by=created_by,
+            status=ExperimentStatus.DRAFT,
             version=1,
         )
         self.session.add(experiment)
@@ -91,7 +90,6 @@ class ExperimentRepository:
             name=data.name,
             version_number=1,
             targeting_rule=data.targeting_rule,
-            status=ExperimentStatus.DRAFT,
             audience_percentage=data.audience_percentage,
             modified_by=created_by,
         )
@@ -118,7 +116,7 @@ class ExperimentRepository:
         current_version = await self._get_current_version(experiment_id, experiment.version)
         return self._build_response(experiment, current_version)
 
-    async def get_all(
+    async def get_all_experiments(
         self,
         page: int,
         size: int,
@@ -126,7 +124,7 @@ class ExperimentRepository:
     ) -> PagedExperiments:
         offset = page * size
 
-        # Sub-query: получение versiond_id для каждого эксперимента
+        # Sub-query: получение version_id для каждого эксперимента
         subq = (
             select(ExperimentVersions.id)
             .where(
@@ -142,7 +140,7 @@ class ExperimentRepository:
             .join(ExperimentVersions, ExperimentVersions.id == subq)
         )
         if status is not None:
-            stmt = stmt.where(ExperimentVersions.status == status)
+            stmt = stmt.where(Experiments.status == status)
 
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = await self.session.scalar(count_stmt)
@@ -169,7 +167,7 @@ class ExperimentRepository:
                 version=experiment.version,
                 name=version.name,
                 targeting_rule=version.targeting_rule,
-                status=version.status,
+                status=experiment.status,
                 audience_percentage=version.audience_percentage,
                 modified_by=version.modified_by,
                 variants=[
@@ -184,7 +182,7 @@ class ExperimentRepository:
 
         return PagedExperiments(items=items, total=total or 0, page=page, size=size)
 
-    async def update(
+    async def update_experiment(
         self, experiment_id: str, data: ExperimentUpdate, modified_by: str
     ) -> ExperimentResponse:
         experiment = await self._get_experiment_row(experiment_id)
@@ -199,7 +197,6 @@ class ExperimentRepository:
             name=data.name if data.name is not None else prev_version.name,
             version_number=new_version_number,
             targeting_rule=data.targeting_rule if data.targeting_rule is not None else prev_version.targeting_rule,
-            status=prev_version.status,
             audience_percentage=data.audience_percentage if data.audience_percentage is not None else prev_version.audience_percentage,
             modified_by=modified_by,
         )
@@ -239,43 +236,34 @@ class ExperimentRepository:
         )
         await self.session.commit()
 
-        await self.session.refresh(experiment)
         updated = await self._get_experiment_row(experiment_id)
         current_version = await self._get_current_version(experiment_id, updated.version)
         return self._build_response(updated, current_version)
 
     async def transition_status(
-        self, experiment_id: str, new_status: ExperimentStatus, modified_by: str
+        self, experiment_id: str, new_status: ExperimentStatus
     ) -> ExperimentResponse:
         experiment = await self._get_experiment_row(experiment_id)
-        current_version = await self._get_current_version(experiment_id, experiment.version)
 
         await self.session.execute(
-            update(ExperimentVersions)
-            .where(ExperimentVersions.id == current_version.id)
-            .values(status=new_status, modified_by=modified_by)
+            update(Experiments)
+            .where(Experiments.id == experiment_id)
+            .values(status=new_status)
         )
         await self.session.commit()
 
-        updated_version = await self._get_current_version(experiment_id, experiment.version)
-        return self._build_response(experiment, updated_version)
+        await self.session.refresh(experiment)
+        current_version = await self._get_current_version(experiment_id, experiment.version)
+        return self._build_response(experiment, current_version)
 
     async def has_active_experiment_for_flag(self, feature_flag_id: str) -> bool:
-        subq = (
-            select(ExperimentVersions.id)
-            .where(
-                ExperimentVersions.experiment_id == Experiments.id,
-                ExperimentVersions.version_number == Experiments.version,
-                ExperimentVersions.status.in_([ExperimentStatus.RUNNING, ExperimentStatus.PAUSED]),
-            )
-            .correlate(Experiments)
-            .scalar_subquery()
-        )
         stmt = select(func.count()).select_from(
             select(Experiments)
-            .where(Experiments.feature_flag_id == feature_flag_id)
-            .join(ExperimentVersions, ExperimentVersions.id == subq)
-                .subquery()
+            .where(
+                Experiments.feature_flag_id == feature_flag_id,
+                Experiments.status.in_([ExperimentStatus.RUNNING, ExperimentStatus.PAUSED]),
             )
+            .subquery()
+        )
         count = await self.session.scalar(stmt)
         return (count or 0) > 0

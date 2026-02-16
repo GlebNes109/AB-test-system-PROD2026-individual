@@ -4,9 +4,9 @@ from src.core.exceptions import (
     BadRequestError,
     ConflictError,
     EntityNotFoundError,
-    UnsupportableContentError,
+    UnsupportableContentError, AccessDeniedError,
 )
-from src.infra.database.repositories.experiment_repository import ExperimentRepository
+from src.infra.database.repositories.experiment_repository import ExperimentsRepository
 from src.infra.database.repositories.feature_flag_repository import FeatureFlagRepository
 from src.models.experiments import ExperimentStatus, ALLOWED_TRANSITIONS, FROZEN_STATUSES
 from src.models.feature_flags import validate_value_for_flag_type
@@ -19,9 +19,14 @@ from src.schemas.experiments import (
 
 
 class ExperimentService:
-    def __init__(self, repository: ExperimentRepository, feature_flags_repository: FeatureFlagRepository):
+    def __init__(self, repository: ExperimentsRepository, feature_flags_repository: FeatureFlagRepository):
         self.repository = repository
         self.feature_flags_repository = feature_flags_repository
+
+    async def check_experimenter_create_this_experiment(self, experiment_id, experimenter_id):
+        experiment = await self.repository.get(experiment_id)
+        if not experiment.created_by == experimenter_id:
+            raise AccessDeniedError("This experiment created by another experimenter")
 
     async def _validate_variants_type(self, feature_flag_id: str, variants):
         # проверка что тип вариантов совпадает с типом в эксперименте
@@ -39,7 +44,7 @@ class ExperimentService:
 
         await self._validate_variants_type(data.feature_flag_id, data.variants)
 
-        return await self.repository.create(data, created_by)
+        return await self.repository.create_experiment(data, created_by)
 
     async def get_experiment(self, experiment_id: str) -> ExperimentResponse:
         return await self.repository.get(experiment_id)
@@ -59,7 +64,7 @@ class ExperimentService:
                     f"Invalid status value '{status}'. "
                     f"Allowed: {[s.value for s in ExperimentStatus]}"
                 )
-        return await self.repository.get_all(page, size, status_filter)
+        return await self.repository.get_all_experiments(page, size, status_filter)
 
     async def update_experiment(
         self, experiment_id: str, data: ExperimentUpdate, modified_by: str
@@ -81,7 +86,7 @@ class ExperimentService:
         if data.variants is not None:
             await self._validate_variants_type(experiment.feature_flag_id, data.variants)
 
-        return await self.repository.update(experiment_id, data, modified_by)
+        return await self.repository.update_experiment(experiment_id, data, modified_by)
 
     async def _transition(
         self,
@@ -96,7 +101,7 @@ class ExperimentService:
             raise ConflictError(
                 f"Cannot transition from '{current_status.value}' to '{target_status.value}'"
             )
-        return await self.repository.transition_status(experiment_id, target_status, actor_id)
+        return await self.repository.transition_status(experiment_id, target_status)
 
     async def submit_for_review(self, experiment_id: str, actor_id: str) -> ExperimentResponse:
         """DRAFT -> REVIEW"""

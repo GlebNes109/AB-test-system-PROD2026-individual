@@ -42,7 +42,7 @@ class Experiments(SQLModel, table=True):
     )
     feature_flag_id: str = Field(foreign_key="feature_flags.id", nullable=False)
     created_by: str = Field(foreign_key="users.id", nullable=False)
-    # Current version number; starts at 1, increments on each PATCH
+    status: ExperimentStatus = Field(default=ExperimentStatus.DRAFT)
     version: int = Field(default=1, nullable=False)
     created_at: datetime = Field(
         sa_column=Column(
@@ -69,7 +69,6 @@ class ExperimentVersions(SQLModel, table=True):
         default=None,
         sa_column=Column(Text, nullable=True),
     )
-    status: ExperimentStatus = Field(default=ExperimentStatus.DRAFT)
     audience_percentage: int
     modified_by: Optional[str] = Field(default=None, foreign_key="users.id")
     created_at: datetime = Field(

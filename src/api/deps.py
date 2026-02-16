@@ -1,10 +1,16 @@
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.requests import Request
+
+from src.application.reviews_service import ReviewsService
+from src.infra.database.repositories.reviews_repository import ReviewsRepository
 from src.infra.database.repositories.user_repository import UserRepository
 
 from src.core.settings import settings
 from src.infra.database.session import get_session
+from src.models.approver_groups import ApproverGroups
+from src.models.experiments import Experiments
+from src.models.reviews import Reviews
 from src.models.users import Users
 from src.application.user_service import UsersService
 from src.application.auth_service import authorize_roles
@@ -15,8 +21,12 @@ from src.infra.database.repositories.feature_flag_repository import FeatureFlagR
 from src.models.feature_flags import FeatureFlags
 from src.application.feature_flag_service import FeatureFlagService
 from src.infra.utils.dsl_parser.parser import DslParser
-from src.infra.database.repositories.experiment_repository import ExperimentRepository
+from src.infra.database.repositories.experiment_repository import ExperimentsRepository
 from src.application.experiment_service import ExperimentService
+from src.infra.database.repositories.approve_groups_repository import ApproveGroupsRepository
+from src.application.approve_groups_service import ApproveGroupsService
+from src.schemas.experiments import ExperimentResponse
+from src.schemas.reviews import ReviewsRead
 
 
 def get_user_repository(
@@ -34,12 +44,27 @@ def get_hash_creator() -> HashCreator:
 def get_token_creator(repo: UserRepository = Depends(get_user_repository)) -> TokenCreator:
     return TokenCreator(secret_key=settings.random_secret, algorithm="HS256", repository=repo)
 
+def get_approve_groups_repository(
+    session: AsyncSession = Depends(get_session),
+) -> ApproveGroupsRepository:
+    return ApproveGroupsRepository(session=session,
+                                   model=ApproverGroups,
+                                   read_schema=ApproverGroups
+                                   )
+
 def get_user_service(
     token_creator: TokenCreator=Depends(get_token_creator),
     hash_creator: HashCreator = Depends(get_hash_creator),
     repo: UserRepository = Depends(get_user_repository),
+    approve_groups_repo: ApproveGroupsRepository = Depends(get_approve_groups_repository),
     ) -> UsersService:
-    return UsersService(repo, token_creator, hash_creator)
+    return UsersService(repo, token_creator, hash_creator, approve_groups_repo)
+
+def get_approve_groups_service(
+    repo: ApproveGroupsRepository = Depends(get_approve_groups_repository),
+    user_repo: UserRepository = Depends(get_user_repository),
+) -> ApproveGroupsService:
+    return ApproveGroupsService(repo, user_repo)
 
 def get_token(request: Request):
     headers = request.headers
@@ -85,20 +110,41 @@ def get_dsl_parser() -> DslParser:
 
 def get_experiment_repository(
     session: AsyncSession = Depends(get_session),
-) -> ExperimentRepository:
-    return ExperimentRepository(session=session)
-
+) -> ExperimentsRepository:
+    return ExperimentsRepository(session=session,
+                                 model=Experiments,
+                                 read_schema=ExperimentResponse)
 
 def get_experiment_service(
-    repo: ExperimentRepository = Depends(get_experiment_repository),
+    repo: ExperimentsRepository = Depends(get_experiment_repository),
     ff_repo: FeatureFlagRepository = Depends(get_feature_flag_repository)
 ) -> ExperimentService:
     return ExperimentService(repo, ff_repo)
 
+def get_reviews_repository(
+    session: AsyncSession = Depends(get_session)
+) -> ReviewsRepository:
+    return ReviewsRepository(
+        session=session,
+        model=Reviews,
+        read_schema=ReviewsRead)
 
 
 
+def get_reviews_service(
+        repository: ReviewsRepository = Depends(get_reviews_repository),
+        user_repo: UserRepository = Depends(get_user_repository),
+        experiment_repository: ExperimentsRepository = Depends(get_experiment_repository),
+        approve_group_repository: ApproveGroupsRepository = Depends(get_approve_groups_repository)
+) -> ReviewsService:
+    return ReviewsService(repository=repository, user_repo=user_repo, experiment_repository=experiment_repository, approve_group_repository=approve_group_repository)
 
 
-
-
+async def check_experimenter_access(
+    experiment_id: str,
+    current_user: Users = Depends(get_current_user),
+    service: ExperimentService = Depends(get_experiment_service),
+):
+    await service.check_experimenter_create_this_experiment(
+        experiment_id, current_user.id
+    )

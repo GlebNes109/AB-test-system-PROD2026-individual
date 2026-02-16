@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from starlette import status
 
-from src.api.deps import require_roles, get_experiment_service
+from src.api.deps import require_roles, get_experiment_service, check_experimenter_access
 from src.application.experiment_service import ExperimentService
 from src.models.users import Users
 from src.schemas.experiments import (
@@ -16,7 +16,7 @@ from src.schemas.experiments import (
 router = APIRouter()
 
 _ALL_ROLES = ["ADMIN", "EXPERIMENTER", "APPROVER", "VIEWER"]
-_EDITORS = ["ADMIN", "EXPERIMENTER"]
+_EDITORS = ["EXPERIMENTER"]
 
 
 @router.post(
@@ -83,6 +83,7 @@ async def update_experiment(
     body: ExperimentUpdate,
     current_user: Users = Depends(require_roles(_EDITORS)),
     service: ExperimentService = Depends(get_experiment_service),
+    _: None = Depends(check_experimenter_access),
 ) -> ExperimentResponse:
     return await service.update_experiment(experiment_id, body, current_user.id)
 
@@ -98,6 +99,7 @@ async def submit_experiment(
     experiment_id: str,
     current_user: Users = Depends(require_roles(_EDITORS)),
     service: ExperimentService = Depends(get_experiment_service),
+    _: None = Depends(check_experimenter_access)
 ) -> ExperimentResponse:
     return await service.submit_for_review(experiment_id, current_user.id)
 
@@ -108,11 +110,13 @@ async def submit_experiment(
     description="Переводит эксперимент из approved в running. Проверяет отсутствие другого активного эксперимента на том же флаге.",
     status_code=status.HTTP_200_OK,
     response_model=ExperimentResponse,
+
 )
 async def start_experiment(
     experiment_id: str,
     current_user: Users = Depends(require_roles(_EDITORS)),
     service: ExperimentService = Depends(get_experiment_service),
+    _: None = Depends(check_experimenter_access)
 ) -> ExperimentResponse:
     return await service.start_experiment(experiment_id, current_user.id)
 
@@ -128,6 +132,7 @@ async def pause_experiment(
     experiment_id: str,
     current_user: Users = Depends(require_roles(_EDITORS)),
     service: ExperimentService = Depends(get_experiment_service),
+    _: None = Depends(check_experimenter_access)
 ) -> ExperimentResponse:
     return await service.pause_experiment(experiment_id, current_user.id)
 
@@ -158,6 +163,7 @@ async def finish_experiment(
     experiment_id: str,
     current_user: Users = Depends(require_roles(_EDITORS)),
     service: ExperimentService = Depends(get_experiment_service),
+    _: None = Depends(check_experimenter_access)
 ) -> ExperimentResponse:
     return await service.finish_experiment(experiment_id, current_user.id)
 
@@ -173,5 +179,6 @@ async def archive_experiment(
     experiment_id: str,
     current_user: Users = Depends(require_roles(_EDITORS)),
     service: ExperimentService = Depends(get_experiment_service),
+    _: None = Depends(check_experimenter_access)
 ) -> ExperimentResponse:
     return await service.archive_experiment(experiment_id, current_user.id)
