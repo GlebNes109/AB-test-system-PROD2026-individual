@@ -1,7 +1,6 @@
 from abc import abstractmethod
 from typing import Optional, Protocol
 
-from src.domain.interfaces.repositories.base_repository_interface import BaseRepositoryInterface
 from src.models.experiments import ExperimentStatus
 from src.schemas.experiments import ExperimentCreate, ExperimentUpdate, ExperimentResponse, PagedExperiments
 
