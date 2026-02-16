@@ -16,7 +16,7 @@ from src.schemas.experiments import (
 router = APIRouter()
 
 _ALL_ROLES = ["ADMIN", "EXPERIMENTER", "APPROVER", "VIEWER"]
-_EDITORS = ["EXPERIMENTER"]
+_EDITORS = ["ADMIN", "EXPERIMENTER"]
 
 
 @router.post(

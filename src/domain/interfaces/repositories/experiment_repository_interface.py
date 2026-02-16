@@ -1,13 +1,14 @@
 from abc import abstractmethod
 from typing import Optional, Protocol
 
+from src.domain.interfaces.repositories.base_repository_interface import BaseRepositoryInterface
 from src.models.experiments import ExperimentStatus
 from src.schemas.experiments import ExperimentCreate, ExperimentUpdate, ExperimentResponse, PagedExperiments
 
 
-class ExperimentsRepositoryInterface(Protocol):
+class ExperimentsRepositoryInterface(BaseRepositoryInterface, Protocol):
     @abstractmethod
-    async def create_experiment(self, data: ExperimentCreate, created_by: str) -> ExperimentResponse:
+    async def create_experiment(self, data: ExperimentCreate, created_by: str, flag_default_value: str) -> ExperimentResponse:
         ...
 
     @abstractmethod
@@ -25,7 +26,7 @@ class ExperimentsRepositoryInterface(Protocol):
 
     @abstractmethod
     async def update_experiment(
-        self, experiment_id: str, data: ExperimentUpdate, modified_by: str
+        self, experiment_id: str, data: ExperimentUpdate, modified_by: str, flag_default_value: str | None = None
     ) -> ExperimentResponse:
         ...
 
@@ -37,4 +38,8 @@ class ExperimentsRepositoryInterface(Protocol):
 
     @abstractmethod
     async def has_active_experiment_for_flag(self, feature_flag_id: str) -> bool:
+        ...
+
+    @abstractmethod
+    async def get_active_experiment_for_flag(self, feature_flag_id: str) -> ExperimentResponse | None:
         ...

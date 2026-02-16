@@ -72,7 +72,7 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
             ],
         )
 
-    async def create_experiment(self, data: ExperimentCreate, created_by: str) -> ExperimentResponse:
+    async def create_experiment(self, data: ExperimentCreate, created_by: str, flag_default_value: str) -> ExperimentResponse:
         experiment_id = str(uuid.uuid4())
         version_id = str(uuid.uuid4())
 
@@ -107,6 +107,16 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
                 weight=var.weight,
                 is_control=var.is_control,
             ))
+
+        # Дефолтный вариант создается вместе с другими. Пользователи вне тестовой группы получают значение флага по умолчанию
+        self.session.add(Variants(
+            id=str(uuid.uuid4()),
+            experiment_version_id=version_id,
+            name="default",
+            value=str(flag_default_value),
+            weight=100 - data.audience_percentage,
+            is_control=False,
+        ))
 
         await self.session.commit()
         await self.session.refresh(experiment)
@@ -185,13 +195,14 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
         return PagedExperiments(items=items, total=total or 0, page=page, size=size)
 
     async def update_experiment(
-        self, experiment_id: str, data: ExperimentUpdate, modified_by: str
+        self, experiment_id: str, data: ExperimentUpdate, modified_by: str, flag_default_value: str | None = None
     ) -> ExperimentResponse:
         experiment = await self._get_experiment_row(experiment_id)
         prev_version = await self._get_current_version(experiment_id, experiment.version)
 
         new_version_number = experiment.version + 1
         new_version_id = str(uuid.uuid4())
+        new_audience = data.audience_percentage if data.audience_percentage is not None else prev_version.audience_percentage
 
         new_version = ExperimentVersions(
             id=new_version_id,
@@ -199,7 +210,7 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
             name=data.name if data.name is not None else prev_version.name,
             version_number=new_version_number,
             targeting_rule=data.targeting_rule if data.targeting_rule is not None else prev_version.targeting_rule,
-            audience_percentage=data.audience_percentage if data.audience_percentage is not None else prev_version.audience_percentage,
+            audience_percentage=new_audience,
             modified_by=modified_by,
         )
         self.session.add(new_version)
@@ -214,6 +225,16 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
                     value=str(var.value),
                     weight=var.weight,
                     is_control=var.is_control,
+                ))
+            # Пересчет дефолтного варианта под новый audience и variants
+            if flag_default_value is not None:
+                self.session.add(Variants(
+                    id=str(uuid.uuid4()),
+                    experiment_version_id=new_version_id,
+                    name="default",
+                    value=str(flag_default_value),
+                    weight=100 - new_audience,
+                    is_control=False,
                 ))
         else:
             # Копирование вариантов из предыдущей версии одним SQL-запросом
@@ -269,3 +290,11 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
         )
         count = await self.session.scalar(stmt)
         return (count or 0) > 0
+
+    async def get_active_experiment_for_flag(self, feature_flag_id: str) -> ExperimentResponse | None:
+        stmt = select(Experiments).where(Experiments.feature_flag_id == feature_flag_id, Experiments.status == ExperimentStatus.RUNNING)
+        experiment = (await self.session.execute(stmt)).scalar_one_or_none()
+        if experiment is None:
+            return None
+        current_version = await self._get_current_version(experiment.id, experiment.version)
+        return self._build_response(experiment, current_version)

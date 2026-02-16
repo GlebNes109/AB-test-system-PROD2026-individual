@@ -5,6 +5,7 @@ from src.domain.interfaces.repositories.reviews_repository_interface import Revi
 from src.domain.interfaces.repositories.user_repository_interface import UserRepositoryInterface
 from src.models.experiments import ExperimentStatus
 from src.models.reviews import Reviews, ReviewDecisions
+from src.models.users import UserRole
 from src.schemas.reviews import ReviewsCreate, PagedReviews
 
 
@@ -19,14 +20,16 @@ class ReviewsService:
         # проверка, что reviewer_id находится в группе ревью этого эксперимента
         experiment = await self.experiment_repository.get(experiment_id)
         experiment_creator_id = experiment.created_by
-        approve_group = await self.approve_group_repository.get_by_experimenter_id(experiment_creator_id)
+        experimenter = await self.user_repo.get(experiment_creator_id)
+        default_min = 0 if experimenter.role == UserRole.ADMIN else 1
+        approve_group = await self.approve_group_repository.get_or_create(experiment_creator_id, default_min)
         members = await self.approve_group_repository.get_members(group_id=approve_group.id)
 
         # пустая группа апруверов означает, что аппрув может делать кто угодно
         if members and reviewer_id not in members:
             raise AccessDeniedError("this user is not in experimenter approvers group")
 
-        await self.repository.create(Reviews(experiment_id=experiment_id,
+        review = await self.repository.create(Reviews(experiment_id=experiment_id,
                                              reviewer_id=reviewer_id,
                                              **data.model_dump()))
 
@@ -40,6 +43,8 @@ class ReviewsService:
 
         if data.decision == ReviewDecisions.REQUEST_IMPROVEMENTS:
             await self.experiment_repository.transition_status(experiment_id, ExperimentStatus.DRAFT)
+
+        return review
 
     async def get_reviews(self, page, size, experimenter_id: str | None = None):
         offset = page * size

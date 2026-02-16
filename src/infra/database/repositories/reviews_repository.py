@@ -6,7 +6,6 @@ from src.domain.interfaces.repositories.base_repository_interface import SortOrd
 from src.domain.interfaces.repositories.reviews_repository_interface import ReviewsRepositoryInterface
 from src.infra.database.repositories.base_repository import BaseRepository
 from src.models.experiments import Experiments
-from src.models.models import ReadModelType, ModelType
 from src.models.reviews import Reviews, ReviewDecisions
 from src.schemas.reviews import ReviewsRead
 

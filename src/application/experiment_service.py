@@ -8,9 +8,11 @@ from src.domain.exceptions import (
 )
 from src.domain.interfaces.repositories.experiment_repository_interface import ExperimentsRepositoryInterface
 from src.domain.interfaces.repositories.feature_flag_repository_interface import FeatureFlagRepositoryInterface
+from src.domain.interfaces.repositories.user_repository_interface import UserRepositoryInterface
 from src.infra.database.repositories.feature_flag_repository import FeatureFlagRepository
 from src.models.experiments import ExperimentStatus, ALLOWED_TRANSITIONS, FROZEN_STATUSES
 from src.models.feature_flags import validate_value_for_flag_type
+from src.models.users import UserRole
 from src.schemas.experiments import (
     ExperimentCreate,
     ExperimentUpdate,
@@ -24,9 +26,9 @@ class ExperimentService:
         self.repository = repository
         self.feature_flags_repository = feature_flags_repository
 
-    async def check_experimenter_create_this_experiment(self, experiment_id, experimenter_id):
+    async def check_experimenter_create_this_experiment(self, experiment_id, user):
         experiment = await self.repository.get(experiment_id)
-        if not experiment.created_by == experimenter_id:
+        if not experiment.created_by == user.id and user.role != UserRole.ADMIN:
             raise AccessDeniedError("This experiment created by another experimenter")
 
     async def _validate_variants_type(self, feature_flag_id: str, variants):
@@ -39,13 +41,13 @@ class ExperimentService:
         self, data: ExperimentCreate, created_by: str
     ) -> ExperimentResponse:
         try:
-            await self.feature_flags_repository.get(data.feature_flag_id)
+            flag = await self.feature_flags_repository.get(data.feature_flag_id)
         except EntityNotFoundError:
             raise EntityNotFoundError(f"Feature flag '{data.feature_flag_id}' not found")
 
         await self._validate_variants_type(data.feature_flag_id, data.variants)
 
-        return await self.repository.create_experiment(data, created_by)
+        return await self.repository.create_experiment(data, created_by, flag.default_value)
 
     async def get_experiment(self, experiment_id: str) -> ExperimentResponse:
         return await self.repository.get(experiment_id)
@@ -87,7 +89,16 @@ class ExperimentService:
         if data.variants is not None:
             await self._validate_variants_type(experiment.feature_flag_id, data.variants)
 
-        return await self.repository.update_experiment(experiment_id, data, modified_by)
+            effective_audience = data.audience_percentage if data.audience_percentage is not None else experiment.audience_percentage
+            total_weight = sum(var.weight for var in data.variants)
+            if total_weight != effective_audience:
+                from src.domain.exceptions import UnsupportableContentError
+                raise UnsupportableContentError(
+                    f"Sum of variant weights ({total_weight}) must equal audience_percentage ({effective_audience})"
+                )
+
+        flag = await self.feature_flags_repository.get(experiment.feature_flag_id)
+        return await self.repository.update_experiment(experiment_id, data, modified_by, flag.default_value)
 
     async def _transition(
         self,

@@ -27,10 +27,6 @@ class UsersService:
 
         user_read = await self.repository.create(user)
 
-        if user_create.role == UserRole.EXPERIMENTER:
-            # fallback для экспериментатора - создание пустой аппрувер группы с дефолтным порогом аппрувов (min_approvals=1)
-            await self.approve_groups_repository.create(ApproverGroups(experimenter_id=user_read.id))
-
         return UsersResponse.model_validate(user_read, from_attributes=True)
 
     async def sign_in_user(self, user) -> AuthResponse:

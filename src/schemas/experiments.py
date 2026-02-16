@@ -69,11 +69,12 @@ class ExperimentCreate(BaseModel):
         if control_count != 1:
             raise UnsupportableContentError("Exactly one variant must be marked as control")
 
-        # total_weight = sum(var.weight for var in variants)
-        # if total_weight != audience:
-        #   raise ValueError(
-        #        f"Sum of variant weights ({total_weight}) must equal audience_percentage ({audience})"
-        #    )
+        total_weight = sum(var.weight for var in variants)
+        if total_weight != audience:
+            raise UnsupportableContentError(
+                f"Sum of variant weights ({total_weight}) must equal audience_percentage ({audience})"
+            )
+
         return self
 
 
@@ -92,13 +93,17 @@ class ExperimentUpdate(BaseModel):
 
     @model_validator(mode="after")
     def validate_variants(self) -> "ExperimentUpdate":
+        # Когда обновляется audience_percentage, но не обновляются варианты - в них становится неправильный weight потому что сумма весов должна давать audience_percentage.
+        # Наоборот не работает - можно менять развесовку вариантов без изменения audience_percentage
+        if self.audience_percentage is not None and self.variants is None:
+            raise UnsupportableContentError(
+                "Cannot change audience_percentage without providing variants, variant weights would become inconsistent"
+            )
+
         if self.variants is None:
             return self
 
-        variants = self.variants
-        audience = self.audience_percentage
-
-        control_count = sum(1 for var in variants if var.is_control)
+        control_count = sum(1 for var in self.variants if var.is_control)
         if control_count != 1:
             raise UnsupportableContentError("Exactly one variant must be marked as control")
 
