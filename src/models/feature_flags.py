@@ -2,10 +2,10 @@ import uuid
 from datetime import datetime, timezone
 from enum import Enum
 
-from sqlalchemy import Column, DateTime, Text
+from sqlalchemy import Column, DateTime
 from sqlmodel import SQLModel, Field
 
-from src.core.exceptions import UnsupportableContentError
+from src.domain.exceptions import UnsupportableContentError
 
 
 class FlagType(str, Enum):

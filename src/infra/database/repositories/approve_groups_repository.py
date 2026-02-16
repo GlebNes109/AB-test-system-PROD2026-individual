@@ -1,11 +1,11 @@
 from sqlalchemy import delete
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domain.interfaces.repositories.approve_groups_repository_interface import ApproveGroupsRepositoryInterface
 from src.infra.database.repositories.base_repository import BaseRepository
 from src.models.approver_groups import ApproverGroups, ApproverGroupMembers
 
 
-class ApproveGroupsRepository(BaseRepository):
+class ApproveGroupsRepository(BaseRepository, ApproveGroupsRepositoryInterface):
     async def create_members(self, approver_ids: list[str], group_id: str):
         # удаление старых участников с заменой на новых
         await self.session.execute(
@@ -17,7 +17,7 @@ class ApproveGroupsRepository(BaseRepository):
 
     async def get_by_experimenter_id(self, experimenter_id: str) -> ApproverGroups:
         from sqlalchemy import select as sa_select
-        from src.core.exceptions import EntityNotFoundError
+        from src.domain.exceptions import EntityNotFoundError
         stmt = sa_select(ApproverGroups).where(ApproverGroups.experimenter_id == experimenter_id)
         result = await self.session.execute(stmt)
         obj = result.scalar_one_or_none()

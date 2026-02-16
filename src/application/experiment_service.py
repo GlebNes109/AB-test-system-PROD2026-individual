@@ -1,12 +1,13 @@
 from typing import Optional
 
-from src.core.exceptions import (
+from src.domain.exceptions import (
     BadRequestError,
     ConflictError,
     EntityNotFoundError,
-    UnsupportableContentError, AccessDeniedError,
+    AccessDeniedError,
 )
-from src.infra.database.repositories.experiment_repository import ExperimentsRepository
+from src.domain.interfaces.repositories.experiment_repository_interface import ExperimentsRepositoryInterface
+from src.domain.interfaces.repositories.feature_flag_repository_interface import FeatureFlagRepositoryInterface
 from src.infra.database.repositories.feature_flag_repository import FeatureFlagRepository
 from src.models.experiments import ExperimentStatus, ALLOWED_TRANSITIONS, FROZEN_STATUSES
 from src.models.feature_flags import validate_value_for_flag_type
@@ -19,7 +20,7 @@ from src.schemas.experiments import (
 
 
 class ExperimentService:
-    def __init__(self, repository: ExperimentsRepository, feature_flags_repository: FeatureFlagRepository):
+    def __init__(self, repository: ExperimentsRepositoryInterface, feature_flags_repository: FeatureFlagRepositoryInterface):
         self.repository = repository
         self.feature_flags_repository = feature_flags_repository
 

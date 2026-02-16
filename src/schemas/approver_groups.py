@@ -1,8 +1,8 @@
-from typing import Optional, List
+from typing import List
 
 from pydantic import BaseModel, field_validator
 
-from src.core.exceptions import UnsupportableContentError
+from src.domain.exceptions import UnsupportableContentError
 
 
 

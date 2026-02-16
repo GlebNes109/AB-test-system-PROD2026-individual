@@ -1,5 +1,5 @@
 from src.models.users import Users
-from src.core.exceptions import AccessDeniedError
+from src.domain.exceptions import AccessDeniedError
 
 
 def authorize_roles(user: Users, allowed_roles: list[str]) -> None:

@@ -1,11 +1,12 @@
-from sqlalchemy import select, update
+from sqlalchemy import select
 
-from src.core.exceptions import EntityNotFoundError
+from src.domain.exceptions import EntityNotFoundError
+from src.domain.interfaces.repositories.user_repository_interface import UserRepositoryInterface
 from src.infra.database.repositories.base_repository import BaseRepository
 from src.models.users import Users
 
 
-class UserRepository(BaseRepository):
+class UserRepository(BaseRepository, UserRepositoryInterface):
     async def get_by_email(self, email: str) -> Users:
         stmt = select(self.model).where(self.model.email == email)
         result = await self.session.execute(stmt)

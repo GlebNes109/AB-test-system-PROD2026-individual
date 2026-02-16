@@ -2,11 +2,12 @@ from datetime import datetime, timezone
 
 import jwt
 
-from src.core.exceptions import UnauthorizedError
+from src.domain.exceptions import UnauthorizedError
+from src.domain.interfaces.token_creator_interface import TokenCreatorInterface
 from src.infra.database.repositories.user_repository import UserRepository
 
 
-class TokenCreator():
+class TokenCreator(TokenCreatorInterface):
     def __init__(self, secret_key, algorithm, repository: UserRepository):
         self.secret_key = secret_key
         self.algorithm = algorithm

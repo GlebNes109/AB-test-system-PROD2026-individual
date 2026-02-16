@@ -2,6 +2,8 @@ import uuid
 from enum import Enum
 from sqlalchemy import select, update, delete, func, asc, desc
 
+from src.domain.interfaces.repositories.base_repository_interface import SortOrder
+from src.domain.interfaces.repositories.reviews_repository_interface import ReviewsRepositoryInterface
 from src.infra.database.repositories.base_repository import BaseRepository
 from src.models.experiments import Experiments
 from src.models.models import ReadModelType, ModelType
@@ -9,12 +11,8 @@ from src.models.reviews import Reviews, ReviewDecisions
 from src.schemas.reviews import ReviewsRead
 
 
-class SortOrder(str, Enum):
-    ASC = "asc"
-    DESC = "desc"
 
-
-class ReviewsRepository(BaseRepository):
+class ReviewsRepository(BaseRepository, ReviewsRepositoryInterface):
     async def count_by_decision(self, experiment_id: str, decision: ReviewDecisions) -> int:
         stmt = select(func.count()).where(
             Reviews.experiment_id == experiment_id,

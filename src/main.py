@@ -11,7 +11,7 @@ from fastapi.exceptions import RequestValidationError
 
 from src.api.deps import get_hash_creator
 from src.api.routes import auth, users, feature_flags, experiments, approve_groups, reviews
-from src.core.exceptions import AppException, ApiError, ErrorCode, ValidationErrorResponse, FieldError
+from src.domain.exceptions import AppException, ApiError, ErrorCode, ValidationErrorResponse, FieldError
 from src.core.init_data import create_tables, add_super_admin
 from src.core.settings import settings
 from src.infra.database.session import async_session_maker

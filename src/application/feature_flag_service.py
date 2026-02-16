@@ -1,5 +1,5 @@
+from src.domain.interfaces.repositories.feature_flag_repository_interface import FeatureFlagRepositoryInterface
 from src.infra.database.repositories.base_repository import SortOrder
-from src.infra.database.repositories.feature_flag_repository import FeatureFlagRepository
 from src.models.feature_flags import FeatureFlags, validate_value_for_flag_type
 from src.schemas.feature_flags import (
     FeatureFlagCreate,
@@ -10,7 +10,7 @@ from src.schemas.feature_flags import (
 
 
 class FeatureFlagService:
-    def __init__(self, repository: FeatureFlagRepository):
+    def __init__(self, repository: FeatureFlagRepositoryInterface):
         self.repository = repository
 
     async def create_flag(self, flag_create: FeatureFlagCreate, created_by: str) -> FeatureFlagResponse:

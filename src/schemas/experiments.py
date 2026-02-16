@@ -4,7 +4,7 @@ from typing import Optional, List, Any
 
 from pydantic import BaseModel, field_validator, model_validator
 
-from src.core.exceptions import UnsupportableContentError
+from src.domain.exceptions import UnsupportableContentError
 from src.models.experiments import ExperimentStatus
 
 

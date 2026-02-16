@@ -1,13 +1,12 @@
-from src.core.exceptions import UnsupportableContentError, EntityNotFoundError
-from src.infra.database.repositories.approve_groups_repository import ApproveGroupsRepository
-from src.infra.database.repositories.user_repository import UserRepository
-from src.models.approver_groups import ApproverGroups
+from src.domain.exceptions import UnsupportableContentError, EntityNotFoundError
+from src.domain.interfaces.repositories.approve_groups_repository_interface import ApproveGroupsRepositoryInterface
+from src.domain.interfaces.repositories.user_repository_interface import UserRepositoryInterface
 from src.models.users import UserRole
 from src.schemas.approver_groups import ApproverGroupCreate, ApproverGroupResponse
 
 
 class ApproveGroupsService:
-    def __init__(self, repository: ApproveGroupsRepository, user_repo: UserRepository):
+    def __init__(self, repository: ApproveGroupsRepositoryInterface, user_repo: UserRepositoryInterface):
         self.repository = repository
         self.user_repo = user_repo
 

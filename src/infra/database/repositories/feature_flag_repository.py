@@ -1,10 +1,11 @@
 from sqlalchemy import select, update
 
-from src.core.exceptions import EntityNotFoundError
+from src.domain.exceptions import EntityNotFoundError
+from src.domain.interfaces.repositories.feature_flag_repository_interface import FeatureFlagRepositoryInterface
 from src.infra.database.repositories.base_repository import BaseRepository
 
 
-class FeatureFlagRepository(BaseRepository):
+class FeatureFlagRepository(BaseRepository, FeatureFlagRepositoryInterface):
     async def get_by_key(self, key: str):
         stmt = select(self.model).where(self.model.key == key)
         result = await self.session.execute(stmt)

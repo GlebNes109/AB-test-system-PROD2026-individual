@@ -1,18 +1,18 @@
-from src.core.exceptions import EntityNotFoundError, UnauthorizedError, UserInactiveError
-from src.infra.database.repositories.approve_groups_repository import ApproveGroupsRepository
-from src.infra.database.repositories.base_repository import SortOrder
-from src.infra.database.repositories.user_repository import UserRepository
+from src.domain.exceptions import EntityNotFoundError, UnauthorizedError
+from src.domain.interfaces.hash_creator_interface import HashCreatorInterface
+from src.domain.interfaces.repositories.approve_groups_repository_interface import ApproveGroupsRepositoryInterface
+from src.domain.interfaces.repositories.base_repository_interface import SortOrder
+from src.domain.interfaces.repositories.user_repository_interface import UserRepositoryInterface
+from src.domain.interfaces.token_creator_interface import TokenCreatorInterface
 from src.models.approver_groups import ApproverGroups
 from src.schemas.auth import AuthResponse
 from src.models.users import Users, UserRole
 
 from src.schemas.users import UsersResponse, UsersUpdate, PagedUsers
-from src.infra.utils.hash_creator import HashCreator
-from src.infra.utils.token_creator import TokenCreator
 
 
 class UsersService:
-    def __init__(self, repository: UserRepository, token_creator: TokenCreator, hash_creator: HashCreator, approve_groups_repository: ApproveGroupsRepository):
+    def __init__(self, repository: UserRepositoryInterface, token_creator: TokenCreatorInterface, hash_creator: HashCreatorInterface, approve_groups_repository: ApproveGroupsRepositoryInterface):
         self.repository = repository
         self.approve_groups_repository = approve_groups_repository
         self.token_creator = token_creator

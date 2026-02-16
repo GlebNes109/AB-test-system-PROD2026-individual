@@ -1,15 +1,15 @@
-from src.core.exceptions import AccessDeniedError
-from src.infra.database.repositories.approve_groups_repository import ApproveGroupsRepository
-from src.infra.database.repositories.experiment_repository import ExperimentsRepository
-from src.infra.database.repositories.reviews_repository import ReviewsRepository
-from src.infra.database.repositories.user_repository import UserRepository
+from src.domain.exceptions import AccessDeniedError
+from src.domain.interfaces.repositories.approve_groups_repository_interface import ApproveGroupsRepositoryInterface
+from src.domain.interfaces.repositories.experiment_repository_interface import ExperimentsRepositoryInterface
+from src.domain.interfaces.repositories.reviews_repository_interface import ReviewsRepositoryInterface
+from src.domain.interfaces.repositories.user_repository_interface import UserRepositoryInterface
 from src.models.experiments import ExperimentStatus
 from src.models.reviews import Reviews, ReviewDecisions
 from src.schemas.reviews import ReviewsCreate, PagedReviews
 
 
 class ReviewsService:
-    def __init__(self, repository: ReviewsRepository, user_repo: UserRepository, experiment_repository: ExperimentsRepository, approve_group_repository: ApproveGroupsRepository):
+    def __init__(self, repository: ReviewsRepositoryInterface, user_repo: UserRepositoryInterface, experiment_repository: ExperimentsRepositoryInterface, approve_group_repository: ApproveGroupsRepositoryInterface):
         self.repository = repository
         self.user_repo = user_repo
         self.experiment_repository = experiment_repository

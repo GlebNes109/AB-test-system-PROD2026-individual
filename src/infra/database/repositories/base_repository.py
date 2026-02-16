@@ -2,19 +2,18 @@ import uuid
 from enum import Enum
 
 from sqlalchemy.exc import IntegrityError, NoResultFound
-from typing import Type, Any, Generic
+from typing import Type, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, func, asc, desc
 
-from src.core.exceptions import EntityNotFoundError, EntityAlreadyExistsError
+from src.domain.exceptions import EntityNotFoundError, EntityAlreadyExistsError
+
+from src.domain.interfaces.repositories.base_repository_interface import SortOrder, BaseRepositoryInterface
 from src.models.models import ReadModelType, ModelType
 
 
-class SortOrder(str, Enum):
-    ASC = "asc"
-    DESC = "desc"
 
-class BaseRepository():
+class BaseRepository(BaseRepositoryInterface):
     def __init__(self, session: AsyncSession, model: Type[ModelType], read_schema: Type[ReadModelType]):
         self.session = session
         self.model = model

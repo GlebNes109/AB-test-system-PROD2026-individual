@@ -2,10 +2,10 @@ import uuid
 from typing import Optional
 
 from sqlalchemy import select, update, insert, func, literal
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.core.exceptions import EntityNotFoundError
+from src.domain.exceptions import EntityNotFoundError
+from src.domain.interfaces.repositories.experiment_repository_interface import ExperimentsRepositoryInterface
 from src.infra.database.repositories.base_repository import BaseRepository
 from src.models.experiments import (
     Experiments,
@@ -22,7 +22,9 @@ from src.schemas.experiments import (
 )
 
 
-class ExperimentsRepository(BaseRepository):
+
+
+class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
     async def _get_experiment_row(self, experiment_id: str) -> Experiments:
         stmt = select(Experiments).where(Experiments.id == experiment_id)
         result = await self.session.execute(stmt)
