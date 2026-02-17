@@ -4,42 +4,38 @@ from starlette import status
 from src.api.deps import require_roles, get_reviews_service
 from src.application.reviews_service import ReviewsService
 from src.models.users import Users
-from src.schemas.reviews import ReviewsCreate
+from src.schemas.reviews import ReviewsCreate, PagedReviews
 
 router = APIRouter()
 
 
 @router.post(
-    "/experiments/{ExperimentId}/review",
+    "/experiments/{experiment_id}/review",
     summary="Провести ревью",
     description="Проведение ревью",
     status_code=status.HTTP_200_OK,
 )
-async def review_experiment(
-    ExperimentId: str,
+async def create_review(
+    experiment_id: str,
     review: ReviewsCreate,
     current_user: Users = Depends(require_roles(["ADMIN", "APPROVER"])),
     service: ReviewsService = Depends(get_reviews_service),
 ):
-    return await service.create_review(review, ExperimentId, current_user.id)
+    return await service.create_review(review, experiment_id, current_user.id)
 
 
-@router.post(
+@router.get(
     "/reviews/my",
     summary="Получить все свои ревью",
-    description="Получить все свои результаты ревью",
+    description="Возвращает постраничный список ревью, оставленных текущим пользователем.",
     status_code=status.HTTP_200_OK,
+    response_model=PagedReviews,
 )
-async def review_experiment(
-        ExperimentId: str,
-        review: ReviewsCreate,
-        current_user: Users = Depends(require_roles(["ADMIN", "APPROVER"])),
-        service: ReviewsService = Depends(get_reviews_service),
+async def get_my_reviews(
+    page: int = Query(0, ge=0),
+    size: int = Query(20, ge=1, le=100),
+    current_user: Users = Depends(require_roles(["ADMIN", "APPROVER"])),
+    service: ReviewsService = Depends(get_reviews_service),
 ):
-    return await service.create_review(review, ExperimentId, current_user)
-
-    # page: int = Query(0, ge=0), size: int = Query(20, ge=1, le=100),
-
-
-
+    return await service.get_reviews(page, size, reviewer_id=current_user.id)
 

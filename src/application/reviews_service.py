@@ -46,12 +46,17 @@ class ReviewsService:
 
         return review
 
-    async def get_reviews(self, page, size, experimenter_id: str | None = None):
+    async def get_reviews(self, page, size, experimenter_id: str | None = None, reviewer_id: str | None = None):
         offset = page * size
         limit = size
-        read_reviews, total = await self.repository.get_all_with_params(limit=limit, offset=offset, experimenter_id=experimenter_id)
+        read_reviews, total = await self.repository.get_all_with_params(
+            limit=limit, offset=offset,
+            experimenter_id=experimenter_id,
+            reviewer_id=reviewer_id,
+        )
         return PagedReviews(
             items=read_reviews,
             total=total,
             page=page,
-            size=size)
+            size=size,
+        )

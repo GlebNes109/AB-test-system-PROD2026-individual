@@ -21,5 +21,6 @@ class ReviewsRepositoryInterface(BaseRepositoryInterface, Protocol):
         order: SortOrder = SortOrder.DESC,
         experimenter_id: str | None = None,
         experiment_id: str | None = None,
+        reviewer_id: str | None = None,
     ) -> tuple[list[ReviewsRead], int]:
         ...
