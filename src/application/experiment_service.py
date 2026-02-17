@@ -1,15 +1,10 @@
 from typing import Optional
 
-from src.domain.exceptions import (
-    BadRequestError,
-    ConflictError,
-    EntityNotFoundError,
-    AccessDeniedError,
-)
+from src.domain.exceptions import BadRequestError, ConflictError, EntityNotFoundError, AccessDeniedError, UnsupportableContentError
+
+from src.domain.interfaces.dsl_parser import DslParserInterface
 from src.domain.interfaces.repositories.experiment_repository_interface import ExperimentsRepositoryInterface
 from src.domain.interfaces.repositories.feature_flag_repository_interface import FeatureFlagRepositoryInterface
-from src.domain.interfaces.repositories.user_repository_interface import UserRepositoryInterface
-from src.infra.database.repositories.feature_flag_repository import FeatureFlagRepository
 from src.models.experiments import ExperimentStatus, ALLOWED_TRANSITIONS, FROZEN_STATUSES
 from src.models.feature_flags import validate_value_for_flag_type
 from src.models.users import UserRole
@@ -22,9 +17,10 @@ from src.schemas.experiments import (
 
 
 class ExperimentService:
-    def __init__(self, repository: ExperimentsRepositoryInterface, feature_flags_repository: FeatureFlagRepositoryInterface):
+    def __init__(self, repository: ExperimentsRepositoryInterface, feature_flags_repository: FeatureFlagRepositoryInterface, parser: DslParserInterface):
         self.repository = repository
         self.feature_flags_repository = feature_flags_repository
+        self.parser = parser
 
     async def check_experimenter_create_this_experiment(self, experiment_id, user):
         experiment = await self.repository.get(experiment_id)
@@ -40,6 +36,10 @@ class ExperimentService:
     async def create_experiment(
         self, data: ExperimentCreate, created_by: str
     ) -> ExperimentResponse:
+
+        if data.targeting_rule is not None and not self.parser.validate(data.targeting_rule):
+            raise UnsupportableContentError(f"Unsupportable targeting rule {data.targeting_rule}")
+
         try:
             flag = await self.feature_flags_repository.get(data.feature_flag_id)
         except EntityNotFoundError:
@@ -74,6 +74,9 @@ class ExperimentService:
     ) -> ExperimentResponse:
         experiment = await self.repository.get(experiment_id)
 
+        if data.targeting_rule is not None and not self.parser.validate(data.targeting_rule):
+            raise UnsupportableContentError(f"Unsupportable targeting rule {data.targeting_rule}")
+
         if experiment.status in FROZEN_STATUSES:
             raise ConflictError(
                 f"Cannot edit experiment in status '{experiment.status.value}'. "
@@ -92,7 +95,6 @@ class ExperimentService:
             effective_audience = data.audience_percentage if data.audience_percentage is not None else experiment.audience_percentage
             total_weight = sum(var.weight for var in data.variants)
             if total_weight != effective_audience:
-                from src.domain.exceptions import UnsupportableContentError
                 raise UnsupportableContentError(
                     f"Sum of variant weights ({total_weight}) must equal audience_percentage ({effective_audience})"
                 )

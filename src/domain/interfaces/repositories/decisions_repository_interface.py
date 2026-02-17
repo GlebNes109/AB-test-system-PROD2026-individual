@@ -13,3 +13,11 @@ class DecisionsRepositoryInterface(BaseRepositoryInterface, Protocol):
     @abstractmethod
     async def get_decision_by_subject_and_experiment(self, subject_id: str, experiment_id: str) -> Decisions:
         ...
+
+    @abstractmethod
+    async def count_active_experiments_by_subject(self, subject_id: str) -> int:
+        ...
+
+    @abstractmethod
+    async def get_last_decision_by_subject(self, subject_id: str) -> Decisions | None:
+        ...

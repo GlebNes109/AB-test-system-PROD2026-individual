@@ -1,7 +1,8 @@
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from src.domain.exceptions import EntityNotFoundError
+from src.domain.interfaces.dsl_parser import DslParserInterface
 from src.domain.interfaces.repositories.decisions_repository_interface import DecisionsRepositoryInterface
 from src.domain.interfaces.repositories.experiment_repository_interface import ExperimentsRepositoryInterface
 from src.domain.interfaces.repositories.feature_flag_repository_interface import FeatureFlagRepositoryInterface
@@ -11,10 +12,12 @@ from src.schemas.experiments import VariantResponse
 
 
 class DecisionsService:
-    def __init__(self, experiments_repository: ExperimentsRepositoryInterface, decisions_repository: DecisionsRepositoryInterface, feature_flag_repository: FeatureFlagRepositoryInterface):
+    def __init__(self, experiments_repository: ExperimentsRepositoryInterface, decisions_repository: DecisionsRepositoryInterface, feature_flag_repository: FeatureFlagRepositoryInterface,
+                 parser: DslParserInterface):
         self.experiments_repository = experiments_repository
         self.decisions_repository = decisions_repository
         self.feature_flag_repository = feature_flag_repository
+        self.parser = parser
 
     async def check_target(self, data: dict[any]):
         return True
@@ -48,6 +51,9 @@ class DecisionsService:
 
         return decision
 
+    def _return_default_without_experiment(self, feature_flag):
+        return DecisionsResponse(value=feature_flag.default_value, id=None, created_at=datetime.now(timezone.utc))
+
     async def make_decision(self, subject: Subject) -> list[DecisionsResponse]:
         # конфликт экспериментов в одном домене и рассчет приоритета - будет реализовано в будущем
 
@@ -56,18 +62,18 @@ class DecisionsService:
 
         decisions = []
         for flags_key in subject.flags_keys:
-            flag = await self.feature_flag_repository.get_by_key(flags_key)
-            feature_flag_id = flag.id
+            feature_flag = await self.feature_flag_repository.get_by_key(flags_key)
+            feature_flag_id = feature_flag.id
 
             # проверка что такой эксперимент есть.
             experiment = await self.experiments_repository.get_active_experiment_for_flag(feature_flag_id)
             if experiment is None:
-                decisions.append(DecisionsResponse(value=flag.default_value, id=None, created_at=datetime.now(timezone.utc)))
+                decisions.append(self._return_default_without_experiment(feature_flag))
                 continue
 
             # проверка по таргету
-            if not await self.check_target(subject.subject_attr):
-                decisions.append(DecisionsResponse(value=flag.default_value, id=None, created_at=datetime.now(timezone.utc)))
+            if not self.parser.check_rule_matches(subject.subject_attr, experiment.targeting_rule):
+                decisions.append(self._return_default_without_experiment(feature_flag))
                 continue
 
             # проверка, участвует ли он в эксперименте на этом флаге. Если участвует, берется уже полученное ранее значение, приклеенное к этому пользователю
@@ -85,6 +91,19 @@ class DecisionsService:
             # охлаждение происходит в двух случаях:
             # 1. если число активных экспериментов на этом пользователе выше критического значения
             # 2. если пользователь уже недавно участвовал в эксперименте (с момента создания последнего decisions для этого пользователя прошло мало времени)
+
+            if await self.decisions_repository.count_active_experiments_by_subject(subject.id) > 10: # TODO сделать нормально, не хардкодом
+                decisions.append(self._return_default_without_experiment(feature_flag))
+                continue
+
+            last_decision = await self.decisions_repository.get_last_decision_by_subject(subject.id) # TODO вынести куда-то дни охлаждения
+            if last_decision is not None:
+                cooling_period = timedelta(days=1)
+                time_since_last = datetime.now(timezone.utc) - last_decision.createdAt
+                if time_since_last < cooling_period:
+                    decisions.append(self._return_default_without_experiment(feature_flag))
+                    continue
+
 
             decision = await self._make_ab_decision(subject_id=subject.id, experiment=experiment)
 

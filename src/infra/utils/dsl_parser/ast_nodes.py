@@ -98,13 +98,14 @@ class Comparison(Expr):
         v = tx
         for part in self.field.split("."):
             if not isinstance(v, dict) or part not in v:
+                # отсутствующий атрибут = false
                 return False
             v = v[part]
 
         if v is None:
             return False
 
-        if self.op == "=":
+        if self.op in ("=", "=="):
             return v == self.value
         if self.op == "!=":
             return v != self.value
@@ -116,19 +117,18 @@ class Comparison(Expr):
             return v < self.value
         if self.op == "<=":
             return v <= self.value
+        if self.op == "IN":
+            return v in self.value
+        if self.op == "NOT IN":
+            return v not in self.value
 
         raise ValueError(f"Unknown operator {self.op}")
 
     def validate(self, ctx):
-        if self.field not in ctx.allowed_fields:
-            raise ParserError(code="DSL_INVALID_FIELD", message='некорректное поле')
-
-        if isinstance(self.value, str):
-            if self.op not in ctx.string_ops:
-                raise ParserError(code="DSL_INVALID_OPERATOR", message="оператор неприменим к типу значения")
-        else:
-            if self.op not in ctx.numeric_ops:
-                raise ParserError(code="DSL_INVALID_OPERATOR", message="оператор неприменим к типу значения")
+        # поля не ограничены — контекст пользователя открытый (любые props)
+        all_ops = {">", ">=", "<", "<=", "=", "==", "!=", "IN", "NOT IN"}
+        if self.op not in all_ops:
+            raise ParserError(code="DSL_INVALID_OPERATOR", message="неизвестный оператор")
 
     def normalize(self):
         return f"{self.field} {self.op} {repr(self.value)}"

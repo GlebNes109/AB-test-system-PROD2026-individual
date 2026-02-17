@@ -121,8 +121,9 @@ def get_experiment_repository(
 def get_experiment_service(
     repo: ExperimentsRepository = Depends(get_experiment_repository),
     ff_repo: FeatureFlagRepository = Depends(get_feature_flag_repository),
+    parser: DslParser = Depends(get_dsl_parser)
 ) -> ExperimentService:
-    return ExperimentService(repo, ff_repo)
+    return ExperimentService(repo, ff_repo, parser)
 
 def get_reviews_repository(
     session: AsyncSession = Depends(get_session)
@@ -158,6 +159,7 @@ async def get_decisions_repository(
 async def get_decisions_service(
     experiments_repository: ExperimentsRepository = Depends(get_experiment_repository),
     decisions_repository: DecisionsRepository = Depends(get_decisions_repository),
-    feature_flag_repository: FeatureFlagRepository = Depends(get_feature_flag_repository)
+    feature_flag_repository: FeatureFlagRepository = Depends(get_feature_flag_repository),
+    parser: DslParser = Depends(get_dsl_parser)
 ) -> DecisionsService:
-    return DecisionsService(experiments_repository=experiments_repository,decisions_repository=decisions_repository,feature_flag_repository=feature_flag_repository)
+    return DecisionsService(experiments_repository=experiments_repository,decisions_repository=decisions_repository,feature_flag_repository=feature_flag_repository, parser=parser)
