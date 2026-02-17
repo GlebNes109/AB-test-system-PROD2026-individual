@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 
 from src.api.deps import get_hash_creator
-from src.api.routes import auth, users, feature_flags, experiments, approve_groups, reviews, decisions
+from src.api.routes import auth, users, feature_flags, experiments, approve_groups, reviews, decisions, events
 from src.domain.exceptions import AppException, ApiError, ErrorCode, ValidationErrorResponse, FieldError
 from src.core.init_data import create_tables, add_super_admin
 from src.core.settings import settings
@@ -38,6 +38,7 @@ api_router.include_router(experiments.router, prefix="/experiments", tags=["Expe
 api_router.include_router(approve_groups.router, prefix="/users", tags=["Approver Groups"])
 api_router.include_router(reviews.router, prefix="", tags=["Reviews"])
 api_router.include_router(decisions.router, prefix="", tags=["Decisions"])
+api_router.include_router(events.router, prefix="/events", tags=["Events"])
 
 @api_router.get("/ping")
 def send():
