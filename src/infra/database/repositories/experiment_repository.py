@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 
-from sqlalchemy import select, update, insert, func, literal
+from sqlalchemy import select, update, insert, delete, func, literal
 from sqlalchemy.orm import selectinload
 
 from src.domain.exceptions import EntityNotFoundError
@@ -13,6 +13,7 @@ from src.models.experiments import (
     Variants,
     ExperimentStatus,
 )
+from src.models.metrics import ExperimentMetrics as ExperimentMetricsModel, Metrics
 from src.schemas.experiments import (
     ExperimentCreate,
     ExperimentUpdate,
@@ -20,8 +21,7 @@ from src.schemas.experiments import (
     VariantResponse,
     PagedExperiments,
 )
-
-
+from src.schemas.metrics import ExperimentMetricBind, ExperimentMetricResponse
 
 
 class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
@@ -48,7 +48,45 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
             raise EntityNotFoundError(f"ExperimentVersion not found for experiment {experiment_id} v{version_number}")
         return row
 
-    def _build_response(self, experiment: Experiments, version: ExperimentVersions) -> ExperimentResponse:
+    async def _get_experiment_metrics(self, experiment_id: str) -> list[ExperimentMetricResponse]:
+        stmt = (
+            select(ExperimentMetricsModel, Metrics)
+            .join(Metrics, ExperimentMetricsModel.metric_id == Metrics.id)
+            .where(ExperimentMetricsModel.experiment_id == experiment_id)
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [
+            ExperimentMetricResponse(
+                metric_id=em.metric_id,
+                metric_key=m.key,
+                metric_name=m.name,
+                type=em.type,
+                threshold=em.threshold,
+                window_minutes=em.window_minutes,
+                action=em.action,
+            )
+            for em, m in rows
+        ]
+
+    async def _save_metrics(self, experiment_id: str, metrics: list[ExperimentMetricBind], metric_id_map: dict[str, str]) -> None:
+        for m in metrics:
+            self.session.add(ExperimentMetricsModel(
+                id=str(uuid.uuid4()),
+                experiment_id=experiment_id,
+                metric_id=metric_id_map[m.metric_key],
+                type=m.type,
+                threshold=m.threshold,
+                window_minutes=m.window_minutes,
+                action=m.action,
+            ))
+
+    async def _replace_metrics(self, experiment_id: str, metrics: list[ExperimentMetricBind], metric_id_map: dict[str, str]) -> None:
+        await self.session.execute(
+            delete(ExperimentMetricsModel).where(ExperimentMetricsModel.experiment_id == experiment_id)
+        )
+        await self._save_metrics(experiment_id, metrics, metric_id_map)
+
+    def _build_response(self, experiment: Experiments, version: ExperimentVersions, metrics: list[ExperimentMetricResponse] = None) -> ExperimentResponse:
         return ExperimentResponse(
             id=experiment.id,
             feature_flag_id=experiment.feature_flag_id,
@@ -70,9 +108,10 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
                 )
                 for v in version.variants
             ],
+            metrics=metrics or [],
         )
 
-    async def create_experiment(self, data: ExperimentCreate, created_by: str, flag_default_value: str) -> ExperimentResponse:
+    async def create_experiment(self, data: ExperimentCreate, created_by: str, flag_default_value: str, metric_id_map: dict[str, str] = None) -> ExperimentResponse:
         experiment_id = str(uuid.uuid4())
         version_id = str(uuid.uuid4())
 
@@ -118,15 +157,20 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
             is_control=False,
         ))
 
+        if metric_id_map:
+            await self._save_metrics(experiment_id, data.metrics, metric_id_map)
+
         await self.session.commit()
         await self.session.refresh(experiment)
         current_version = await self._get_current_version(experiment_id, 1)
-        return self._build_response(experiment, current_version)
+        metrics = await self._get_experiment_metrics(experiment_id)
+        return self._build_response(experiment, current_version, metrics)
 
     async def get(self, experiment_id: str) -> ExperimentResponse:
         experiment = await self._get_experiment_row(experiment_id)
         current_version = await self._get_current_version(experiment_id, experiment.version)
-        return self._build_response(experiment, current_version)
+        metrics = await self._get_experiment_metrics(experiment_id)
+        return self._build_response(experiment, current_version, metrics)
 
     async def get_all_experiments(
         self,
@@ -169,6 +213,29 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
             for v in all_variants:
                 variants_by_version[v.experiment_version_id].append(v)
 
+        # Batch-load метрик для всех экспериментов
+        experiment_ids = [exp.id for exp, _ in rows]
+        metrics_by_experiment: dict[str, list[ExperimentMetricResponse]] = {eid: [] for eid in experiment_ids}
+        if experiment_ids:
+            metrics_stmt = (
+                select(ExperimentMetricsModel, Metrics)
+                .join(Metrics, ExperimentMetricsModel.metric_id == Metrics.id)
+                .where(ExperimentMetricsModel.experiment_id.in_(experiment_ids))
+            )
+            all_metrics = (await self.session.execute(metrics_stmt)).all()
+            for em, m in all_metrics:
+                metrics_by_experiment[em.experiment_id].append(
+                    ExperimentMetricResponse(
+                        metric_id=em.metric_id,
+                        metric_key=m.key,
+                        metric_name=m.name,
+                        type=em.type,
+                        threshold=em.threshold,
+                        window_minutes=em.window_minutes,
+                        action=em.action,
+                    )
+                )
+
         items = []
         for experiment, version in rows:
             resp = ExperimentResponse(
@@ -189,13 +256,14 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
                     )
                     for v in variants_by_version.get(version.id, [])
                 ],
+                metrics=metrics_by_experiment.get(experiment.id, []),
             )
             items.append(resp)
 
         return PagedExperiments(items=items, total=total or 0, page=page, size=size)
 
     async def update_experiment(
-        self, experiment_id: str, data: ExperimentUpdate, modified_by: str, flag_default_value: str | None = None
+        self, experiment_id: str, data: ExperimentUpdate, modified_by: str, flag_default_value: str | None = None, metric_id_map: dict[str, str] | None = None
     ) -> ExperimentResponse:
         experiment = await self._get_experiment_row(experiment_id)
         prev_version = await self._get_current_version(experiment_id, experiment.version)
@@ -252,6 +320,10 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
                 )
             )
 
+        # Метрики не версионируются , при обновлении заменяются целиком
+        if data.metrics is not None and metric_id_map is not None:
+            await self._replace_metrics(experiment_id, data.metrics, metric_id_map)
+
         await self.session.execute(
             update(Experiments)
             .where(Experiments.id == experiment_id)
@@ -261,7 +333,8 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
 
         updated = await self._get_experiment_row(experiment_id)
         current_version = await self._get_current_version(experiment_id, updated.version)
-        return self._build_response(updated, current_version)
+        metrics = await self._get_experiment_metrics(experiment_id)
+        return self._build_response(updated, current_version, metrics)
 
     async def transition_status(
         self, experiment_id: str, new_status: ExperimentStatus
@@ -277,7 +350,8 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
 
         await self.session.refresh(experiment)
         current_version = await self._get_current_version(experiment_id, experiment.version)
-        return self._build_response(experiment, current_version)
+        metrics = await self._get_experiment_metrics(experiment_id)
+        return self._build_response(experiment, current_version, metrics)
 
     async def has_active_experiment_for_flag(self, feature_flag_id: str) -> bool:
         stmt = select(func.count()).select_from(
@@ -297,4 +371,5 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
         if experiment is None:
             return None
         current_version = await self._get_current_version(experiment.id, experiment.version)
-        return self._build_response(experiment, current_version)
+        metrics = await self._get_experiment_metrics(experiment.id)
+        return self._build_response(experiment, current_version, metrics)

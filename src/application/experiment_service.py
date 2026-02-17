@@ -5,6 +5,7 @@ from src.domain.exceptions import BadRequestError, ConflictError, EntityNotFound
 from src.domain.interfaces.dsl_parser import DslParserInterface
 from src.domain.interfaces.repositories.experiment_repository_interface import ExperimentsRepositoryInterface
 from src.domain.interfaces.repositories.feature_flag_repository_interface import FeatureFlagRepositoryInterface
+from src.domain.interfaces.repositories.metrics_repository_interface import MetricsRepositoryInterface
 from src.models.experiments import ExperimentStatus, ALLOWED_TRANSITIONS, FROZEN_STATUSES
 from src.models.feature_flags import validate_value_for_flag_type
 from src.models.users import UserRole
@@ -14,13 +15,21 @@ from src.schemas.experiments import (
     ExperimentResponse,
     PagedExperiments,
 )
+from src.schemas.metrics import ExperimentMetricBind
 
 
 class ExperimentService:
-    def __init__(self, repository: ExperimentsRepositoryInterface, feature_flags_repository: FeatureFlagRepositoryInterface, parser: DslParserInterface):
+    def __init__(
+        self,
+        repository: ExperimentsRepositoryInterface,
+        feature_flags_repository: FeatureFlagRepositoryInterface,
+        parser: DslParserInterface,
+        metrics_repository: MetricsRepositoryInterface,
+    ):
         self.repository = repository
         self.feature_flags_repository = feature_flags_repository
         self.parser = parser
+        self.metrics_repository = metrics_repository
 
     async def check_experimenter_create_this_experiment(self, experiment_id, user):
         experiment = await self.repository.get(experiment_id)
@@ -32,6 +41,14 @@ class ExperimentService:
         flag = await self.feature_flags_repository.get(feature_flag_id)
         for var in variants:
             validate_value_for_flag_type(var.value, flag.type, f"variant '{var.name}'")
+
+    async def _resolve_metric_keys(self, metrics: list[ExperimentMetricBind]) -> dict[str, str]:
+        """Resolve metric keys to metric IDs. Returns {key: id} map."""
+        metric_id_map = {}
+        for m in metrics:
+            metric = await self.metrics_repository.get_by_key(m.metric_key)
+            metric_id_map[m.metric_key] = metric.id
+        return metric_id_map
 
     async def create_experiment(
         self, data: ExperimentCreate, created_by: str
@@ -47,7 +64,9 @@ class ExperimentService:
 
         await self._validate_variants_type(data.feature_flag_id, data.variants)
 
-        return await self.repository.create_experiment(data, created_by, flag.default_value)
+        metric_id_map = await self._resolve_metric_keys(data.metrics)
+
+        return await self.repository.create_experiment(data, created_by, flag.default_value, metric_id_map)
 
     async def get_experiment(self, experiment_id: str) -> ExperimentResponse:
         return await self.repository.get(experiment_id)
@@ -99,8 +118,12 @@ class ExperimentService:
                     f"Sum of variant weights ({total_weight}) must equal audience_percentage ({effective_audience})"
                 )
 
+        metric_id_map = None
+        if data.metrics is not None:
+            metric_id_map = await self._resolve_metric_keys(data.metrics)
+
         flag = await self.feature_flags_repository.get(experiment.feature_flag_id)
-        return await self.repository.update_experiment(experiment_id, data, modified_by, flag.default_value)
+        return await self.repository.update_experiment(experiment_id, data, modified_by, flag.default_value, metric_id_map)
 
     async def _transition(
         self,

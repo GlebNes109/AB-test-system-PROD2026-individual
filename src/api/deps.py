@@ -1,6 +1,9 @@
 from fastapi import Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.requests import Request
+
+bearer_scheme = HTTPBearer(auto_error=False)
 
 from src.application.decisions_service import DecisionsService
 from src.application.events_sevice import EventsService
@@ -31,6 +34,9 @@ from src.infra.database.repositories.experiment_repository import ExperimentsRep
 from src.application.experiment_service import ExperimentService
 from src.infra.database.repositories.approve_groups_repository import ApproveGroupsRepository
 from src.application.approve_groups_service import ApproveGroupsService
+from src.application.metrics_service import MetricsService
+from src.infra.database.repositories.metrics_repository import MetricsRepository
+from src.models.metrics import Metrics
 from src.schemas.experiments import ExperimentResponse
 from src.schemas.reviews import ReviewsRead
 
@@ -72,10 +78,11 @@ def get_approve_groups_service(
 ) -> ApproveGroupsService:
     return ApproveGroupsService(repo, user_repo)
 
-def get_token(request: Request):
-    headers = request.headers
-    a = str(headers.get("Authorization"))
-    return a[7:]
+def get_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> str:
+    if credentials is None:
+        from src.domain.exceptions import UnauthorizedError
+        raise UnauthorizedError()
+    return credentials.credentials
 
 async def get_user_id(request: Request, token: str = Depends(get_token), token_creator: TokenCreator = Depends(get_token_creator)):
     user_id = await token_creator.verify_access_token(token)
@@ -121,12 +128,23 @@ def get_experiment_repository(
                                  model=Experiments,
                                  read_schema=ExperimentResponse)
 
+def get_metrics_repository(
+    session: AsyncSession = Depends(get_session),
+) -> MetricsRepository:
+    return MetricsRepository(session=session, model=Metrics, read_schema=Metrics)
+
+def get_metrics_service(
+    repo: MetricsRepository = Depends(get_metrics_repository),
+) -> MetricsService:
+    return MetricsService(repo)
+
 def get_experiment_service(
     repo: ExperimentsRepository = Depends(get_experiment_repository),
     ff_repo: FeatureFlagRepository = Depends(get_feature_flag_repository),
-    parser: DslParser = Depends(get_dsl_parser)
+    parser: DslParser = Depends(get_dsl_parser),
+    metrics_repo: MetricsRepository = Depends(get_metrics_repository),
 ) -> ExperimentService:
-    return ExperimentService(repo, ff_repo, parser)
+    return ExperimentService(repo, ff_repo, parser, metrics_repo)
 
 def get_reviews_repository(
     session: AsyncSession = Depends(get_session)

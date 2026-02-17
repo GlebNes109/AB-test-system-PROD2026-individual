@@ -72,8 +72,10 @@ def verify_experiment_response(response, request=None, **kwargs):
     assert "status" in data, "Missing status"
     assert "audience_percentage" in data, "Missing audience_percentage"
     assert "variants" in data, "Missing variants"
+    assert "metrics" in data, "Missing metrics"
     assert isinstance(data["id"], str)
     assert isinstance(data["variants"], list)
+    assert isinstance(data["metrics"], list)
     assert len(data["variants"]) > 0, "variants must not be empty"
     valid_statuses = ("draft", "review", "approved", "rejected", "running", "paused", "finished", "archived")
     assert data["status"] in valid_statuses, f"Invalid status: {data['status']}"

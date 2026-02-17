@@ -8,7 +8,7 @@ from src.schemas.experiments import ExperimentCreate, ExperimentUpdate, Experime
 
 class ExperimentsRepositoryInterface(BaseRepositoryInterface, Protocol):
     @abstractmethod
-    async def create_experiment(self, data: ExperimentCreate, created_by: str, flag_default_value: str) -> ExperimentResponse:
+    async def create_experiment(self, data: ExperimentCreate, created_by: str, flag_default_value: str, metric_id_map: dict[str, str] = None) -> ExperimentResponse:
         ...
 
     @abstractmethod
@@ -26,7 +26,7 @@ class ExperimentsRepositoryInterface(BaseRepositoryInterface, Protocol):
 
     @abstractmethod
     async def update_experiment(
-        self, experiment_id: str, data: ExperimentUpdate, modified_by: str, flag_default_value: str | None = None
+        self, experiment_id: str, data: ExperimentUpdate, modified_by: str, flag_default_value: str | None = None, metric_id_map: dict[str, str] | None = None
     ) -> ExperimentResponse:
         ...
 

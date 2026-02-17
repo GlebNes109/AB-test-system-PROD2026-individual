@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 
 from src.api.deps import get_hash_creator
-from src.api.routes import auth, users, feature_flags, experiments, approve_groups, reviews, decisions, events
+from src.api.routes import auth, users, feature_flags, experiments, approve_groups, reviews, decisions, events, metrics
 from src.domain.exceptions import AppException, ApiError, ErrorCode, ValidationErrorResponse, FieldError
 from src.core.init_data import create_tables, add_super_admin
 from src.core.settings import settings
@@ -26,7 +26,11 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+    swagger_ui_init_oauth={},
+    swagger_ui_parameters={"persistAuthorization": True},
+)
 
 
 
@@ -39,6 +43,7 @@ api_router.include_router(approve_groups.router, prefix="/users", tags=["Approve
 api_router.include_router(reviews.router, prefix="", tags=["Reviews"])
 api_router.include_router(decisions.router, prefix="", tags=["Decisions"])
 api_router.include_router(events.router, prefix="/events", tags=["Events"])
+api_router.include_router(metrics.router, prefix="/metrics", tags=["Metrics"])
 
 @api_router.get("/ping")
 def send():
