@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     db_password: str
     random_secret: str
 
+    # охлаждение пользователей в экспериментах
+    cooling_period_days: int = 1
+    max_active_experiments_per_subject: int = 10
+
     class Config:
         env_file = ".env"
         case_sensitive = False

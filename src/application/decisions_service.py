@@ -12,12 +12,21 @@ from src.schemas.experiments import VariantResponse
 
 
 class DecisionsService:
-    def __init__(self, experiments_repository: ExperimentsRepositoryInterface, decisions_repository: DecisionsRepositoryInterface, feature_flag_repository: FeatureFlagRepositoryInterface,
-                 parser: DslParserInterface):
+    def __init__(
+        self,
+        experiments_repository: ExperimentsRepositoryInterface,
+        decisions_repository: DecisionsRepositoryInterface,
+        feature_flag_repository: FeatureFlagRepositoryInterface,
+        parser: DslParserInterface,
+        cooling_period_days: int = 1,
+        max_active_experiments: int = 10,
+    ):
         self.experiments_repository = experiments_repository
         self.decisions_repository = decisions_repository
         self.feature_flag_repository = feature_flag_repository
         self.parser = parser
+        self.cooling_period = timedelta(days=cooling_period_days)
+        self.max_active_experiments = max_active_experiments
 
     async def check_target(self, data: dict[any]):
         return True
@@ -92,15 +101,14 @@ class DecisionsService:
             # 1. если число активных экспериментов на этом пользователе выше критического значения
             # 2. если пользователь уже недавно участвовал в эксперименте (с момента создания последнего decisions для этого пользователя прошло мало времени)
 
-            if await self.decisions_repository.count_active_experiments_by_subject(subject.id) > 10: # TODO сделать нормально, не хардкодом
+            if await self.decisions_repository.count_active_experiments_by_subject(subject.id) >= self.max_active_experiments:
                 decisions.append(self._return_default_without_experiment(feature_flag))
                 continue
 
-            last_decision = await self.decisions_repository.get_last_decision_by_subject(subject.id) # TODO вынести куда-то дни охлаждения
+            last_decision = await self.decisions_repository.get_last_decision_by_subject(subject.id)
             if last_decision is not None:
-                cooling_period = timedelta(days=1)
                 time_since_last = datetime.now(timezone.utc) - last_decision.createdAt
-                if time_since_last < cooling_period:
+                if time_since_last < self.cooling_period:
                     decisions.append(self._return_default_without_experiment(feature_flag))
                     continue
 

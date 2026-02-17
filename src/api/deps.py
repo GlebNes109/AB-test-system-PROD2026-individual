@@ -3,8 +3,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.requests import Request
 
 from src.application.decisions_service import DecisionsService
+from src.application.events_sevice import EventsService
 from src.application.reviews_service import ReviewsService
 from src.infra.database.repositories.decisions_repository import DecisionsRepository
+from src.infra.database.repositories.events_repository import EventsRepository
 from src.infra.database.repositories.reviews_repository import ReviewsRepository
 from src.infra.database.repositories.user_repository import UserRepository
 
@@ -12,6 +14,7 @@ from src.core.settings import settings
 from src.infra.database.session import get_session
 from src.models.approver_groups import ApproverGroups
 from src.models.decisions import Decisions
+from src.models.events import Events
 from src.models.experiments import Experiments
 from src.models.reviews import Reviews
 from src.models.users import Users
@@ -162,4 +165,27 @@ async def get_decisions_service(
     feature_flag_repository: FeatureFlagRepository = Depends(get_feature_flag_repository),
     parser: DslParser = Depends(get_dsl_parser)
 ) -> DecisionsService:
-    return DecisionsService(experiments_repository=experiments_repository,decisions_repository=decisions_repository,feature_flag_repository=feature_flag_repository, parser=parser)
+    return DecisionsService(
+        experiments_repository=experiments_repository,
+        decisions_repository=decisions_repository,
+        feature_flag_repository=feature_flag_repository,
+        parser=parser,
+        cooling_period_days=settings.cooling_period_days,
+        max_active_experiments=settings.max_active_experiments_per_subject,
+    )
+
+def get_events_repository(
+    session: AsyncSession = Depends(get_session)
+) -> EventsRepository:
+    return EventsRepository(
+        session=session,
+        model=Events,
+        read_schema=Events
+    )
+
+
+def get_events_service(
+    repository: EventsRepository = Depends(get_events_repository),
+    decisions_repository: DecisionsRepository = Depends(get_decisions_repository),
+) -> EventsService:
+    return EventsService(repository=repository, decisions_repository=decisions_repository)
