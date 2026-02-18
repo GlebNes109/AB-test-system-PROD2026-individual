@@ -20,7 +20,7 @@ services:
       start_period: 10s
 
   api:
-    build: .
+    build: ./ab_test_platform
     profiles: [dev]
     ports:
       - "8080:8080"
@@ -63,7 +63,7 @@ services:
       start_period: 5s
 
   api-test:
-    build: .
+    build: ./ab_test_platform
     profiles: [test]
     environment:
       DB_HOST: test-postgres
@@ -91,12 +91,13 @@ services:
     command: ["sh", "/app/scripts/api_coverage.sh"]
 
   test-runner:
-    build: .
+    build: ./ab_test_platform
     profiles: [test]
     environment:
       TEST_SERVER_URL: "http://api-test:8080"
     volumes:
       - coverage-data:/coverage
+      - ./tests:/app/tests
     depends_on:
       api-test:
         condition: service_healthy
@@ -104,11 +105,68 @@ services:
       - sh
       - -c
       - |
-        pytest -o tavern-global-cfg=tests/config-docker.yml -v
+        pytest -o tavern-global-cfg=tests/config-docker.yml -v tests/
         EXIT=$?
         echo "done" > /coverage/pytest_done
         exit $EXIT
 
+  # ── EMULATOR profile ────────────────────────────────────────
+  emulator-postgres:
+    image: postgres:15-alpine
+    container_name: abtest-emulator-postgres
+    profiles: [emulator]
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: testdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - emulator_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d testdb -h 127.0.0.1 -p 5432"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  emulator-api:
+    build: ./ab_test_platform
+    container_name: abtest-emulator-api
+    profiles: [emulator]
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: emulator-postgres
+      DB_PORT: 5432
+      DB_NAME: testdb
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    depends_on:
+      emulator-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  emulator:
+    build: ./external_system_emulator
+    container_name: abtest-emulator
+    profiles: [emulator]
+    ports:
+      - "8090:8090"
+    environment:
+      AB_PLATFORM_URL: "http://emulator-api:8080"
+      HOST: "0.0.0.0"
+      PORT: "8090"
+    depends_on:
+      emulator-api:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   coverage-data:
+  emulator_pg_data:
