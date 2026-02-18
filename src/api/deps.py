@@ -7,6 +7,8 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 from src.application.decisions_service import DecisionsService
 from src.application.events_sevice import EventsService
+from src.application.reports_service import ReportsService
+from src.infra.database.repositories.reports_repository import ReportsRepository
 from src.application.reviews_service import ReviewsService
 from src.infra.database.repositories.decisions_repository import DecisionsRepository
 from src.infra.database.repositories.events_repository import EventsRepository
@@ -207,3 +209,21 @@ def get_events_service(
     decisions_repository: DecisionsRepository = Depends(get_decisions_repository),
 ) -> EventsService:
     return EventsService(repository=repository, decisions_repository=decisions_repository)
+
+
+def get_reports_repository(
+    session: AsyncSession = Depends(get_session),
+) -> ReportsRepository:
+    return ReportsRepository(session=session)
+
+
+def get_reports_service(
+    reports_repo: ReportsRepository = Depends(get_reports_repository),
+    experiment_repo: ExperimentsRepository = Depends(get_experiment_repository),
+    metrics_repo: MetricsRepository = Depends(get_metrics_repository),
+) -> ReportsService:
+    return ReportsService(
+        reports_repository=reports_repo,
+        experiment_repository=experiment_repo,
+        metrics_repository=metrics_repo,
+    )

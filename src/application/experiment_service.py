@@ -43,7 +43,6 @@ class ExperimentService:
             validate_value_for_flag_type(var.value, flag.type, f"variant '{var.name}'")
 
     async def _resolve_metric_keys(self, metrics: list[ExperimentMetricBind]) -> dict[str, str]:
-        """Resolve metric keys to metric IDs. Returns {key: id} map."""
         metric_id_map = {}
         for m in metrics:
             metric = await self.metrics_repository.get_by_key(m.metric_key)
@@ -58,15 +57,15 @@ class ExperimentService:
             raise UnsupportableContentError(f"Unsupportable targeting rule {data.targeting_rule}")
 
         try:
-            flag = await self.feature_flags_repository.get(data.feature_flag_id)
+            flag = await self.feature_flags_repository.get_by_key(data.feature_flag_key)
         except EntityNotFoundError:
-            raise EntityNotFoundError(f"Feature flag '{data.feature_flag_id}' not found")
+            raise EntityNotFoundError(f"Feature flag '{data.feature_flag_key}' not found")
 
-        await self._validate_variants_type(data.feature_flag_id, data.variants)
+        await self._validate_variants_type(flag.id, data.variants)
 
         metric_id_map = await self._resolve_metric_keys(data.metrics)
 
-        return await self.repository.create_experiment(data, created_by, flag.default_value, metric_id_map)
+        return await self.repository.create_experiment(data, created_by, flag, metric_id_map)
 
     async def get_experiment(self, experiment_id: str) -> ExperimentResponse:
         return await self.repository.get(experiment_id)

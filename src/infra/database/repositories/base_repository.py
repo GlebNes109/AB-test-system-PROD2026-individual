@@ -50,7 +50,7 @@ class BaseRepository(BaseRepositoryInterface):
 
     async def create(self, obj: ModelType) -> ReadModelType:
         db_obj = self.model(**obj.model_dump())
-        db_obj.id = str(uuid.uuid4())
+        # db_obj.id = str(uuid.uuid4())
         try:
             self.session.add(db_obj)
             await self.session.commit()

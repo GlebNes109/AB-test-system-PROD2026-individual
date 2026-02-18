@@ -51,6 +51,13 @@ class Experiments(SQLModel, table=True):
             default=lambda: datetime.now(timezone.utc),
         )
     )
+    started_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=True,
+        )
+    )
 
     versions: List["ExperimentVersions"] = Relationship(back_populates="experiment")
 

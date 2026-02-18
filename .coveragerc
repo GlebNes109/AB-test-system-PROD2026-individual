@@ -1,0 +1,18 @@
+[run]
+source = src
+omit =
+    */tests/*
+    */__pycache__/*
+    src/core/init_data.py
+parallel = true
+
+[report]
+show_missing = true
+skip_covered = false
+precision = 1
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
+    \.\.\.
+    raise NotImplementedError
+    @abstractmethod

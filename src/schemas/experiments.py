@@ -27,7 +27,7 @@ class VariantResponse(BaseModel):
 
 
 class ExperimentCreate(BaseModel):
-    feature_flag_id: str
+    feature_flag_key: str
     name: str
     targeting_rule: Optional[str] = None
     audience_percentage: int
@@ -118,8 +118,10 @@ class ExperimentUpdate(BaseModel):
 class ExperimentResponse(BaseModel):
     id: str
     feature_flag_id: str
+    feature_flag_key: str
     created_by: str
     created_at: datetime
+    started_at: Optional[datetime] = None
     version: int
     # fields from current version
     name: str

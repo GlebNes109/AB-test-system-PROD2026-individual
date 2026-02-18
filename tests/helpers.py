@@ -65,6 +65,8 @@ def verify_experiment_response(response, request=None, **kwargs):
     data = response.json()
     assert "id" in data, "Missing id"
     assert "feature_flag_id" in data, "Missing feature_flag_id"
+    assert "feature_flag_key" in data, "Missing feature_flag_key"
+    assert isinstance(data["feature_flag_key"], str), "feature_flag_key must be a string"
     assert "created_by" in data, "Missing created_by"
     assert "created_at" in data, "Missing created_at"
     assert "version" in data, "Missing version"
@@ -105,4 +107,30 @@ def verify_error_response(response, request=None, **kwargs):
     assert "traceId" in data, "Missing traceId"
     assert "timestamp" in data, "Missing timestamp"
     assert "path" in data, "Missing path"
+    return True
+
+
+def verify_experiment_report(response, request=None, **kwargs):
+    data = response.json()
+    assert "experiment_id" in data, "Missing experiment_id"
+    assert "experiment_name" in data, "Missing experiment_name"
+    assert "date_from" in data, "Missing date_from"
+    assert "date_to" in data, "Missing date_to"
+    assert "total_subjects" in data, "Missing total_subjects"
+    assert "variants" in data, "Missing variants"
+    assert isinstance(data["variants"], list), "variants must be a list"
+    for v in data["variants"]:
+        assert "variant_id" in v, "Missing variant_id"
+        assert "variant_name" in v, "Missing variant_name"
+        assert "subject_count" in v, "Missing subject_count"
+        assert "metrics" in v, "Missing metrics in variant"
+        assert isinstance(v["metrics"], list), "metrics must be a list"
+    assert "totals" in data, "Missing totals"
+    if data["totals"] is not None:
+        t = data["totals"]
+        assert t["variant_id"] == "total", "totals.variant_id must be 'total'"
+        assert t["variant_name"] == "total", "totals.variant_name must be 'total'"
+        assert "subject_count" in t, "Missing subject_count in totals"
+        assert "metrics" in t, "Missing metrics in totals"
+        assert isinstance(t["metrics"], list), "totals.metrics must be a list"
     return True

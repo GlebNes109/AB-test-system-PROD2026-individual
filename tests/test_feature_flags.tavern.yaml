@@ -182,9 +182,9 @@ stages:
         json:
           flag_id: id
 
-  - name: Get flag by ID
+  - name: Get flag by key
     request:
-      url: "{test_server_url}/api/v1/feature-flags/{flag_id}"
+      url: "{test_server_url}/api/v1/feature-flags/get_by_id_flag"
       method: GET
     response:
       status_code: 200
@@ -200,9 +200,9 @@ stages:
 ---
 test_name: Get non-existent feature flag
 stages:
-  - name: Get flag with fake ID
+  - name: Get flag with fake key
     request:
-      url: "{test_server_url}/api/v1/feature-flags/00000000-0000-0000-0000-000000000000"
+      url: "{test_server_url}/api/v1/feature-flags/nonexistent_key"
       method: GET
     response:
       status_code: 404

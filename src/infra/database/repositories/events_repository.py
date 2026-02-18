@@ -1,7 +1,7 @@
 from sqlalchemy import select, update
-from sqlalchemy.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound, IntegrityError
 
-from src.domain.exceptions import EntityNotFoundError
+from src.domain.exceptions import EntityNotFoundError, EntityAlreadyExistsError
 from src.domain.interfaces.repositories.events_repository_interface import EventsRepositoryInterface
 from src.infra.database.repositories.base_repository import BaseRepository
 from src.models.events import EventTypes, Events, EventsStatus
@@ -9,7 +9,18 @@ from src.models.events import EventTypes, Events, EventsStatus
 
 class EventsRepository(BaseRepository, EventsRepositoryInterface):
     async def create_type(self, obj: EventTypes) -> EventTypes:
-        return await self.create(obj)
+        db_obj = obj
+        # db_obj.id = str(uuid.uuid4())
+        try:
+            self.session.add(db_obj)
+            await self.session.commit()
+            await self.session.refresh(db_obj)
+            return EventTypes.model_validate(db_obj, from_attributes=True)
+        except IntegrityError as e:
+            if e.orig.sqlstate == '23505':
+                raise EntityAlreadyExistsError from e
+            else:
+                raise
 
     async def get_type_by_key(self, type_key: str) -> EventTypes:
         stmt = select(EventTypes).where(EventTypes.type == type_key)
@@ -36,8 +47,6 @@ class EventsRepository(BaseRepository, EventsRepositoryInterface):
         return event
 
     async def resolve_pending_events(self, decision_id: str, fulfilled_type_id: str) -> None:
-        """When a new event arrives, promote PENDING events that were waiting for this type."""
-        # Find event types that require the fulfilled type
         type_stmt = select(EventTypes.id).where(EventTypes.requires_event_id == fulfilled_type_id)
         type_result = await self.session.execute(type_stmt)
         dependent_type_ids = [row[0] for row in type_result.all()]

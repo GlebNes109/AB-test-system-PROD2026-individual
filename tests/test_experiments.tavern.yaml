@@ -58,6 +58,7 @@ stages:
       save:
         json:
           flag_id: id
+          flag_key: key
 
   - name: Create metric in catalog
     request:
@@ -80,7 +81,7 @@ stages:
       headers:
         Authorization: "Bearer {experimenter_token}"
       json:
-        feature_flag_id: "{flag_id}"
+        feature_flag_key: "{flag_key}"
         name: "test experiment"
         audience_percentage: 12
         variants:
@@ -99,7 +100,7 @@ stages:
       status_code: 201
       strict: false
       json:
-        feature_flag_id: "{flag_id}"
+        feature_flag_key: "testflag"
         name: "test experiment"
         status: "draft"
         audience_percentage: 12
@@ -141,13 +142,14 @@ stages:
       save:
         json:
           flag_id: id
+          flag_key: key
 
   - name: Try to create experiment without token
     request:
       url: "{test_server_url}/api/v1/experiments"
       method: POST
       json:
-        feature_flag_id: "{flag_id}"
+        feature_flag_key: "{flag_key}"
         name: "no auth experiment"
         audience_percentage: 50
         variants:
@@ -218,6 +220,7 @@ stages:
       save:
         json:
           flag_id: id
+          flag_key: key
 
   - name: Viewer tries to create experiment
     request:
@@ -226,7 +229,7 @@ stages:
       headers:
         Authorization: "Bearer {viewer_token}"
       json:
-        feature_flag_id: "{flag_id}"
+        feature_flag_key: "{flag_key}"
         name: "viewer experiment"
         audience_percentage: 30
         variants:
@@ -303,7 +306,7 @@ stages:
       headers:
         Authorization: "Bearer {experimenter_token}"
       json:
-        feature_flag_id: "00000000-0000-0000-0000-000000000000"
+        feature_flag_key: "nonexistent_flag_key"
         name: "ghost experiment"
         audience_percentage: 50
         variants:
@@ -374,6 +377,7 @@ stages:
       save:
         json:
           flag_id: id
+          flag_key: key
 
   - name: Create metric
     request:
@@ -396,7 +400,7 @@ stages:
       headers:
         Authorization: "Bearer {experimenter_token}"
       json:
-        feature_flag_id: "{flag_id}"
+        feature_flag_key: "{flag_key}"
         name: "bad variants"
         audience_percentage: 50
         variants:
@@ -471,6 +475,7 @@ stages:
       save:
         json:
           flag_id: id
+          flag_key: key
 
   - name: Create metric
     request:
@@ -493,7 +498,7 @@ stages:
       headers:
         Authorization: "Bearer {experimenter_token}"
       json:
-        feature_flag_id: "{flag_id}"
+        feature_flag_key: "{flag_key}"
         name: "no primary metric"
         audience_percentage: 50
         variants:
@@ -564,6 +569,7 @@ stages:
       save:
         json:
           flag_id: id
+          flag_key: key
 
   - name: Create primary metric
     request:
@@ -600,7 +606,7 @@ stages:
       headers:
         Authorization: "Bearer {experimenter_token}"
       json:
-        feature_flag_id: "{flag_id}"
+        feature_flag_key: "{flag_key}"
         name: "guardrail experiment"
         audience_percentage: 50
         variants:
@@ -697,6 +703,7 @@ stages:
       save:
         json:
           flag_id: id
+          flag_key: key
 
   - name: Create metric
     request:
@@ -719,7 +726,7 @@ stages:
       headers:
         Authorization: "Bearer {experimenter_token}"
       json:
-        feature_flag_id: "{flag_id}"
+        feature_flag_key: "{flag_key}"
         name: "get by id experiment"
         audience_percentage: 40
         variants:
@@ -948,6 +955,7 @@ stages:
       save:
         json:
           flag_id: id
+          flag_key: key
 
   - name: Create metric
     request:
@@ -970,7 +978,7 @@ stages:
       headers:
         Authorization: "Bearer {experimenter_token}"
       json:
-        feature_flag_id: "{flag_id}"
+        feature_flag_key: "{flag_key}"
         name: "original name"
         audience_percentage: 30
         variants:
@@ -1156,6 +1164,7 @@ stages:
       save:
         json:
           flag_id: id
+          flag_key: key
 
   - name: Create metric for lifecycle
     request:
@@ -1178,7 +1187,7 @@ stages:
       headers:
         Authorization: "Bearer {experimenter_token}"
       json:
-        feature_flag_id: "{flag_id}"
+        feature_flag_key: "{flag_key}"
         name: "lifecycle experiment"
         audience_percentage: 50
         variants:
@@ -1418,6 +1427,7 @@ stages:
       save:
         json:
           flag_id: id
+          flag_key: key
 
   - name: Create metric
     request:
@@ -1440,7 +1450,7 @@ stages:
       headers:
         Authorization: "Bearer {experimenter_token}"
       json:
-        feature_flag_id: "{flag_id}"
+        feature_flag_key: "{flag_key}"
         name: "draft experiment"
         audience_percentage: 20
         variants:
@@ -1553,6 +1563,7 @@ stages:
       save:
         json:
           flag_id: id
+          flag_key: key
 
   - name: Create metric
     request:
@@ -1575,7 +1586,7 @@ stages:
       headers:
         Authorization: "Bearer {experimenter_token}"
       json:
-        feature_flag_id: "{flag_id}"
+        feature_flag_key: "{flag_key}"
         name: "frozen experiment"
         audience_percentage: 20
         variants:
@@ -1720,6 +1731,7 @@ stages:
       save:
         json:
           flag_id: id
+          flag_key: key
 
   - name: Create metric
     request:
@@ -1742,7 +1754,7 @@ stages:
       headers:
         Authorization: "Bearer {experimenter_token}"
       json:
-        feature_flag_id: "{flag_id}"
+        feature_flag_key: "{flag_key}"
         name: "first experiment"
         audience_percentage: 20
         variants:
@@ -1770,7 +1782,7 @@ stages:
       headers:
         Authorization: "Bearer {experimenter_token}"
       json:
-        feature_flag_id: "{flag_id}"
+        feature_flag_key: "{flag_key}"
         name: "second experiment"
         audience_percentage: 20
         variants:

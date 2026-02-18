@@ -1,0 +1,291 @@
+---
+test_name: Full report flow - create experiment, start, decide, send events, check report
+stages:
+  - name: Login as admin
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "{ADMIN_EMAIL}"
+        password: "{ADMIN_PASSWORD}"
+    response:
+      status_code: 200
+      save:
+        json:
+          admin_token: accessToken
+
+  - name: Create experimenter for reports
+    request:
+      url: "{test_server_url}/api/v1/users"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        email: "report_experimenter@example.com"
+        password: "NewUser123!"
+        role: "EXPERIMENTER"
+    response:
+      status_code: 201
+
+  - name: Login as experimenter
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "report_experimenter@example.com"
+        password: "NewUser123!"
+    response:
+      status_code: 200
+      save:
+        json:
+          experimenter_token: accessToken
+
+  - name: Create approver for reports
+    request:
+      url: "{test_server_url}/api/v1/users"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        email: "report_approver@example.com"
+        password: "Approver123!"
+        role: "APPROVER"
+    response:
+      status_code: 201
+
+  - name: Login as approver
+    request:
+      url: "{test_server_url}/api/v1/auth/login"
+      method: POST
+      json:
+        email: "report_approver@example.com"
+        password: "Approver123!"
+    response:
+      status_code: 200
+      save:
+        json:
+          approver_token: accessToken
+
+  - name: Create feature flag for report test
+    request:
+      url: "{test_server_url}/api/v1/feature-flags"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "report_test_flag"
+        type: "string"
+        default_value: "off"
+    response:
+      status_code: 201
+      save:
+        json:
+          flag_id: id
+          flag_key: key
+
+  - name: Create event type click
+    request:
+      url: "{test_server_url}/api/v1/events/types"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        type: "report_click"
+        description: "Click event for report test"
+    response:
+      status_code: 201
+
+  - name: Create metric for report
+    request:
+      url: "{test_server_url}/api/v1/metrics"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        key: "report_clicks"
+        name: "Report Clicks"
+        event_type: "report_click"
+        aggregation: "COUNT"
+    response:
+      status_code: 201
+
+  - name: Create experiment
+    request:
+      url: "{test_server_url}/api/v1/experiments"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+      json:
+        feature_flag_key: "{flag_key}"
+        name: "report test experiment"
+        audience_percentage: 50
+        variants:
+          - name: "control"
+            value: "off"
+            weight: 25
+            is_control: true
+          - name: "test"
+            value: "on"
+            weight: 25
+            is_control: false
+        metrics:
+          - metric_key: "report_clicks"
+            type: "PRIMARY"
+    response:
+      status_code: 201
+      strict: false
+      json:
+        status: "draft"
+      save:
+        json:
+          experiment_id: id
+
+  - name: Submit for review
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}/submit"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 200
+      strict: false
+      json:
+        status: "review"
+
+  - name: Approve experiment
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}/review"
+      method: POST
+      headers:
+        Authorization: "Bearer {approver_token}"
+      json:
+        decision: "ACCEPT"
+        comment: "Looks good for reports"
+    response:
+      status_code: 200
+
+  - name: Start experiment and verify started_at
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}/start"
+      method: POST
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 200
+      strict: false
+      json:
+        status: "running"
+      verify_response_with:
+        function: tests.helpers:verify_experiment_response
+
+  - name: Verify started_at is present
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}"
+      method: GET
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 200
+      strict: false
+      json:
+        status: "running"
+
+  - name: Make decision for subject 1
+    request:
+      url: "{test_server_url}/api/v1/decision"
+      method: POST
+      json:
+        id: "subject_report_1"
+        subject_attr: {}
+        flags_keys:
+          - "report_test_flag"
+    response:
+      status_code: 200
+      save:
+        json:
+          decision1_id: "[0].id"
+          decision1_value: "[0].value"
+
+  - name: Make decision for subject 2
+    request:
+      url: "{test_server_url}/api/v1/decision"
+      method: POST
+      json:
+        id: "subject_report_2"
+        subject_attr: {}
+        flags_keys:
+          - "report_test_flag"
+    response:
+      status_code: 200
+      save:
+        json:
+          decision2_id: "[0].id"
+          decision2_value: "[0].value"
+
+  - name: Make decision for subject 3
+    request:
+      url: "{test_server_url}/api/v1/decision"
+      method: POST
+      json:
+        id: "subject_report_3"
+        subject_attr: {}
+        flags_keys:
+          - "report_test_flag"
+    response:
+      status_code: 200
+      save:
+        json:
+          decision3_id: "[0].id"
+          decision3_value: "[0].value"
+
+  - name: Make decision for subject 4
+    request:
+      url: "{test_server_url}/api/v1/decision"
+      method: POST
+      json:
+        id: "subject_report_4"
+        subject_attr: {}
+        flags_keys:
+          - "report_test_flag"
+    response:
+      status_code: 200
+      save:
+        json:
+          decision4_id: "[0].id"
+          decision4_value: "[0].value"
+
+  - name: Send events batch
+    request:
+      url: "{test_server_url}/api/v1/events/batch"
+      method: POST
+      json:
+        events:
+          - event_type: "report_click"
+            decision_id: "{decision1_id}"
+            subject_id: "subject_report_1"
+          - event_type: "report_click"
+            decision_id: "{decision2_id}"
+            subject_id: "subject_report_2"
+          - event_type: "report_click"
+            decision_id: "{decision3_id}"
+            subject_id: "subject_report_3"
+          - event_type: "report_click"
+            decision_id: "{decision4_id}"
+            subject_id: "subject_report_4"
+    response:
+      status_code: 207
+
+  - name: Get report without date params (defaults)
+    request:
+      url: "{test_server_url}/api/v1/experiments/{experiment_id}/reports"
+      method: GET
+      headers:
+        Authorization: "Bearer {experimenter_token}"
+    response:
+      status_code: 200
+      strict: false
+      json:
+        experiment_id: "{experiment_id}"
+        experiment_name: "report test experiment"
+      verify_response_with:
+        function: tests.helpers:verify_experiment_report

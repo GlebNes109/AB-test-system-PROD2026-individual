@@ -38,7 +38,7 @@ async def get_feature_flags(
     return await service.get_flags(page, size)
 
 
-"""@router.get(
+@router.get(
     "/{key}",
     summary="Получение флага по ключу",
     description="Получение feature flag по уникальному ключу",
@@ -48,19 +48,7 @@ async def get_feature_flag_by_key(
     key: str,
     service: FeatureFlagService = Depends(get_feature_flag_service),
 ):
-    return await service.get_flag_by_key(key)"""
-
-@router.get(
-    "/{Id}",
-    summary="Получение флага по id",
-    description="Получение feature flag по id",
-    status_code=status.HTTP_200_OK,
-)
-async def get_feature_flag_by_key(
-    Id: str,
-    service: FeatureFlagService = Depends(get_feature_flag_service),
-):
-    return await service.get_flag_by_id(Id)
+    return await service.get_flag_by_key(key)
 
 
 @router.patch(

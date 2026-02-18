@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import select, update, insert, delete, func, literal
@@ -13,6 +14,7 @@ from src.models.experiments import (
     Variants,
     ExperimentStatus,
 )
+from src.models.feature_flags import FeatureFlags
 from src.models.metrics import ExperimentMetrics as ExperimentMetricsModel, Metrics
 from src.schemas.experiments import (
     ExperimentCreate,
@@ -86,12 +88,26 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
         )
         await self._save_metrics(experiment_id, metrics, metric_id_map)
 
-    def _build_response(self, experiment: Experiments, version: ExperimentVersions, metrics: list[ExperimentMetricResponse] = None) -> ExperimentResponse:
+    async def _get_flag_key(self, feature_flag_id: str) -> str:
+        stmt = select(FeatureFlags.key).where(FeatureFlags.id == feature_flag_id)
+        result = await self.session.scalar(stmt)
+        return result or ""
+
+    async def _get_flag_keys_batch(self, feature_flag_ids: list[str]) -> dict[str, str]:
+        if not feature_flag_ids:
+            return {}
+        stmt = select(FeatureFlags.id, FeatureFlags.key).where(FeatureFlags.id.in_(feature_flag_ids))
+        rows = (await self.session.execute(stmt)).all()
+        return {row[0]: row[1] for row in rows}
+
+    def _build_response(self, experiment: Experiments, version: ExperimentVersions, feature_flag_key: str, metrics: list[ExperimentMetricResponse] = None) -> ExperimentResponse:
         return ExperimentResponse(
             id=experiment.id,
             feature_flag_id=experiment.feature_flag_id,
+            feature_flag_key=feature_flag_key,
             created_by=experiment.created_by,
             created_at=experiment.created_at,
+            started_at=experiment.started_at,
             version=experiment.version,
             name=version.name,
             targeting_rule=version.targeting_rule,
@@ -111,13 +127,14 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
             metrics=metrics or [],
         )
 
-    async def create_experiment(self, data: ExperimentCreate, created_by: str, flag_default_value: str, metric_id_map: dict[str, str] = None) -> ExperimentResponse:
+    async def create_experiment(self, data: ExperimentCreate, created_by: str, flag, metric_id_map: dict[str, str] = None) -> ExperimentResponse:
         experiment_id = str(uuid.uuid4())
         version_id = str(uuid.uuid4())
+        flag_default_value = flag.default_value
 
         experiment = Experiments(
             id=experiment_id,
-            feature_flag_id=data.feature_flag_id,
+            feature_flag_id=flag.id,
             created_by=created_by,
             status=ExperimentStatus.DRAFT,
             version=1,
@@ -164,13 +181,14 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
         await self.session.refresh(experiment)
         current_version = await self._get_current_version(experiment_id, 1)
         metrics = await self._get_experiment_metrics(experiment_id)
-        return self._build_response(experiment, current_version, metrics)
+        return self._build_response(experiment, current_version, flag.key, metrics)
 
     async def get(self, experiment_id: str) -> ExperimentResponse:
         experiment = await self._get_experiment_row(experiment_id)
         current_version = await self._get_current_version(experiment_id, experiment.version)
         metrics = await self._get_experiment_metrics(experiment_id)
-        return self._build_response(experiment, current_version, metrics)
+        flag_key = await self._get_flag_key(experiment.feature_flag_id)
+        return self._build_response(experiment, current_version, flag_key, metrics)
 
     async def get_all_experiments(
         self,
@@ -236,13 +254,19 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
                     )
                 )
 
+        # Batch-load flag keys
+        flag_ids = list({exp.feature_flag_id for exp, _ in rows})
+        flag_key_map = await self._get_flag_keys_batch(flag_ids)
+
         items = []
         for experiment, version in rows:
             resp = ExperimentResponse(
                 id=experiment.id,
                 feature_flag_id=experiment.feature_flag_id,
+                feature_flag_key=flag_key_map.get(experiment.feature_flag_id, ""),
                 created_by=experiment.created_by,
                 created_at=experiment.created_at,
+                started_at=experiment.started_at,
                 version=experiment.version,
                 name=version.name,
                 targeting_rule=version.targeting_rule,
@@ -334,24 +358,30 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
         updated = await self._get_experiment_row(experiment_id)
         current_version = await self._get_current_version(experiment_id, updated.version)
         metrics = await self._get_experiment_metrics(experiment_id)
-        return self._build_response(updated, current_version, metrics)
+        flag_key = await self._get_flag_key(updated.feature_flag_id)
+        return self._build_response(updated, current_version, flag_key, metrics)
 
     async def transition_status(
         self, experiment_id: str, new_status: ExperimentStatus
     ) -> ExperimentResponse:
         experiment = await self._get_experiment_row(experiment_id)
 
+        values: dict = {"status": new_status}
+        if new_status == ExperimentStatus.RUNNING and experiment.started_at is None:
+            values["started_at"] = datetime.now(timezone.utc)
+
         await self.session.execute(
             update(Experiments)
             .where(Experiments.id == experiment_id)
-            .values(status=new_status)
+            .values(**values)
         )
         await self.session.commit()
 
         await self.session.refresh(experiment)
         current_version = await self._get_current_version(experiment_id, experiment.version)
         metrics = await self._get_experiment_metrics(experiment_id)
-        return self._build_response(experiment, current_version, metrics)
+        flag_key = await self._get_flag_key(experiment.feature_flag_id)
+        return self._build_response(experiment, current_version, flag_key, metrics)
 
     async def has_active_experiment_for_flag(self, feature_flag_id: str) -> bool:
         stmt = select(func.count()).select_from(
@@ -372,4 +402,5 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
             return None
         current_version = await self._get_current_version(experiment.id, experiment.version)
         metrics = await self._get_experiment_metrics(experiment.id)
-        return self._build_response(experiment, current_version, metrics)
+        flag_key = await self._get_flag_key(experiment.feature_flag_id)
+        return self._build_response(experiment, current_version, flag_key, metrics)
