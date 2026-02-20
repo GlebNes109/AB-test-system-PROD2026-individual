@@ -125,12 +125,10 @@ def verify_experiment_report(response, request=None, **kwargs):
         assert "subject_count" in v, "Missing subject_count"
         assert "metrics" in v, "Missing metrics in variant"
         assert isinstance(v["metrics"], list), "metrics must be a list"
-    assert "totals" in data, "Missing totals"
-    if data["totals"] is not None:
-        t = data["totals"]
-        assert t["variant_id"] == "total", "totals.variant_id must be 'total'"
-        assert t["variant_name"] == "total", "totals.variant_name must be 'total'"
-        assert "subject_count" in t, "Missing subject_count in totals"
-        assert "metrics" in t, "Missing metrics in totals"
-        assert isinstance(t["metrics"], list), "totals.metrics must be a list"
+    assert "total_metrics" in data, "Missing total_metrics"
+    assert isinstance(data["total_metrics"], list), "total_metrics must be a list"
+    for m in data["total_metrics"]:
+        assert "metric_key" in m, "Missing metric_key in total_metrics"
+        assert "metric_name" in m, "Missing metric_name in total_metrics"
+        assert "value" in m, "Missing value in total_metrics"
     return True

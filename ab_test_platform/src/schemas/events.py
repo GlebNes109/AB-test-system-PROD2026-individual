@@ -42,3 +42,10 @@ class EventItemResponse(BaseModel):
 
 class EventsBatchResponse(BaseModel):
     results: list[EventItemResponse]
+
+
+class PagedEventTypes(BaseModel):
+    items: list[EventTypesResponse]
+    total: int
+    page: int
+    size: int

@@ -14,7 +14,7 @@ class Granularity(str, Enum):
 class VariantMetricValue(BaseModel):
     metric_key: str
     metric_name: str
-    value: Optional[float] = None
+    value: Optional[float] = 0
 
 
 class VariantReport(BaseModel):
@@ -33,7 +33,7 @@ class ExperimentReport(BaseModel):
     date_to: datetime
     total_subjects: int
     variants: list[VariantReport]
-    totals: Optional[VariantReport] = None
+    total_metrics: list[VariantMetricValue]
 
 
 class TimeseriesPoint(BaseModel):

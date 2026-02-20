@@ -13,6 +13,7 @@ class ReportsRepositoryInterface(Protocol):
         payload_field: str | None,
         date_from: datetime,
         date_to: datetime,
+        prerequisite_event_type: str | None = None,
     ) -> list[Any]:
         ...
 
@@ -26,6 +27,7 @@ class ReportsRepositoryInterface(Protocol):
         granularity: str,
         date_from: datetime,
         date_to: datetime,
+        prerequisite_event_type: str | None = None,
     ) -> list[Any]:
         ...
 

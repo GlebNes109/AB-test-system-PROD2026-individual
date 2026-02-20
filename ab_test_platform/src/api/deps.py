@@ -5,6 +5,7 @@ from fastapi.requests import Request
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
+from ab_test_platform.src.infra.database.repositories.guardrail_repository import GuardrailRepository
 from ab_test_platform.src.application.decisions_service import DecisionsService
 from ab_test_platform.src.application.events_sevice import EventsService
 from ab_test_platform.src.application.reports_service import ReportsService
@@ -135,10 +136,6 @@ def get_metrics_repository(
 ) -> MetricsRepository:
     return MetricsRepository(session=session, model=Metrics, read_schema=Metrics)
 
-def get_metrics_service(
-    repo: MetricsRepository = Depends(get_metrics_repository),
-) -> MetricsService:
-    return MetricsService(repo)
 
 def get_experiment_service(
     repo: ExperimentsRepository = Depends(get_experiment_repository),
@@ -203,12 +200,23 @@ def get_events_repository(
         read_schema=Events
     )
 
+def get_metrics_service(
+    repo: MetricsRepository = Depends(get_metrics_repository),
+events_repository: EventsRepository = Depends(get_events_repository)
+) -> MetricsService:
+    return MetricsService(repo, events_repository)
 
 def get_events_service(
     repository: EventsRepository = Depends(get_events_repository),
     decisions_repository: DecisionsRepository = Depends(get_decisions_repository),
 ) -> EventsService:
     return EventsService(repository=repository, decisions_repository=decisions_repository)
+
+
+def get_guardrail_repository(
+    session: AsyncSession = Depends(get_session),
+) -> GuardrailRepository:
+    return GuardrailRepository(session=session)
 
 
 def get_reports_repository(

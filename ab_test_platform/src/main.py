@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -13,6 +14,7 @@ from ab_test_platform.src.api.deps import get_hash_creator
 from ab_test_platform.src.api.routes import reports, feature_flags, decisions, experiments, auth, approve_groups, \
     events, users, reviews, metrics
 from ab_test_platform.src.domain.exceptions import AppException, ApiError, ErrorCode, ValidationErrorResponse, FieldError
+from ab_test_platform.src.application.guardrail_worker import guardrail_loop
 from ab_test_platform.src.core.init_data import create_tables, add_super_admin
 from ab_test_platform.src.core.settings import settings
 from ab_test_platform.src.infra.database.session import async_session_maker
@@ -24,7 +26,13 @@ async def lifespan(app: FastAPI):
         hash_creator = get_hash_creator()
         await create_tables()
         await add_super_admin(hash_creator, session)
+    task = asyncio.create_task(guardrail_loop(settings.guardrail_check_interval_seconds))
     yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
 
 
 app = FastAPI(

@@ -165,14 +165,14 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
             ))
 
         # Дефолтный вариант создается вместе с другими. Пользователи вне тестовой группы получают значение флага по умолчанию
-        self.session.add(Variants(
+        """self.session.add(Variants(
             id=str(uuid.uuid4()),
             experiment_version_id=version_id,
             name="default",
             value=str(flag_default_value),
             weight=100 - data.audience_percentage,
             is_control=False,
-        ))
+        ))"""
 
         if metric_id_map:
             await self._save_metrics(experiment_id, data.metrics, metric_id_map)
@@ -319,7 +319,7 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
                     is_control=var.is_control,
                 ))
             # Пересчет дефолтного варианта под новый audience и variants
-            if flag_default_value is not None:
+            """if flag_default_value is not None:
                 self.session.add(Variants(
                     id=str(uuid.uuid4()),
                     experiment_version_id=new_version_id,
@@ -327,7 +327,7 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
                     value=str(flag_default_value),
                     weight=100 - new_audience,
                     is_control=False,
-                ))
+                ))"""
         else:
             # Копирование вариантов из предыдущей версии одним SQL-запросом
             await self.session.execute(
@@ -394,6 +394,18 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
         )
         count = await self.session.scalar(stmt)
         return (count or 0) > 0
+
+    async def get_running_experiments(self) -> list[ExperimentResponse]:
+        stmt = select(Experiments).where(Experiments.status == ExperimentStatus.RUNNING)
+        rows = (await self.session.execute(stmt)).scalars().all()
+
+        results = []
+        for experiment in rows:
+            current_version = await self._get_current_version(experiment.id, experiment.version)
+            metrics = await self._get_experiment_metrics(experiment.id)
+            flag_key = await self._get_flag_key(experiment.feature_flag_id)
+            results.append(self._build_response(experiment, current_version, flag_key, metrics))
+        return results
 
     async def get_active_experiment_for_flag(self, feature_flag_id: str) -> ExperimentResponse | None:
         stmt = select(Experiments).where(Experiments.feature_flag_id == feature_flag_id, Experiments.status == ExperimentStatus.RUNNING)

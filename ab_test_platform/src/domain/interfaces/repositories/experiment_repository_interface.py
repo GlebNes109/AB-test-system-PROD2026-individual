@@ -43,3 +43,7 @@ class ExperimentsRepositoryInterface(BaseRepositoryInterface, Protocol):
     @abstractmethod
     async def get_active_experiment_for_flag(self, feature_flag_id: str) -> ExperimentResponse | None:
         ...
+
+    @abstractmethod
+    async def get_running_experiments(self) -> list[ExperimentResponse]:
+        ...

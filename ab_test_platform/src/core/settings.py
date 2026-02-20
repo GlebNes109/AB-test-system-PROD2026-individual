@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     cooling_period_days: int = 1
     max_active_experiments_per_subject: int = 10
 
+    guardrail_check_interval_seconds: int = 60
+
     class Config:
         env_file = ".env"
         case_sensitive = False

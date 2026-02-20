@@ -10,6 +10,7 @@ from ab_test_platform.src.models.feature_flags import FeatureFlags  # noqa: F401
 from ab_test_platform.src.models.experiments import Experiments, ExperimentVersions, Variants  # noqa: F401 — needed for metadata
 from ab_test_platform.src.models.approver_groups import ApproverGroups, ApproverGroupMembers  # noqa: F401 — needed for metadata
 from ab_test_platform.src.models.metrics import Metrics, ExperimentMetrics  # noqa: F401 — needed for metadata
+from ab_test_platform.src.models.guardrail_triggers import GuardrailTriggers  # noqa: F401 — needed for metadata
 
 from ab_test_platform.src.infra.utils.hash_creator import HashCreator
 

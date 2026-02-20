@@ -1,12 +1,13 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select, func, cast, Float, distinct
+from sqlalchemy import select, func, cast, Float, distinct, exists
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from ab_test_platform.src.domain.interfaces.repositories.reports_repository_interface import ReportsRepositoryInterface
 from ab_test_platform.src.models.decisions import Decisions
-from ab_test_platform.src.models.events import Events, EventTypes
+from ab_test_platform.src.models.events import Events, EventTypes, EventsStatus
 
 
 class ReportsRepository(ReportsRepositoryInterface):
@@ -31,8 +32,9 @@ class ReportsRepository(ReportsRepositoryInterface):
         event_type: str,
         date_from: datetime,
         date_to: datetime,
+        prerequisite_event_type: str | None = None,
     ):
-        return (
+        stmt = (
             select(Decisions.variant_id)
             .select_from(Events)
             .join(EventTypes, Events.event_type_id == EventTypes.id)
@@ -40,10 +42,29 @@ class ReportsRepository(ReportsRepositoryInterface):
             .where(
                 Decisions.experiment_id == experiment_id,
                 EventTypes.type == event_type,
+                Events.status == EventsStatus.RECEIVED,
                 Events.occurred_at >= date_from,
                 Events.occurred_at <= date_to,
             )
         )
+
+        if prerequisite_event_type:
+            PrereqEvents = aliased(Events)
+            PrereqTypes = aliased(EventTypes)
+            stmt = stmt.where(
+                exists(
+                    select(PrereqEvents.id)
+                    .join(PrereqTypes, PrereqEvents.event_type_id == PrereqTypes.id)
+                    .where(
+                        PrereqEvents.subject_id == Events.subject_id,
+                        PrereqEvents.decision_id == Events.decision_id,
+                        PrereqTypes.type == prerequisite_event_type,
+                        PrereqEvents.status == EventsStatus.RECEIVED,
+                    )
+                )
+            )
+
+        return stmt
 
     async def compute_metric_summary(
         self,
@@ -53,10 +74,11 @@ class ReportsRepository(ReportsRepositoryInterface):
         payload_field: str | None,
         date_from: datetime,
         date_to: datetime,
+        prerequisite_event_type: str | None = None,
     ) -> list[Any]:
         agg = self._build_agg_expr(aggregation, payload_field)
         stmt = (
-            self._base_query(experiment_id, event_type, date_from, date_to)
+            self._base_query(experiment_id, event_type, date_from, date_to, prerequisite_event_type)
             .add_columns(agg.label("value"))
             .group_by(Decisions.variant_id)
         )
@@ -72,11 +94,12 @@ class ReportsRepository(ReportsRepositoryInterface):
         granularity: str,
         date_from: datetime,
         date_to: datetime,
+        prerequisite_event_type: str | None = None,
     ) -> list[Any]:
         agg = self._build_agg_expr(aggregation, payload_field)
         bucket = func.date_trunc(granularity, Events.occurred_at).label("bucket")
         stmt = (
-            self._base_query(experiment_id, event_type, date_from, date_to)
+            self._base_query(experiment_id, event_type, date_from, date_to, prerequisite_event_type)
             .add_columns(bucket, agg.label("value"))
             .group_by(Decisions.variant_id, bucket)
             .order_by(bucket)

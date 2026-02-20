@@ -16,7 +16,7 @@ class MetricCreate(BaseModel):
     payload_field: Optional[str] = None
     denominator_event_type: Optional[str] = None
     denominator_aggregation: Optional[AggregationType] = None
-    requires_exposure: bool = False
+    prerequisite_event_type: Optional[str] = None
 
     @model_validator(mode="after")
     def validate_aggregation_fields(self) -> "MetricCreate":
@@ -39,7 +39,7 @@ class MetricUpdate(BaseModel):
     payload_field: Optional[str] = None
     denominator_event_type: Optional[str] = None
     denominator_aggregation: Optional[AggregationType] = None
-    requires_exposure: Optional[bool] = None
+    prerequisite_event_type: Optional[str] = None
 
 
 class MetricResponse(BaseModel):
@@ -52,7 +52,7 @@ class MetricResponse(BaseModel):
     payload_field: Optional[str]
     denominator_event_type: Optional[str]
     denominator_aggregation: Optional[AggregationType]
-    requires_exposure: bool
+    prerequisite_event_type: Optional[str]
     created_at: datetime
 
     model_config = {"from_attributes": True}

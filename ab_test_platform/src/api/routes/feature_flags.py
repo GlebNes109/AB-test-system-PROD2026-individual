@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from fastapi.params import Query
 from starlette import status
+from starlette.responses import JSONResponse, Response
 
 from ab_test_platform.src.api.deps import require_roles, get_feature_flag_service
 from ab_test_platform.src.application.feature_flag_service import FeatureFlagService
@@ -64,3 +65,18 @@ async def update_feature_flag_default(
     service: FeatureFlagService = Depends(get_feature_flag_service),
 ):
     return await service.update_default_value(key, update_data)
+
+@router.delete(
+    "/{key}",
+    summary="удаление по ключу",
+    description="Удаление флага по ключу",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def update_feature_flag_default(
+    key: str,
+    update_data: FeatureFlagUpdateDefault,
+    current_user: Users = Depends(require_roles(["ADMIN", "EXPERIMENTER"])),
+    service: FeatureFlagService = Depends(get_feature_flag_service),
+):
+    await service.delete(key)
+    return Response(status_code=204)

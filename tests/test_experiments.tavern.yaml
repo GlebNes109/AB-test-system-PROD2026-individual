@@ -43,6 +43,48 @@ stages:
         json:
           experimenter_token: accessToken
 
+  - name: Create event click
+    request:
+      url: "{test_server_url}/api/v1/events/types"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        {
+          "type": "click",
+          "description": "клик"
+        }
+    response:
+      status_code: 201
+
+  - name: Create error event
+    request:
+      url: "{test_server_url}/api/v1/events/types"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        {
+          "type": "error",
+          "description": "ошибка"
+        }
+    response:
+      status_code: 201
+
+  - name: Create purchase event
+    request:
+      url: "{test_server_url}/api/v1/events/types"
+      method: POST
+      headers:
+        Authorization: "Bearer {admin_token}"
+      json:
+        {
+          "type": "purchase",
+          "description": "purchase"
+        }
+    response:
+      status_code: 201
+
   - name: Create flag
     request:
       url: "{test_server_url}/api/v1/feature-flags"

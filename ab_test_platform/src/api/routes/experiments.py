@@ -3,8 +3,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from starlette import status
 
-from ab_test_platform.src.api.deps import require_roles, get_experiment_service, check_experimenter_access
+from ab_test_platform.src.api.deps import require_roles, get_experiment_service, check_experimenter_access, get_guardrail_repository
 from ab_test_platform.src.application.experiment_service import ExperimentService
+from ab_test_platform.src.infra.database.repositories.guardrail_repository import GuardrailRepository
+from ab_test_platform.src.models.guardrail_triggers import GuardrailTriggers
 from ab_test_platform.src.models.users import Users
 from ab_test_platform.src.schemas.experiments import (
     ExperimentCreate,
@@ -182,3 +184,18 @@ async def archive_experiment(
     _: None = Depends(check_experimenter_access)
 ) -> ExperimentResponse:
     return await service.archive_experiment(experiment_id, current_user.id)
+
+
+@router.get(
+    "/{experiment_id}/guardrail-triggers",
+    summary="Список срабатываний гарантий",
+    description="Возвращает список срабатываний guardrail-метрик для эксперимента.",
+    status_code=status.HTTP_200_OK,
+    response_model=list[GuardrailTriggers],
+)
+async def get_guardrail_triggers(
+    experiment_id: str,
+    current_user: Users = Depends(require_roles(_ALL_ROLES)),
+    repo: GuardrailRepository = Depends(get_guardrail_repository),
+) -> list[GuardrailTriggers]:
+    return await repo.get_triggers_by_experiment(experiment_id)

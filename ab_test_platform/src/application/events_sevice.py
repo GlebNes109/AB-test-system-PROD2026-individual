@@ -4,7 +4,7 @@ from ab_test_platform.src.domain.exceptions import EntityNotFoundError
 from ab_test_platform.src.domain.interfaces.repositories.decisions_repository_interface import DecisionsRepositoryInterface
 from ab_test_platform.src.domain.interfaces.repositories.events_repository_interface import EventsRepositoryInterface
 from ab_test_platform.src.models.events import Events, EventTypes, EventsStatus
-from ab_test_platform.src.schemas.events import EventCreate, EventTypesCreate, EventItemResponse, EventsBatchResponse, EventTypesResponse
+from ab_test_platform.src.schemas.events import EventCreate, EventTypesCreate, EventItemResponse, EventsBatchResponse, EventTypesResponse, PagedEventTypes
 
 
 class EventsService:
@@ -23,6 +23,15 @@ class EventsService:
 
         event_type = await self.repository.create_type(EventTypes(**data.model_dump()))
         return EventTypesResponse.model_validate(event_type, from_attributes=True)
+
+    async def get_event_types(self, page: int, size: int) -> PagedEventTypes:
+        items, total = await self.repository.get_all_types(limit=size, offset=page * size)
+        return PagedEventTypes(
+            items=[EventTypesResponse.model_validate(et, from_attributes=True) for et in items],
+            total=total,
+            page=page,
+            size=size,
+        )
 
     async def _process_single_event(self, event_data: EventCreate) -> EventItemResponse | None:
         # 1. Получить event_type

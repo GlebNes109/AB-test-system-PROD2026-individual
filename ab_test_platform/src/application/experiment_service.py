@@ -52,6 +52,8 @@ class ExperimentService:
     async def create_experiment(
         self, data: ExperimentCreate, created_by: str
     ) -> ExperimentResponse:
+        for metric in data.metrics:
+            await self.metrics_repository.get_by_key(metric.metric_key)
 
         if data.targeting_rule is not None and not self.parser.validate(data.targeting_rule):
             raise UnsupportableContentError(f"Unsupportable targeting rule {data.targeting_rule}")
@@ -91,6 +93,9 @@ class ExperimentService:
         self, experiment_id: str, data: ExperimentUpdate, modified_by: str
     ) -> ExperimentResponse:
         experiment = await self.repository.get(experiment_id)
+        if data.metrics is not None:
+            for metric in data.metrics:
+                await self.metrics_repository.get_by_key(metric.metric_key)
 
         if data.targeting_rule is not None and not self.parser.validate(data.targeting_rule):
             raise UnsupportableContentError(f"Unsupportable targeting rule {data.targeting_rule}")

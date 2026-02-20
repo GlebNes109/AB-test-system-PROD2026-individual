@@ -1,4 +1,4 @@
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.exc import IntegrityError
 
 from ab_test_platform.src.domain.exceptions import EntityNotFoundError, EntityAlreadyExistsError
@@ -21,6 +21,15 @@ class EventsRepository(BaseRepository, EventsRepositoryInterface):
                 raise EntityAlreadyExistsError from e
             else:
                 raise
+
+    async def get_all_types(self, limit: int, offset: int) -> tuple[list[EventTypes], int]:
+        count_stmt = select(func.count()).select_from(EventTypes)
+        total = await self.session.scalar(count_stmt)
+
+        stmt = select(EventTypes).order_by(EventTypes.created_at.desc()).limit(limit).offset(offset)
+        result = await self.session.execute(stmt)
+        items = list(result.scalars().all())
+        return items, total or 0
 
     async def get_type_by_key(self, type_key: str) -> EventTypes:
         stmt = select(EventTypes).where(EventTypes.type == type_key)

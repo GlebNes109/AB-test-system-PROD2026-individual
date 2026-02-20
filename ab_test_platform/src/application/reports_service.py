@@ -48,7 +48,7 @@ class ReportsService:
         for bm in bound_metrics:
             full_metrics[bm.metric_id] = await self.metrics_repository.get(bm.metric_id)
 
-        variant_info = {v.id: v for v in experiment.variants if v.name != "default"}
+        variant_info = {v.id: v for v in experiment.variants}
 
         # Подсчет subject_rows по варианту
         subject_rows = await self.reports_repository.count_subjects_per_variant(
@@ -58,7 +58,6 @@ class ReportsService:
 
         variant_metrics: dict[str, list[VariantMetricValue]] = {vid: [] for vid in variant_info}
 
-        # Store raw numerators/denominators per metric per variant for totals computation
         raw_numerators: dict[str, dict[str, float | None]] = {}
         raw_denominators: dict[str, dict[str, float | None] | None] = {}
 
@@ -72,6 +71,7 @@ class ReportsService:
                 payload_field=metric.payload_field,
                 date_from=date_from,
                 date_to=date_to,
+                prerequisite_event_type=metric.prerequisite_event_type,
             )
             numerator_map: dict[str, float | None] = {
                 row.variant_id: float(row.value) if row.value is not None else None
@@ -88,6 +88,7 @@ class ReportsService:
                     payload_field=None,
                     date_from=date_from,
                     date_to=date_to,
+                    prerequisite_event_type=metric.prerequisite_event_type,
                 )
                 denominator_map = {
                     row.variant_id: float(row.value) if row.value is not None else None
@@ -125,8 +126,8 @@ class ReportsService:
             for v in variant_info.values()
         ]
 
-        # Compute totals across all non-default variants
-        non_control_vids = [vid for vid, v in variant_info.items() if not v.is_control]
+        # Compute totals across all variants
+        non_control_vids = [vid for vid, v in variant_info.items()]
         total_metrics: list[VariantMetricValue] = []
         for bm in bound_metrics:
             num_sum = 0.0
@@ -156,18 +157,6 @@ class ReportsService:
                 )
             )
 
-        total_non_control_subjects = sum(
-            subject_counts.get(vid, 0) for vid in non_control_vids
-        )
-        totals = VariantReport(
-            variant_id="total",
-            variant_name="total",
-            variant_value="",
-            is_control=False,
-            subject_count=total_non_control_subjects,
-            metrics=total_metrics,
-        )
-
         return ExperimentReport(
             experiment_id=experiment.id,
             experiment_name=experiment.name,
@@ -175,7 +164,7 @@ class ReportsService:
             date_to=date_to,
             total_subjects=total_subjects,
             variants=variants,
-            totals=totals,
+            total_metrics=total_metrics,
         )
 
     async def get_timeseries_report(
@@ -213,6 +202,7 @@ class ReportsService:
                 granularity=granularity.value,
                 date_from=date_from,
                 date_to=date_to,
+                prerequisite_event_type=metric.prerequisite_event_type,
             )
 
             numerator_by_variant: dict[str, list[tuple]] = {vid: [] for vid in variant_info}
@@ -230,6 +220,7 @@ class ReportsService:
                     granularity=granularity.value,
                     date_from=date_from,
                     date_to=date_to,
+                    prerequisite_event_type=metric.prerequisite_event_type,
                 )
                 denominator_by_variant = {vid: {} for vid in variant_info}
                 for row in denom_rows:

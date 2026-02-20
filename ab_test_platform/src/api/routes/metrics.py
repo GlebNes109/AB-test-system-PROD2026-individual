@@ -37,40 +37,40 @@ async def get_metrics(
 
 
 @router.get(
-    "/{metric_id}",
+    "/{metric_key}",
     summary="Получение метрики",
     response_model=MetricResponse,
 )
 async def get_metric(
-    metric_id: str,
+    metric_key: str,
     current_user=Depends(require_roles(["ADMIN", "EXPERIMENTER", "APPROVER", "VIEWER"])),
     service: MetricsService = Depends(get_metrics_service),
 ):
-    return await service.get_metric(metric_id)
+    return await service.get_metric(metric_key)
 
 
 @router.patch(
-    "/{metric_id}",
+    "/{metric_key}",
     summary="Обновление метрики",
     response_model=MetricResponse,
 )
 async def update_metric(
-    metric_id: str,
+    metric_key: str,
     body: MetricUpdate,
     current_user=Depends(require_roles(["ADMIN"])),
     service: MetricsService = Depends(get_metrics_service),
 ):
-    return await service.update_metric(metric_id, body)
+    return await service.update_metric(metric_key, body)
 
 
 @router.delete(
-    "/{metric_id}",
+    "/{metric_key}",
     summary="Удаление метрики",
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def delete_metric(
-    metric_id: str,
+    metric_key: str,
     current_user=Depends(require_roles(["ADMIN"])),
     service: MetricsService = Depends(get_metrics_service),
 ):
-    await service.delete_metric(metric_id)
+    await service.delete_metric(metric_key)

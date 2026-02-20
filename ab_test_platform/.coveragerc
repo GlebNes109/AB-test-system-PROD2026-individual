@@ -1,9 +1,9 @@
 [run]
-source = src
+source = ab_test_platform/src
 omit =
     */tests/*
     */__pycache__/*
-    src/core/init_data.py
+    ab_test_platform/src/core/init_data.py
 parallel = true
 
 [report]

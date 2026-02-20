@@ -15,6 +15,10 @@ class EventsRepositoryInterface(BaseRepositoryInterface, Protocol):
         ...
 
     @abstractmethod
+    async def get_all_types(self, limit: int, offset: int) -> tuple[list[EventTypes], int]:
+        ...
+
+    @abstractmethod
     async def get_event_by_decision_and_type(self, decision_id: str, event_type_id: str) -> Events | None:
         ...
 

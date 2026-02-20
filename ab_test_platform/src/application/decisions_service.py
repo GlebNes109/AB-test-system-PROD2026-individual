@@ -38,18 +38,20 @@ class DecisionsService:
         return int(digest, 16) % 100
 
     @staticmethod
-    def _pick_variant(variants: list[VariantResponse], bucket: int) -> VariantResponse:
+    def _pick_variant(variants: list[VariantResponse], bucket: int) -> VariantResponse | None:
         cumulative = 0
         for variant in variants:
             cumulative += variant.weight
             if bucket < cumulative:
                 return variant
-        return variants[-1]
+        return None
 
 
-    async def _make_ab_decision(self, subject_id: str, experiment) -> Decisions:
+    async def _make_ab_decision(self, subject_id: str, experiment) -> Decisions | None:
         bucket = self._hash_bucket(subject_id, experiment.id)
         variant = self._pick_variant(experiment.variants, bucket)
+        if variant is None:
+            return None
 
         decision = await self.decisions_repository.create(Decisions(
             subject_id=subject_id,
@@ -114,6 +116,10 @@ class DecisionsService:
 
 
             decision = await self._make_ab_decision(subject_id=subject.id, experiment=experiment)
+            # если пользователь не попал в эксперимент по результатам проверки
+            if decision is None:
+                decisions.append(self._return_default_without_experiment(feature_flag))
+                continue
 
             decisions.append(DecisionsResponse(value=decision.value, id=decision.id, created_at=decision.createdAt))
 

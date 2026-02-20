@@ -52,3 +52,7 @@ class FeatureFlagService:
         )
         flag_read = await self.repository.update_default_value(key, validated)
         return FeatureFlagResponse.model_validate(flag_read, from_attributes=True)
+
+    async def delete(self, key: str):
+        flag = await self.repository.get_by_key(key)
+        await self.repository.delete(flag.id)
