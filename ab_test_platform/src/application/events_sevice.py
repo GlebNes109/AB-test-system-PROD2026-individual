@@ -47,7 +47,7 @@ class EventsService:
             raw = EventsRaw(
                 event_type_id="unknown",
                 decision_id=event_data.decision_id,
-                subject_id=event_data.subject_id,
+                subject_id=None,
                 payload=event_data.payload,
                 status=EventsStatus.REJECTED,
                 rejected_reason=RejectedReason.INVALID_EVENT_TYPE,
@@ -61,14 +61,14 @@ class EventsService:
                 error=f"Event type '{event_data.event_type}' not found",
             )
 
-        # 2. Валидация decision_id
+        # 2. Валидация decision_id — берём subject_id отсюда
         try:
-            await self.decisions_repository.get(event_data.decision_id)
+            decision = await self.decisions_repository.get(event_data.decision_id)
         except EntityNotFoundError:
             raw = EventsRaw(
                 event_type_id=event_type.id,
                 decision_id=event_data.decision_id,
-                subject_id=event_data.subject_id,
+                subject_id=None,
                 payload=event_data.payload,
                 status=EventsStatus.REJECTED,
                 rejected_reason=RejectedReason.INVALID_DECISION_ID,
@@ -82,6 +82,8 @@ class EventsService:
                 error=f"Decision '{event_data.decision_id}' not found",
             )
 
+        subject_id = decision.subject_id
+
         # 3. Проверка на дублирование в таблице принятых событий
         existing = await self.repository.get_event_by_decision_and_type(
             event_data.decision_id, event_type.id
@@ -90,7 +92,7 @@ class EventsService:
             raw = EventsRaw(
                 event_type_id=event_type.id,
                 decision_id=event_data.decision_id,
-                subject_id=event_data.subject_id,
+                subject_id=subject_id,
                 payload=event_data.payload,
                 status=EventsStatus.REJECTED,
                 rejected_reason=RejectedReason.DUPLICATE,
@@ -106,14 +108,15 @@ class EventsService:
 
         # 4. Обработка в зависимости от наличия зависимости у типа события
         if event_type.requires_event_id is None:
-            return await self._process_independent_event(event_data, event_type, index, now, occurred_at)
+            return await self._process_independent_event(event_data, event_type, subject_id, index, now, occurred_at)
         else:
-            return await self._process_dependent_event(event_data, event_type, index, now, occurred_at)
+            return await self._process_dependent_event(event_data, event_type, subject_id, index, now, occurred_at)
 
     async def _process_independent_event(
         self,
         event_data: EventCreate,
         event_type: EventTypes,
+        subject_id: str,
         index: int,
         now: datetime,
         occurred_at: datetime,
@@ -124,7 +127,7 @@ class EventsService:
         raw = EventsRaw(
             event_type_id=event_type.id,
             decision_id=event_data.decision_id,
-            subject_id=event_data.subject_id,
+            subject_id=subject_id,
             payload=event_data.payload,
             status=EventsStatus.RECEIVED,
             occurred_at=occurred_at,
@@ -136,7 +139,7 @@ class EventsService:
         event = Events(
             event_type_id=event_type.id,
             decision_id=event_data.decision_id,
-            subject_id=event_data.subject_id,
+            subject_id=subject_id,
             payload=event_data.payload,
             occurred_at=occurred_at,
             received_at=now,
@@ -177,28 +180,24 @@ class EventsService:
         self,
         event_data: EventCreate,
         event_type: EventTypes,
+        subject_id: str,
         index: int,
         now: datetime,
         occurred_at: datetime,
     ) -> EventItemResponse:
         """Событие с зависимостью (requires_event_type не пустое)."""
 
-        # Получить тип зависимости, чтобы узнать его UUID для ключа в Redis
-        # required_type = await self.repository.get(event_type.requires_event_id)
-
         # Проверить Redis 2: пришла ли уже зависимость
         has_dependency = await self.cache_repository.has_fulfilled(
             event_data.decision_id, event_type.requires_event_id
         )
-        # print(has_dependency)
-
 
         if has_dependency:
             # Зависимость уже есть — принять сразу
             raw = EventsRaw(
                 event_type_id=event_type.id,
                 decision_id=event_data.decision_id,
-                subject_id=event_data.subject_id,
+                subject_id=subject_id,
                 payload=event_data.payload,
                 status=EventsStatus.RECEIVED,
                 occurred_at=occurred_at,
@@ -209,7 +208,7 @@ class EventsService:
             event = Events(
                 event_type_id=event_type.id,
                 decision_id=event_data.decision_id,
-                subject_id=event_data.subject_id,
+                subject_id=subject_id,
                 payload=event_data.payload,
                 occurred_at=occurred_at,
                 received_at=now,
@@ -227,7 +226,7 @@ class EventsService:
             raw = EventsRaw(
                 event_type_id=event_type.id,
                 decision_id=event_data.decision_id,
-                subject_id=event_data.subject_id,
+                subject_id=subject_id,
                 payload=event_data.payload,
                 status=EventsStatus.PENDING,
                 occurred_at=occurred_at,
@@ -243,7 +242,7 @@ class EventsService:
                     "raw_id": created_raw.id,
                     "event_type_id": event_type.id,
                     "decision_id": event_data.decision_id,
-                    "subject_id": event_data.subject_id,
+                    "subject_id": subject_id,
                     "payload": event_data.payload,
                     "occurred_at": occurred_at.isoformat(),
                     "received_at": now.isoformat(),

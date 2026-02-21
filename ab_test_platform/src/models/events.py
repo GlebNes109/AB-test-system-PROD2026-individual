@@ -26,7 +26,7 @@ class EventsRaw(SQLModel, table=True):
     )
     event_type_id: str
     decision_id: str
-    subject_id: str
+    subject_id: Optional[str] = None
     payload: Optional[Dict[str, Any]] = Field(
         default=None,
         sa_column=Column(JSON, nullable=True)

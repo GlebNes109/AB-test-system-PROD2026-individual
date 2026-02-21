@@ -9,6 +9,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from sqlalchemy import text
 
 from ab_test_platform.src.api.deps import get_hash_creator
 from ab_test_platform.src.api.routes import reports, feature_flags, decisions, experiments, auth, approve_groups, \
@@ -17,14 +18,15 @@ from ab_test_platform.src.domain.exceptions import AppException, ApiError, Error
 from ab_test_platform.src.application.worker import guardrail_loop, mv_refresh_loop
 from ab_test_platform.src.core.init_data import add_super_admin, create_tables_and_mv,  drop_all_in_database
 from ab_test_platform.src.core.settings import settings
-from ab_test_platform.src.infra.database.session import async_session_maker
+from ab_test_platform.src.infra.database.session import async_session_maker, engine
+from ab_test_platform.src.infra.redis.session import get_redis_client
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with async_session_maker() as session:
         hash_creator = get_hash_creator()
-        # await drop_all_in_database()
+        await drop_all_in_database()
         await create_tables_and_mv()
         await add_super_admin(hash_creator, session)
     # await create_mv_and_functions()
@@ -61,11 +63,39 @@ api_router.include_router(events.router, prefix="/events", tags=["Events"])
 api_router.include_router(metrics.router, prefix="/metrics", tags=["Metrics"])
 api_router.include_router(reports.router, prefix="/experiments", tags=["Reports"])
 
-@api_router.get("/ping")
-def send():
+app.include_router(api_router)
+
+
+@app.get("/health", tags=["Ops"])
+async def health():
+    """Liveness: процесс жив и может обрабатывать запросы."""
     return {"status": "ok"}
 
-app.include_router(api_router)
+
+@app.get("/ready", tags=["Ops"])
+async def ready():
+    """Readiness: все критичные зависимости доступны (PostgreSQL, Redis)."""
+    checks: dict[str, str] = {}
+
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        checks["postgres"] = "ok"
+    except Exception as e:
+        checks["postgres"] = f"unavailable: {e}"
+
+    try:
+        redis = get_redis_client()
+        await redis.ping()
+        checks["redis"] = "ok"
+    except Exception as e:
+        checks["redis"] = f"unavailable: {e}"
+
+    all_ok = all(v == "ok" for v in checks.values())
+    return JSONResponse(
+        status_code=200 if all_ok else 503,
+        content={"status": "ready" if all_ok else "not ready", "checks": checks},
+    )
 
 
 @app.exception_handler(AppException)

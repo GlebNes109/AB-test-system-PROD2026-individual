@@ -15,6 +15,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./docker/metabase_seed.sql:/docker-entrypoint-initdb.d/metabase_seed.sql
+
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h 127.0.0.1"]
       interval: 10s
@@ -60,7 +62,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/ping"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/ready"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -168,7 +170,7 @@ services:
       test-redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/ping"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/ready"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -196,5 +198,5 @@ services:
         exit $EXIT
 
 volumes:
-  postvgres_data:
+  postgres_data:
   coverage-data:

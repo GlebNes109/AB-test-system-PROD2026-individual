@@ -2,7 +2,8 @@ import asyncio
 import logging
 import random
 import uuid
-from typing import Any
+from datetime import datetime, timezone, timedelta
+from typing import Any, Optional
 
 from src.abtests_api_integration import ABTestClient
 from src.schemas import ScenarioConfig, ScenarioStatus, VariantConfig, EventsConfig
@@ -71,18 +72,42 @@ class ScenarioRunner:
 
         status.status = "running"
         exp = config.experiment
+        use_real_time = config.use_real_time
+
+        # Точка отсчёта для симулированного времени
+        sim_base = (
+            config.sim_base_time.replace(tzinfo=timezone.utc)
+            if config.sim_base_time and config.sim_base_time.tzinfo is None
+            else config.sim_base_time
+        ) if not use_real_time else None
+
+        if not use_real_time and sim_base is None:
+            sim_base = datetime.now(timezone.utc)
 
         try:
             tasks: list[asyncio.Task] = []
-            for i in range(config.subjects_count):
-                if i > 0:
-                    delay = _calc_delay(exp.time_delay_seconds, exp.time_variation)
-                    await asyncio.sleep(delay)
+            virtual_time = sim_base  # используется только в симулированном режиме
 
+            for i in range(config.subjects_count):
                 subject_id = str(uuid.uuid4())
-                task = asyncio.create_task(
-                    self._process_subject(scenario_id, subject_id, config)
-                )
+
+                if use_real_time:
+                    # Реальный режим: ждём между субъектами
+                    if i > 0:
+                        delay = _calc_delay(exp.time_delay_seconds, exp.time_variation)
+                        await asyncio.sleep(delay)
+                    task = asyncio.create_task(
+                        self._process_subject(scenario_id, subject_id, config, sim_start=None)
+                    )
+                else:
+                    # Симулированный режим: двигаем виртуальные часы, не ждём
+                    if i > 0:
+                        delay = _calc_delay(exp.time_delay_seconds, exp.time_variation)
+                        virtual_time += timedelta(seconds=delay)
+                    task = asyncio.create_task(
+                        self._process_subject(scenario_id, subject_id, config, sim_start=virtual_time)
+                    )
+
                 tasks.append(task)
 
             await asyncio.gather(*tasks, return_exceptions=True)
@@ -91,13 +116,16 @@ class ScenarioRunner:
                 "Scenario %s finished: %d subjects, %d events sent",
                 scenario_id, status.subjects_processed, status.events_sent,
             )
-        except Exception as e:
+        except Exception:
             status.status = "error"
-            status.errors.append(str(e))
             logger.exception("Scenario %s failed", scenario_id)
 
     async def _process_subject(
-        self, scenario_id: str, subject_id: str, config: ScenarioConfig
+        self,
+        scenario_id: str,
+        subject_id: str,
+        config: ScenarioConfig,
+        sim_start: Optional[datetime],
     ):
         status = self.store.get_status(scenario_id)
         exp = config.experiment
@@ -127,15 +155,7 @@ class ScenarioRunner:
                 status.subjects_processed += 1
                 return
 
-            sent_any_event = await self._send_events(
-                status, variant.events, decision_id, subject_id
-            )
-
-            """if sent_any_event and variant.sub_events:
-                await self._send_events(
-                    status, variant.sub_events, decision_id, subject_id
-                )"""
-
+            await self._send_events(status, variant.events, decision_id, sim_start)
             status.subjects_processed += 1
 
         except Exception as e:
@@ -148,30 +168,38 @@ class ScenarioRunner:
         status: ScenarioStatus,
         events_config: list[EventsConfig],
         decision_id: str,
-        subject_id: str,
+        sim_start: Optional[datetime],
     ) -> bool:
         """Отправить события по конфигу. Возвращает True, если хотя бы одно событие отправлено."""
         sent_any = False
+        virtual_event_time = sim_start  # None в реальном режиме
+
         for ec in events_config:
             if random.random() > ec.probability:
                 continue
 
             delay = _calc_delay(ec.time_delay_seconds, ec.time_variation)
-            if delay > 0:
-                await asyncio.sleep(delay)
+
+            if sim_start is None:
+                # Реальный режим: спим по-настоящему
+                if delay > 0:
+                    await asyncio.sleep(delay)
+                occurred_at = None
+            else:
+                # Симулированный режим: сдвигаем виртуальное время, не ждём
+                virtual_event_time += timedelta(seconds=delay)
+                occurred_at = virtual_event_time.isoformat()
+
+            payload = {"event_type": ec.event_type, "decision_id": decision_id}
+            if occurred_at is not None:
+                payload["occurred_at"] = occurred_at
 
             try:
-                await self.client.send_events([
-                    {
-                        "event_type": ec.event_type,
-                        "decision_id": decision_id,
-                        "subject_id": subject_id,
-                    }
-                ])
+                await self.client.send_events([payload])
                 status.events_sent += 1
                 sent_any = True
             except Exception as e:
                 logger.error("Failed to send event %s: %s", ec.event_type, e)
-                status.errors.append(f"event {ec.event_type} for {subject_id}: {e}")
+                status.errors.append(f"event {ec.event_type}: {e}")
 
         return sent_any

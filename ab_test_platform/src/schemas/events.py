@@ -23,7 +23,6 @@ class EventTypesResponse(BaseModel):
 class EventCreate(BaseModel):
     event_type: str
     decision_id: str
-    subject_id: str
     payload: Optional[dict[str, Any]] = None
     occurred_at: Optional[datetime] = None
 
