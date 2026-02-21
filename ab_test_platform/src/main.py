@@ -14,8 +14,8 @@ from ab_test_platform.src.api.deps import get_hash_creator
 from ab_test_platform.src.api.routes import reports, feature_flags, decisions, experiments, auth, approve_groups, \
     events, users, reviews, metrics
 from ab_test_platform.src.domain.exceptions import AppException, ApiError, ErrorCode, ValidationErrorResponse, FieldError
-from ab_test_platform.src.application.guardrail_worker import guardrail_loop
-from ab_test_platform.src.core.init_data import create_tables, add_super_admin
+from ab_test_platform.src.application.worker import guardrail_loop, mv_refresh_loop
+from ab_test_platform.src.core.init_data import add_super_admin, create_tables_and_mv,  drop_all_in_database
 from ab_test_platform.src.core.settings import settings
 from ab_test_platform.src.infra.database.session import async_session_maker
 
@@ -24,15 +24,21 @@ from ab_test_platform.src.infra.database.session import async_session_maker
 async def lifespan(app: FastAPI):
     async with async_session_maker() as session:
         hash_creator = get_hash_creator()
-        await create_tables()
+        # await drop_all_in_database()
+        await create_tables_and_mv()
         await add_super_admin(hash_creator, session)
-    task = asyncio.create_task(guardrail_loop(settings.guardrail_check_interval_seconds))
+    # await create_mv_and_functions()
+    # await initial_mv_refresh()
+    task_guardrail = asyncio.create_task(guardrail_loop(settings.guardrail_check_interval_seconds))
+    task_mv = asyncio.create_task(mv_refresh_loop(settings.mv_refresh_interval_seconds))
     yield
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
+    task_guardrail.cancel()
+    task_mv.cancel()
+    for task in (task_guardrail, task_mv):
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(

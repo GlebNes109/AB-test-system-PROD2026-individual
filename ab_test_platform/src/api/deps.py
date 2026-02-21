@@ -15,6 +15,8 @@ from ab_test_platform.src.infra.database.repositories.decisions_repository impor
 from ab_test_platform.src.infra.database.repositories.events_repository import EventsRepository
 from ab_test_platform.src.infra.database.repositories.reviews_repository import ReviewsRepository
 from ab_test_platform.src.infra.database.repositories.user_repository import UserRepository
+from ab_test_platform.src.infra.redis.session import get_redis_client
+from ab_test_platform.src.infra.redis.repositories.events_cache_repository import EventsCacheRepository
 
 from ab_test_platform.src.core.settings import settings
 from ab_test_platform.src.infra.database.session import get_session
@@ -200,6 +202,12 @@ def get_events_repository(
         read_schema=Events
     )
 
+def get_events_cache_repository() -> EventsCacheRepository:
+    return EventsCacheRepository(
+        client=get_redis_client(),
+        ttl_seconds=settings.redis_events_ttl_seconds,
+    )
+
 def get_metrics_service(
     repo: MetricsRepository = Depends(get_metrics_repository),
 events_repository: EventsRepository = Depends(get_events_repository)
@@ -209,8 +217,13 @@ events_repository: EventsRepository = Depends(get_events_repository)
 def get_events_service(
     repository: EventsRepository = Depends(get_events_repository),
     decisions_repository: DecisionsRepository = Depends(get_decisions_repository),
+    cache_repository: EventsCacheRepository = Depends(get_events_cache_repository),
 ) -> EventsService:
-    return EventsService(repository=repository, decisions_repository=decisions_repository)
+    return EventsService(
+        repository=repository,
+        decisions_repository=decisions_repository,
+        cache_repository=cache_repository,
+    )
 
 
 def get_guardrail_repository(

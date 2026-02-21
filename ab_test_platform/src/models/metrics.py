@@ -32,8 +32,6 @@ class Metrics(SQLModel, table=True):
     denominator_event_type: Optional[str] = None
     denominator_aggregation: Optional[AggregationType] = None
 
-    prerequisite_event_type: Optional[str] = None
-
     created_at: datetime = Field(
         sa_column=Column(
             DateTime(timezone=True),

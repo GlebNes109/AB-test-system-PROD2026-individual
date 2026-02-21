@@ -28,3 +28,14 @@ async def guardrail_loop(interval_seconds: int = 60) -> None:
         except Exception:
             logger.exception("Guardrail check failed")
         await asyncio.sleep(interval_seconds)
+
+
+async def mv_refresh_loop(interval_seconds: int = 60) -> None:
+    while True:
+        await asyncio.sleep(interval_seconds)
+        try:
+            async with async_session_maker() as session:
+                repo = ReportsRepository(session)
+                await repo.refresh_mv()
+        except Exception:
+            logger.exception("MV refresh failed")

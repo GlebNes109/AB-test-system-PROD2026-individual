@@ -1,110 +1,61 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select, func, cast, Float, distinct, exists
+from sqlalchemy import select, func, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
+from sqlalchemy import text
 
+from ab_test_platform.src.core.db_sql import SQL_REFRESH_MV
 from ab_test_platform.src.domain.interfaces.repositories.reports_repository_interface import ReportsRepositoryInterface
 from ab_test_platform.src.models.decisions import Decisions
-from ab_test_platform.src.models.events import Events, EventTypes, EventsStatus
 
 
 class ReportsRepository(ReportsRepositoryInterface):
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    def _build_agg_expr(self, aggregation: str, payload_field: str | None):
-        if aggregation == "COUNT":
-            return func.count(Events.id)
-        elif aggregation == "COUNT_UNIQUE":
-            return func.count(distinct(Events.subject_id))
-        elif aggregation == "SUM":
-            return func.sum(cast(Events.payload[payload_field].as_string(), Float))
-        elif aggregation == "AVG":
-            return func.avg(cast(Events.payload[payload_field].as_string(), Float))
-        else:
-            return func.count(Events.id)
-
-    def _base_query(
-        self,
-        experiment_id: str,
-        event_type: str,
-        date_from: datetime,
-        date_to: datetime,
-        prerequisite_event_type: str | None = None,
-    ):
-        stmt = (
-            select(Decisions.variant_id)
-            .select_from(Events)
-            .join(EventTypes, Events.event_type_id == EventTypes.id)
-            .join(Decisions, Events.decision_id == Decisions.id)
-            .where(
-                Decisions.experiment_id == experiment_id,
-                EventTypes.type == event_type,
-                Events.status == EventsStatus.RECEIVED,
-                Events.occurred_at >= date_from,
-                Events.occurred_at <= date_to,
-            )
-        )
-
-        if prerequisite_event_type:
-            PrereqEvents = aliased(Events)
-            PrereqTypes = aliased(EventTypes)
-            stmt = stmt.where(
-                exists(
-                    select(PrereqEvents.id)
-                    .join(PrereqTypes, PrereqEvents.event_type_id == PrereqTypes.id)
-                    .where(
-                        PrereqEvents.subject_id == Events.subject_id,
-                        PrereqEvents.decision_id == Events.decision_id,
-                        PrereqTypes.type == prerequisite_event_type,
-                        PrereqEvents.status == EventsStatus.RECEIVED,
-                    )
-                )
-            )
-
-        return stmt
-
     async def compute_metric_summary(
         self,
         experiment_id: str,
-        event_type: str,
-        aggregation: str,
-        payload_field: str | None,
+        metric_key: str,
         date_from: datetime,
         date_to: datetime,
-        prerequisite_event_type: str | None = None,
     ) -> list[Any]:
-        agg = self._build_agg_expr(aggregation, payload_field)
-        stmt = (
-            self._base_query(experiment_id, event_type, date_from, date_to, prerequisite_event_type)
-            .add_columns(agg.label("value"))
-            .group_by(Decisions.variant_id)
+        result = await self.session.execute(
+            text(
+                "SELECT * FROM fn_metric_summary("
+                ":experiment_id, :metric_key, :date_from, :date_to)"
+            ),
+            {
+                "experiment_id": experiment_id,
+                "metric_key": metric_key,
+                "date_from": date_from,
+                "date_to": date_to,
+            },
         )
-        result = await self.session.execute(stmt)
         return result.all()
 
     async def compute_metric_timeseries(
         self,
         experiment_id: str,
-        event_type: str,
-        aggregation: str,
-        payload_field: str | None,
+        metric_key: str,
         granularity: str,
         date_from: datetime,
         date_to: datetime,
-        prerequisite_event_type: str | None = None,
     ) -> list[Any]:
-        agg = self._build_agg_expr(aggregation, payload_field)
-        bucket = func.date_trunc(granularity, Events.occurred_at).label("bucket")
-        stmt = (
-            self._base_query(experiment_id, event_type, date_from, date_to, prerequisite_event_type)
-            .add_columns(bucket, agg.label("value"))
-            .group_by(Decisions.variant_id, bucket)
-            .order_by(bucket)
+        result = await self.session.execute(
+            text(
+                "SELECT * FROM fn_metric_timeseries("
+                ":experiment_id, :metric_key, :date_from, :date_to, :granularity)"
+            ),
+            {
+                "experiment_id": experiment_id,
+                "metric_key": metric_key,
+                "date_from": date_from,
+                "date_to": date_to,
+                "granularity": granularity,
+            },
         )
-        result = await self.session.execute(stmt)
         return result.all()
 
     async def count_subjects_per_variant(
@@ -127,3 +78,7 @@ class ReportsRepository(ReportsRepositoryInterface):
         )
         result = await self.session.execute(stmt)
         return result.all()
+
+    async def refresh_mv(self) -> None:
+        await self.session.execute(text(SQL_REFRESH_MV))
+        await self.session.commit()

@@ -37,7 +37,8 @@ class ExperimentReport(BaseModel):
 
 
 class TimeseriesPoint(BaseModel):
-    timestamp: datetime
+    bucket_start: datetime
+    bucket_end: datetime
     value: Optional[float] = None
 
 

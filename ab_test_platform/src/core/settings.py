@@ -17,11 +17,16 @@ class Settings(BaseSettings):
     db_password: str
     random_secret: str
 
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_events_ttl_seconds: int = 60 * 60 * 24 * 30  # 30 дней
+
     # охлаждение пользователей в экспериментах
     cooling_period_days: int = 1
     max_active_experiments_per_subject: int = 10
 
-    guardrail_check_interval_seconds: int = 60
+    guardrail_check_interval_seconds: int = 1
+    mv_refresh_interval_seconds: int = 1
 
     class Config:
         env_file = ".env"

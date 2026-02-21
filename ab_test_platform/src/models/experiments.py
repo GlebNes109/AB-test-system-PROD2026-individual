@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from enum import Enum
+from enum import Enum, UNIQUE
 from typing import Optional, List
 
 from sqlalchemy import Column, DateTime, Text
@@ -98,7 +98,7 @@ class Variants(SQLModel, table=True):
         primary_key=True,
     )
     experiment_version_id: str = Field(foreign_key="experiment_versions.id", nullable=False)
-    name: str
+    name: str = Field(unique=True)
     value: str
     weight: int
     is_control: bool = Field(default=False)

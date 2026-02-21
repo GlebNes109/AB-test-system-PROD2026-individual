@@ -13,8 +13,8 @@ class MetricsService:
         await self.events_repository.get_type_by_key(data.event_type)
         if data.denominator_event_type is not None:
             await self.events_repository.get_type_by_key(data.denominator_event_type)
-        if data.prerequisite_event_type is not None:
-            await self.events_repository.get_type_by_key(data.prerequisite_event_type)
+        """if data.prerequisite_event_type is not None:
+            await self.events_repository.get_type_by_key(data.prerequisite_event_type)"""
 
         metric = await self.repository.create(Metrics(**data.model_dump()))
         return MetricResponse.model_validate(metric, from_attributes=True)
@@ -37,8 +37,8 @@ class MetricsService:
             await self.events_repository.get_type_by_key(data.event_type)
         if data.denominator_event_type is not None:
             await self.events_repository.get_type_by_key(data.denominator_event_type)
-        if data.prerequisite_event_type is not None:
-            await self.events_repository.get_type_by_key(data.prerequisite_event_type)
+        """if data.prerequisite_event_type is not None:
+            await self.events_repository.get_type_by_key(data.prerequisite_event_type)"""
 
         metric = await self.repository.get_by_key(metric_key)
         obj = Metrics(id=metric.id, **data.model_dump(exclude_none=True))

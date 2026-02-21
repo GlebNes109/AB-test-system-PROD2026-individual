@@ -41,16 +41,11 @@ class ReportsService:
         if date_to is None:
             date_to = datetime.now(timezone.utc)
 
-        # GUARDRAIL метрики не считаются
+        # GUARDRAIL метрики не считаются в отчёте
         bound_metrics = [m for m in experiment.metrics if m.type != MetricType.GUARDRAIL]
-
-        full_metrics = {}
-        for bm in bound_metrics:
-            full_metrics[bm.metric_id] = await self.metrics_repository.get(bm.metric_id)
 
         variant_info = {v.id: v for v in experiment.variants}
 
-        # Подсчет subject_rows по варианту
         subject_rows = await self.reports_repository.count_subjects_per_variant(
             experiment_id, date_from, date_to
         )
@@ -58,57 +53,50 @@ class ReportsService:
 
         variant_metrics: dict[str, list[VariantMetricValue]] = {vid: [] for vid in variant_info}
 
-        raw_numerators: dict[str, dict[str, float | None]] = {}
-        raw_denominators: dict[str, dict[str, float | None] | None] = {}
+        # value_num/value_denom per metric key — для подсчёта корректных итогов по ratio-метрикам
+        totals_num: dict[str, float] = {}
+        totals_denom: dict[str, Optional[float]] = {}
+        totals_has_denom: dict[str, bool] = {}
 
         for bm in bound_metrics:
-            metric = full_metrics[bm.metric_id]
-
-            numerator_rows = await self.reports_repository.compute_metric_summary(
+            rows = await self.reports_repository.compute_metric_summary(
                 experiment_id=experiment_id,
-                event_type=metric.event_type,
-                aggregation=metric.aggregation.value,
-                payload_field=metric.payload_field,
+                metric_key=bm.metric_key,
                 date_from=date_from,
                 date_to=date_to,
-                prerequisite_event_type=metric.prerequisite_event_type,
             )
-            numerator_map: dict[str, float | None] = {
-                row.variant_id: float(row.value) if row.value is not None else None
-                for row in numerator_rows
-            }
-            raw_numerators[bm.metric_key] = numerator_map
 
-            denominator_map: dict[str, float | None] | None = None
-            if metric.denominator_event_type:
-                denom_rows = await self.reports_repository.compute_metric_summary(
-                    experiment_id=experiment_id,
-                    event_type=metric.denominator_event_type,
-                    aggregation=metric.denominator_aggregation.value,
-                    payload_field=None,
-                    date_from=date_from,
-                    date_to=date_to,
-                    prerequisite_event_type=metric.prerequisite_event_type,
-                )
-                denominator_map = {
-                    row.variant_id: float(row.value) if row.value is not None else None
-                    for row in denom_rows
-                }
-            raw_denominators[bm.metric_key] = denominator_map
+            values_by_variant: dict[str, Optional[float]] = {
+                row.variant_id: (float(row.value) if row.value is not None else None)
+                for row in rows
+            }
+            num_by_variant: dict[str, Optional[float]] = {
+                row.variant_id: (float(row.value_num) if row.value_num is not None else None)
+                for row in rows
+            }
+            denom_by_variant: dict[str, Optional[float]] = {
+                row.variant_id: (float(row.value_denom) if row.value_denom is not None else None)
+                for row in rows
+            }
+
+            has_denom = any(v is not None for v in denom_by_variant.values())
+            totals_has_denom[bm.metric_key] = has_denom
+
+            total_num = sum(v for v in num_by_variant.values() if v is not None)
+            totals_num[bm.metric_key] = total_num
+
+            if has_denom:
+                total_denom = sum(v for v in denom_by_variant.values() if v is not None)
+                totals_denom[bm.metric_key] = total_denom
+            else:
+                totals_denom[bm.metric_key] = None
 
             for vid in variant_info:
-                num = numerator_map.get(vid)
-                if denominator_map is not None:
-                    denom = denominator_map.get(vid)
-                    value = (num / denom) if (num is not None and denom) else None
-                else:
-                    value = num
-
                 variant_metrics[vid].append(
                     VariantMetricValue(
                         metric_key=bm.metric_key,
                         metric_name=bm.metric_name,
-                        value=value,
+                        value=values_by_variant.get(vid),
                     )
                 )
 
@@ -126,28 +114,14 @@ class ReportsService:
             for v in variant_info.values()
         ]
 
-        # Compute totals across all variants
-        non_control_vids = [vid for vid, v in variant_info.items()]
         total_metrics: list[VariantMetricValue] = []
         for bm in bound_metrics:
-            num_sum = 0.0
-            has_any = False
-            for vid in non_control_vids:
-                n = raw_numerators[bm.metric_key].get(vid)
-                if n is not None:
-                    num_sum += n
-                    has_any = True
-
-            denom_map = raw_denominators[bm.metric_key]
-            if denom_map is not None:
-                denom_sum = 0.0
-                for vid in non_control_vids:
-                    d = denom_map.get(vid)
-                    if d is not None:
-                        denom_sum += d
-                value = (num_sum / denom_sum) if (has_any and denom_sum) else None
+            num = totals_num.get(bm.metric_key, 0.0)
+            denom = totals_denom.get(bm.metric_key)
+            if totals_has_denom.get(bm.metric_key):
+                value = (num / denom) if denom else None
             else:
-                value = num_sum if has_any else None
+                value = num if num else None
 
             total_metrics.append(
                 VariantMetricValue(
@@ -183,69 +157,41 @@ class ReportsService:
 
         bound_metrics = [m for m in experiment.metrics if m.type != MetricType.GUARDRAIL]
 
-        full_metrics = {}
-        for bm in bound_metrics:
-            full_metrics[bm.metric_id] = await self.metrics_repository.get(bm.metric_id)
-
         variant_info = {v.id: v for v in experiment.variants if v.name != "default"}
 
         metric_timeseries_list: list[MetricTimeseries] = []
 
         for bm in bound_metrics:
-            metric = full_metrics[bm.metric_id]
-
-            numerator_rows = await self.reports_repository.compute_metric_timeseries(
+            rows = await self.reports_repository.compute_metric_timeseries(
                 experiment_id=experiment_id,
-                event_type=metric.event_type,
-                aggregation=metric.aggregation.value,
-                payload_field=metric.payload_field,
+                metric_key=bm.metric_key,
                 granularity=granularity.value,
                 date_from=date_from,
                 date_to=date_to,
-                prerequisite_event_type=metric.prerequisite_event_type,
             )
 
-            numerator_by_variant: dict[str, list[tuple]] = {vid: [] for vid in variant_info}
-            for row in numerator_rows:
-                if row.variant_id in numerator_by_variant:
-                    numerator_by_variant[row.variant_id].append((row.bucket, row.value))
-
-            denominator_by_variant: dict[str, dict] | None = None
-            if metric.denominator_event_type:
-                denom_rows = await self.reports_repository.compute_metric_timeseries(
-                    experiment_id=experiment_id,
-                    event_type=metric.denominator_event_type,
-                    aggregation=metric.denominator_aggregation.value,
-                    payload_field=None,
-                    granularity=granularity.value,
-                    date_from=date_from,
-                    date_to=date_to,
-                    prerequisite_event_type=metric.prerequisite_event_type,
-                )
-                denominator_by_variant = {vid: {} for vid in variant_info}
-                for row in denom_rows:
-                    if row.variant_id in denominator_by_variant:
-                        denominator_by_variant[row.variant_id][row.bucket] = row.value
-
-            variant_ts_list: list[VariantTimeseries] = []
-            for vid, vinfo in variant_info.items():
-                points: list[TimeseriesPoint] = []
-                for bucket, num_value in numerator_by_variant.get(vid, []):
-                    if denominator_by_variant is not None:
-                        denom = denominator_by_variant.get(vid, {}).get(bucket)
-                        value = (float(num_value) / float(denom)) if (num_value is not None and denom) else None
-                    else:
-                        value = float(num_value) if num_value is not None else None
-                    points.append(TimeseriesPoint(timestamp=bucket, value=value))
-
-                variant_ts_list.append(
-                    VariantTimeseries(
-                        variant_id=vid,
-                        variant_name=vinfo.name,
-                        is_control=vinfo.is_control,
-                        points=points,
+            # Группируем строки по variant_id
+            points_by_variant: dict[str, list[TimeseriesPoint]] = {vid: [] for vid in variant_info}
+            for row in rows:
+                if row.variant_id not in points_by_variant:
+                    continue
+                points_by_variant[row.variant_id].append(
+                    TimeseriesPoint(
+                        bucket_start=row.bucket_start,
+                        bucket_end=row.bucket_end,
+                        value=float(row.value) if row.value is not None else None,
                     )
                 )
+
+            variant_ts_list: list[VariantTimeseries] = [
+                VariantTimeseries(
+                    variant_id=vid,
+                    variant_name=vinfo.name,
+                    is_control=vinfo.is_control,
+                    points=points_by_variant.get(vid, []),
+                )
+                for vid, vinfo in variant_info.items()
+            ]
 
             metric_timeseries_list.append(
                 MetricTimeseries(

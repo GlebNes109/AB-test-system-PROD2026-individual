@@ -1,5 +1,7 @@
 services:
-  # ── DEV profile ──────────────────────────────────────────────
+
+  # ── DEV ──────────────────────────────────────────────────────────────────────
+
   postgres:
     image: postgres:15-alpine
     container_name: abtest-postgres
@@ -7,66 +9,135 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: testdb
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d testdb -h 127.0.0.1 -p 5432"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h 127.0.0.1"]
       interval: 10s
       timeout: 3s
       retries: 10
       start_period: 10s
 
+  redis:
+    image: redis:7-alpine
+    container_name: abtest-redis
+    profiles: [dev]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
   api:
     build: ./ab_test_platform
+    container_name: abtest-api
     profiles: [dev]
     ports:
       - "8080:8080"
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: testdb
-      DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_FULLNAME: ${ADMIN_FULLNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      RANDOM_SECRET: ${RANDOM_SECRET}
+      SERVER_ADDRESS: "0.0.0.0:8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  emulator:
+    build: ./external_system_emulator
+    container_name: abtest-emulator
+    profiles: [dev]
+    ports:
+      - "8090:8090"
+    environment:
+      AB_PLATFORM_URL: "http://api:8080"
+      HOST: "0.0.0.0"
+      PORT: "8090"
+    depends_on:
+      api:
         condition: service_healthy
 
   pgadmin:
     image: dpage/pgadmin4:latest
-    profiles: [dev, emulator]
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-      PGADMIN_LISTEN_PORT: 5050
+    container_name: abtest-pgadmin
+    profiles: [dev]
     ports:
       - "5050:5050"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_LISTEN_PORT: 5050
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   metabase:
     image: metabase/metabase:latest
-    container_name: metabase
-    profiles: [dev, emulator]
+    container_name: abtest-metabase
+    profiles: [dev]
     ports:
       - "3000:3000"
     environment:
-      MB_DB_TYPE: h2
+      MB_DB_TYPE: postgres
+      MB_DB_HOST: postgres
+      MB_DB_PORT: 5432
+      MB_DB_DBNAME: metabase
+      MB_DB_USER: ${POSTGRES_USER}
+      MB_DB_PASS: ${POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
 
+  # ── TEST ─────────────────────────────────────────────────────────────────────
 
-  # ── TEST profile ─────────────────────────────────────────────
   test-postgres:
     image: postgres:15-alpine
     container_name: abtest-test-postgres
     profiles: [test]
     environment:
-      POSTGRES_DB: testdb
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     tmpfs:
       - /var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d testdb -h 127.0.0.1 -p 5432"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h 127.0.0.1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  test-redis:
+    image: redis:7-alpine
+    container_name: abtest-test-redis
+    profiles: [test]
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -78,19 +149,23 @@ services:
     environment:
       DB_HOST: test-postgres
       DB_PORT: 5432
-      DB_NAME: testdb
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      ADMIN_EMAIL: admin@mail.ru
-      ADMIN_FULLNAME: "Test Test"
-      ADMIN_PASSWORD: "123123123aA!"
-      RANDOM_SECRET: "Jf/ZpZSxfMWnOexP48Mp1z200jd+8BVZ7ws6Uw5Jp/w="
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: test-redis
+      REDIS_PORT: 6379
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_FULLNAME: ${ADMIN_FULLNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      RANDOM_SECRET: ${RANDOM_SECRET}
       SERVER_ADDRESS: "0.0.0.0:8080"
     volumes:
       - coverage-data:/coverage
       - ./ab_test_platform/coverage_html:/html
     depends_on:
       test-postgres:
+        condition: service_healthy
+      test-redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/ping"]
@@ -120,63 +195,6 @@ services:
         echo "done" > /coverage/pytest_done
         exit $EXIT
 
-  # ── EMULATOR profile ────────────────────────────────────────
-  emulator-postgres:
-    image: postgres:15-alpine
-    container_name: abtest-emulator-postgres
-    profiles: [emulator]
-    ports:
-      - "5433:5432"
-    environment:
-      POSTGRES_DB: testdb
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - emulator_pg_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d testdb -h 127.0.0.1 -p 5432"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 5s
-
-  emulator-api:
-    build: ./ab_test_platform
-    container_name: abtest-emulator-api
-    profiles: [emulator]
-    ports:
-      - "8080:8080"
-    environment:
-      DB_HOST: emulator-postgres
-      DB_PORT: 5432
-      DB_NAME: testdb
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-    depends_on:
-      emulator-postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 10s
-
-  emulator:
-    build: ./external_system_emulator
-    container_name: abtest-emulator
-    profiles: [emulator]
-    ports:
-      - "8090:8090"
-    environment:
-      AB_PLATFORM_URL: "http://emulator-api:8080"
-      HOST: "0.0.0.0"
-      PORT: "8090"
-    depends_on:
-      emulator-api:
-        condition: service_healthy
-
 volumes:
-  postgres_data:
+  postvgres_data:
   coverage-data:
-  emulator_pg_data:

@@ -47,12 +47,9 @@ class GuardrailService:
                 try:
                     rows = await self.reports_repository.compute_metric_summary(
                         experiment_id=experiment.id,
-                        event_type=metric.event_type,
-                        aggregation=metric.aggregation.value,
-                        payload_field=metric.payload_field,
+                        metric_key=metric.key,
                         date_from=date_from,
                         date_to=date_to,
-                        prerequisite_event_type=metric.prerequisite_event_type,
                     )
                 except Exception:
                     logger.exception(
@@ -63,15 +60,14 @@ class GuardrailService:
 
                 triggered = False
                 for row in rows:
-                    variant_id, value = row[0], row[1]
-                    if variant_id in control_variant_ids:
+                    if row.variant_id in control_variant_ids:
                         continue
-                    if value is not None and value > gm.threshold:
+                    if row.value is not None and row.value > gm.threshold:
                         trigger = GuardrailTriggers(
                             experiment_id=experiment.id,
                             metric_id=gm.metric_id,
                             threshold=gm.threshold,
-                            actual_value=float(value),
+                            actual_value=float(row.value),
                             action_taken=gm.action,
                         )
                         await self.guardrail_repository.create_trigger(trigger)
@@ -86,7 +82,7 @@ class GuardrailService:
                         )
                         logger.warning(
                             "Guardrail triggered: experiment=%s metric=%s value=%.4f threshold=%.4f action=%s",
-                            experiment.id, gm.metric_key, float(value), gm.threshold, gm.action.value,
+                            experiment.id, gm.metric_key, float(row.value), gm.threshold, gm.action.value,
                         )
                         triggered = True
                         break

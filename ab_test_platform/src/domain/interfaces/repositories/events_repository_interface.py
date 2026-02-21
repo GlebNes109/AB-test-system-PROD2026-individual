@@ -2,7 +2,7 @@ from abc import abstractmethod
 from typing import Protocol
 
 from ab_test_platform.src.domain.interfaces.repositories.base_repository_interface import BaseRepositoryInterface
-from ab_test_platform.src.models.events import EventTypes, Events
+from ab_test_platform.src.models.events import EventTypes, Events, EventsRaw, EventsStatus
 
 
 class EventsRepositoryInterface(BaseRepositoryInterface, Protocol):
@@ -23,7 +23,7 @@ class EventsRepositoryInterface(BaseRepositoryInterface, Protocol):
         ...
 
     @abstractmethod
-    async def has_event_for_decision_with_type(self, decision_id: str, event_type_id: str) -> bool:
+    async def create_raw_event(self, raw: EventsRaw) -> EventsRaw:
         ...
 
     @abstractmethod
@@ -31,7 +31,7 @@ class EventsRepositoryInterface(BaseRepositoryInterface, Protocol):
         ...
 
     @abstractmethod
-    async def resolve_pending_events(self, decision_id: str, fulfilled_type_id: str) -> None:
+    async def update_raw_event_status(self, raw_event_id: str, status: EventsStatus) -> None:
         ...
 
     @abstractmethod

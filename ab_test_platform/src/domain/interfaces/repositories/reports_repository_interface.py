@@ -8,27 +8,29 @@ class ReportsRepositoryInterface(Protocol):
     async def compute_metric_summary(
         self,
         experiment_id: str,
-        event_type: str,
-        aggregation: str,
-        payload_field: str | None,
+        metric_key: str,
         date_from: datetime,
         date_to: datetime,
-        prerequisite_event_type: str | None = None,
     ) -> list[Any]:
+        """
+        Вызывает fn_metric_summary. Возвращает строки с полями:
+        variant_id, variant_name, is_control, value, value_num, value_denom
+        """
         ...
 
     @abstractmethod
     async def compute_metric_timeseries(
         self,
         experiment_id: str,
-        event_type: str,
-        aggregation: str,
-        payload_field: str | None,
+        metric_key: str,
         granularity: str,
         date_from: datetime,
         date_to: datetime,
-        prerequisite_event_type: str | None = None,
     ) -> list[Any]:
+        """
+        Вызывает fn_metric_timeseries. Возвращает строки с полями:
+        variant_id, variant_name, is_control, bucket_start, bucket_end, value
+        """
         ...
 
     @abstractmethod
@@ -38,4 +40,9 @@ class ReportsRepositoryInterface(Protocol):
         date_from: datetime,
         date_to: datetime,
     ) -> list[Any]:
+        ...
+
+    @abstractmethod
+    async def refresh_mv(self) -> None:
+        """REFRESH MATERIALIZED VIEW mv_events_enriched."""
         ...

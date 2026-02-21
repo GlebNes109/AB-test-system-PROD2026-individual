@@ -4,18 +4,16 @@ from sqlalchemy.exc import IntegrityError
 from ab_test_platform.src.domain.exceptions import EntityNotFoundError, EntityAlreadyExistsError
 from ab_test_platform.src.domain.interfaces.repositories.events_repository_interface import EventsRepositoryInterface
 from ab_test_platform.src.infra.database.repositories.base_repository import BaseRepository
-from ab_test_platform.src.models.events import EventTypes, Events, EventsStatus
+from ab_test_platform.src.models.events import EventTypes, Events, EventsRaw, EventsStatus
 
 
 class EventsRepository(BaseRepository, EventsRepositoryInterface):
     async def create_type(self, obj: EventTypes) -> EventTypes:
-        db_obj = obj
-        # db_obj.id = str(uuid.uuid4())
         try:
-            self.session.add(db_obj)
+            self.session.add(obj)
             await self.session.commit()
-            await self.session.refresh(db_obj)
-            return EventTypes.model_validate(db_obj, from_attributes=True)
+            await self.session.refresh(obj)
+            return EventTypes.model_validate(obj, from_attributes=True)
         except IntegrityError as e:
             if e.orig.sqlstate == '23505':
                 raise EntityAlreadyExistsError from e
@@ -47,30 +45,21 @@ class EventsRepository(BaseRepository, EventsRepositoryInterface):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def has_event_for_decision_with_type(self, decision_id: str, event_type_id: str) -> bool:
-        return await self.get_event_by_decision_and_type(decision_id, event_type_id) is not None
+    async def create_raw_event(self, raw: EventsRaw) -> EventsRaw:
+        self.session.add(raw)
+        await self.session.flush()
+        return raw
 
     async def create_event(self, event: Events) -> Events:
         self.session.add(event)
         await self.session.flush()
         return event
 
-    async def resolve_pending_events(self, decision_id: str, fulfilled_type_id: str) -> None:
-        type_stmt = select(EventTypes.id).where(EventTypes.requires_event_id == fulfilled_type_id)
-        type_result = await self.session.execute(type_stmt)
-        dependent_type_ids = [row[0] for row in type_result.all()]
-
-        if not dependent_type_ids:
-            return
-
+    async def update_raw_event_status(self, raw_event_id: str, status: EventsStatus) -> None:
         await self.session.execute(
-            update(Events)
-            .where(
-                Events.decision_id == decision_id,
-                Events.event_type_id.in_(dependent_type_ids),
-                Events.status == EventsStatus.PENDING,
-            )
-            .values(status=EventsStatus.RECEIVED)
+            update(EventsRaw)
+            .where(EventsRaw.id == raw_event_id)
+            .values(status=status)
         )
 
     async def commit(self) -> None:
