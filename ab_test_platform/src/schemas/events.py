@@ -5,11 +5,17 @@ from pydantic import BaseModel
 
 from ab_test_platform.src.models.events import EventsStatus
 
+class PayloadSchemaTypes:
+    STRING = "string"
+    NUMBER = "number"
+    BOOL = "bool"
+
 
 class EventTypesCreate(BaseModel):
     type: str
     description: str
     requires_event_type: Optional[str] = None
+    payload_schema: dict[str, str] = {}  # field_name -> type ("string"|"number"|"bool")
 
 
 class EventTypesResponse(BaseModel):
@@ -17,6 +23,7 @@ class EventTypesResponse(BaseModel):
     type: str
     description: str
     requires_event_id: Optional[str] = None
+    payload_schema: dict[str, str] = {}
     created_at: datetime
 
 

@@ -10,7 +10,8 @@ from src.api import router, init_dependencies
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
-app = FastAPI(title="External System Emulator", version="0.1.0")
+ROOT_PATH = os.getenv("ROOT_PATH", "")
+app = FastAPI(title="External System Emulator", version="0.1.0", root_path=ROOT_PATH)
 
 AB_PLATFORM_URL = os.getenv("AB_PLATFORM_URL", "http://localhost:8080")
 

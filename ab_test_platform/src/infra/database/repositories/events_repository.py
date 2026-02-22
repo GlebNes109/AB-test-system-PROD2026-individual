@@ -45,6 +45,15 @@ class EventsRepository(BaseRepository, EventsRepositoryInterface):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_non_rejected_raw_event_by_decision_and_type(self, decision_id: str, event_type_id: str) -> EventsRaw | None:
+        stmt = select(EventsRaw).where(
+            EventsRaw.decision_id == decision_id,
+            EventsRaw.event_type_id == event_type_id,
+            EventsRaw.status != EventsStatus.REJECTED,
+        ).limit(1)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def create_raw_event(self, raw: EventsRaw) -> EventsRaw:
         self.session.add(raw)
         await self.session.flush()

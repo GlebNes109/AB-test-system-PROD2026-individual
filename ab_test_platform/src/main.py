@@ -26,7 +26,8 @@ from ab_test_platform.src.infra.redis.session import get_redis_client
 async def lifespan(app: FastAPI):
     async with async_session_maker() as session:
         hash_creator = get_hash_creator()
-        await drop_all_in_database()
+        if settings.drop_db_on_startup:
+            await drop_all_in_database()
         await create_tables_and_mv()
         await add_super_admin(hash_creator, session)
     # await create_mv_and_functions()

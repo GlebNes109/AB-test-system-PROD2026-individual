@@ -36,6 +36,28 @@ class EventsService:
             size=size,
         )
 
+    @staticmethod
+    def _validate_payload(payload: dict | None, payload_schema: dict | None) -> str | None:
+        """Проверяет payload по схеме. Возвращает строку с ошибкой или None."""
+        if not payload_schema:
+            return None
+        if not payload:
+            return f"Payload is required: expected fields {list(payload_schema.keys())}"
+        type_map = {
+            "string": str,
+            "number": (int, float),
+            "bool": bool,
+        }
+        errors = []
+        for field, expected_type in payload_schema.items():
+            if field not in payload:
+                errors.append(f"missing required field '{field}'")
+                continue
+            py_type = type_map.get(expected_type)
+            if py_type and not isinstance(payload[field], py_type):
+                errors.append(f"field '{field}' must be {expected_type}, got {type(payload[field]).__name__}")
+        return "; ".join(errors) if errors else None
+
     async def _process_single_event(self, event_data: EventCreate, index: int) -> EventItemResponse:
         now = datetime.now(timezone.utc)
         occurred_at = event_data.occurred_at or now
@@ -61,6 +83,26 @@ class EventsService:
                 error=f"Event type '{event_data.event_type}' not found",
             )
 
+        # Валидация payload по схеме типа события
+        payload_error = self._validate_payload(event_data.payload, event_type.payload_schema)
+        if payload_error:
+            raw = EventsRaw(
+                event_type_id=event_type.id,
+                decision_id=event_data.decision_id,
+                subject_id=None,
+                payload=event_data.payload,
+                status=EventsStatus.REJECTED,
+                rejected_reason=RejectedReason.INVALID_PAYLOAD,
+                occurred_at=occurred_at,
+                received_at=now,
+            )
+            await self.repository.create_raw_event(raw)
+            return EventItemResponse(
+                index=index,
+                status_code=422,
+                error=f"Payload validation failed: {payload_error}",
+            )
+
         # 2. Валидация decision_id — берём subject_id отсюда
         try:
             decision = await self.decisions_repository.get(event_data.decision_id)
@@ -84,11 +126,12 @@ class EventsService:
 
         subject_id = decision.subject_id
 
-        # 3. Проверка на дублирование в таблице принятых событий
-        existing = await self.repository.get_event_by_decision_and_type(
+        # 3. Проверка на дублирование в events_raw (RECEIVED или PENDING) —
+        #    покрывает как принятые, так и ожидающие экспозиции события
+        existing_raw = await self.repository.get_non_rejected_raw_event_by_decision_and_type(
             event_data.decision_id, event_type.id
         )
-        if existing is not None:
+        if existing_raw is not None:
             raw = EventsRaw(
                 event_type_id=event_type.id,
                 decision_id=event_data.decision_id,

@@ -19,7 +19,11 @@ class EventsRepositoryInterface(BaseRepositoryInterface, Protocol):
         ...
 
     @abstractmethod
-    async def get_event_by_decision_and_type(self, decision_id: str, event_type_id: str) -> Events | None:
+    async def get_event_by_decision_and_type(self, decision_id: str, event_type_id: str) -> Events | None: # поиск дубликатов в events
+        ...
+
+    @abstractmethod
+    async def get_non_rejected_raw_event_by_decision_and_type(self, decision_id: str, event_type_id: str) -> EventsRaw | None: # поиск дубликатов в events_raw
         ...
 
     @abstractmethod

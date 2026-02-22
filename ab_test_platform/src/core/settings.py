@@ -1,9 +1,7 @@
+from pathlib import Path
 from typing import Optional
 
-from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
-
-load_dotenv()
 
 class Settings(BaseSettings):
     admin_email: str
@@ -17,16 +15,18 @@ class Settings(BaseSettings):
     db_password: str
     random_secret: str
 
-    redis_host: str = "localhost"
-    redis_port: int = 6379
+    redis_host: str
+    redis_port: int
     redis_events_ttl_seconds: int = 60 * 60 * 24 * 30  # 30 дней
 
     # охлаждение пользователей в экспериментах
     cooling_period_days: int = 1
     max_active_experiments_per_subject: int = 10
 
-    guardrail_check_interval_seconds: int = 1
-    mv_refresh_interval_seconds: int = 1
+    guardrail_check_interval_seconds: int = 5
+    mv_refresh_interval_seconds: int = 5
+
+    drop_db_on_startup: bool = False
 
     class Config:
         env_file = ".env"

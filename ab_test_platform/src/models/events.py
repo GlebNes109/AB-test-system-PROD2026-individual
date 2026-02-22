@@ -16,6 +16,7 @@ class RejectedReason(Enum):
     DUPLICATE = "DUPLICATE"
     INVALID_EVENT_TYPE = "INVALID_EVENT_TYPE"
     INVALID_DECISION_ID = "INVALID_DECISION_ID"
+    INVALID_PAYLOAD = "INVALID_PAYLOAD"
 
 class EventsRaw(SQLModel, table=True):
     __tablename__ = "events_raw"
@@ -90,6 +91,10 @@ class EventTypes(SQLModel, table=True):
     type: str = Field(unique=True)
     description: str
     requires_event_id: Optional[str] = None
+    payload_schema: Optional[Dict[str, Any]] = Field(
+        default=None,
+        sa_column=Column(JSON, nullable=True),
+    )
     created_at: datetime = Field(
         sa_column=Column(
             DateTime(timezone=True),

@@ -54,9 +54,16 @@ async def drop_all_in_database():
                 FOR r IN SELECT matviewname FROM pg_matviews WHERE schemaname = 'public' LOOP
                     EXECUTE 'DROP MATERIALIZED VIEW IF EXISTS ' || quote_ident(r.matviewname) || ' CASCADE';
                 END LOOP;
-                FOR r IN SELECT routine_name FROM information_schema.routines
-                         WHERE routine_schema = 'public' AND routine_type = 'FUNCTION' LOOP
-                    EXECUTE 'DROP FUNCTION IF EXISTS ' || quote_ident(r.routine_name) || ' CASCADE';
+                FOR r IN SELECT p.proname
+                         FROM pg_proc p
+                         JOIN pg_namespace n ON n.oid = p.pronamespace
+                         WHERE n.nspname = 'public'
+                           AND NOT EXISTS (
+                               SELECT 1 FROM pg_depend d
+                               WHERE d.objid = p.oid AND d.deptype = 'e'
+                           )
+                LOOP
+                    EXECUTE 'DROP FUNCTION IF EXISTS ' || quote_ident(r.proname) || ' CASCADE';
                 END LOOP;
             END $$;
         """))
