@@ -1,4 +1,4 @@
-from ab_test_platform.src.domain.exceptions import AccessDeniedError
+from ab_test_platform.src.domain.exceptions import AccessDeniedError, ConflictError
 from ab_test_platform.src.domain.interfaces.repositories.approve_groups_repository_interface import ApproveGroupsRepositoryInterface
 from ab_test_platform.src.domain.interfaces.repositories.experiment_repository_interface import ExperimentsRepositoryInterface
 from ab_test_platform.src.domain.interfaces.repositories.reviews_repository_interface import ReviewsRepositoryInterface
@@ -32,6 +32,9 @@ class ReviewsService:
         review = await self.repository.create(Reviews(experiment_id=experiment_id,
                                              reviewer_id=reviewer_id,
                                              **data.model_dump()))
+
+        if experiment.status != ExperimentStatus.REVIEW:
+            raise ConflictError(f"this experiment is not on review now. Actual status - {experiment.status}")
 
         if data.decision == ReviewDecisions.ACCEPT:
             approved_count = await self.repository.count_by_decision(experiment_id, ReviewDecisions.ACCEPT)

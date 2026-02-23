@@ -45,8 +45,6 @@ async def add_super_admin(hash_creator: HashCreator, session: AsyncSession):
 
 async def drop_all_in_database():
     async with engine.begin() as conn:
-        # Дропаем все MV и все функции в схеме public — иначе drop_all упадёт из-за зависимостей.
-        # Имена не хардкодим: подчищаем всё что есть, включая старые версии.
         await conn.execute(text("""
             DO $$
             DECLARE r RECORD;

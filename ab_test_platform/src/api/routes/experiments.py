@@ -12,7 +12,7 @@ from ab_test_platform.src.schemas.experiments import (
     ExperimentCreate,
     ExperimentUpdate,
     ExperimentResponse,
-    PagedExperiments,
+    PagedExperiments, ExperimentFinish,
 )
 
 router = APIRouter()
@@ -163,11 +163,12 @@ async def resume_experiment(
 )
 async def finish_experiment(
     experiment_id: str,
+    experiment_finish: ExperimentFinish,
     current_user: Users = Depends(require_roles(_EDITORS)),
     service: ExperimentService = Depends(get_experiment_service),
-    _: None = Depends(check_experimenter_access)
+    _: None = Depends(check_experimenter_access),
 ) -> ExperimentResponse:
-    return await service.finish_experiment(experiment_id, current_user.id)
+    return await service.finish_experiment(experiment_id, current_user.id, experiment_finish)
 
 
 @router.post(

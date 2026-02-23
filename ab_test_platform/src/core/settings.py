@@ -23,8 +23,8 @@ class Settings(BaseSettings):
     cooling_period_days: int = 1
     max_active_experiments_per_subject: int = 10
 
-    guardrail_check_interval_seconds: int = 5
-    mv_refresh_interval_seconds: int = 5
+    guardrail_check_interval_seconds: int = 2
+    mv_refresh_interval_seconds: int = 2
 
     drop_db_on_startup: bool = False
 

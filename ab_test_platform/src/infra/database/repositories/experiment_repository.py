@@ -13,6 +13,7 @@ from ab_test_platform.src.models.experiments import (
     ExperimentVersions,
     Variants,
     ExperimentStatus,
+    ExperimentResult,
 )
 from ab_test_platform.src.models.feature_flags import FeatureFlags
 from ab_test_platform.src.models.metrics import ExperimentMetrics as ExperimentMetricsModel, Metrics
@@ -125,6 +126,8 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
                 for v in version.variants
             ],
             metrics=metrics or [],
+            result=experiment.result,
+            result_description=experiment.result_description,
         )
 
     async def create_experiment(self, data: ExperimentCreate, created_by: str, flag, metric_id_map: dict[str, str] = None) -> ExperimentResponse:
@@ -362,13 +365,21 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
         return self._build_response(updated, current_version, flag_key, metrics)
 
     async def transition_status(
-        self, experiment_id: str, new_status: ExperimentStatus
+        self,
+        experiment_id: str,
+        new_status: ExperimentStatus,
+        result: Optional[ExperimentResult] = None,
+        result_description: Optional[str] = None,
     ) -> ExperimentResponse:
         experiment = await self._get_experiment_row(experiment_id)
 
         values: dict = {"status": new_status}
         if new_status == ExperimentStatus.RUNNING and experiment.started_at is None:
             values["started_at"] = datetime.now(timezone.utc)
+        if result is not None:
+            values["result"] = result
+        if result_description is not None:
+            values["result_description"] = result_description
 
         await self.session.execute(
             update(Experiments)

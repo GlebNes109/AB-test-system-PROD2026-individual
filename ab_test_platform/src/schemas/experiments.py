@@ -1,10 +1,11 @@
 from datetime import datetime
+from enum import Enum
 from typing import Optional, List, Any
 
 from pydantic import BaseModel, field_validator, model_validator
 
 from ab_test_platform.src.domain.exceptions import UnsupportableContentError
-from ab_test_platform.src.models.experiments import ExperimentStatus
+from ab_test_platform.src.models.experiments import ExperimentStatus, ExperimentResult
 from ab_test_platform.src.models.metrics import MetricType
 from ab_test_platform.src.schemas.metrics import ExperimentMetricBind, ExperimentMetricResponse
 
@@ -131,6 +132,8 @@ class ExperimentResponse(BaseModel):
     modified_by: Optional[str]
     variants: List[VariantResponse]
     metrics: List[ExperimentMetricResponse] = []
+    result: Optional[ExperimentResult] = None
+    result_description: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -140,3 +143,7 @@ class PagedExperiments(BaseModel):
     total: int
     page: int
     size: int
+
+class ExperimentFinish(BaseModel):
+    result: ExperimentResult
+    result_description: str

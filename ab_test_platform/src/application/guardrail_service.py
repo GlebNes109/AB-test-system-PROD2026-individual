@@ -6,7 +6,7 @@ from ab_test_platform.src.domain.interfaces.repositories.experiment_repository_i
 from ab_test_platform.src.domain.interfaces.repositories.metrics_repository_interface import MetricsRepositoryInterface
 from ab_test_platform.src.domain.interfaces.repositories.reports_repository_interface import ReportsRepositoryInterface
 from ab_test_platform.src.infra.database.repositories.guardrail_repository import GuardrailRepository
-from ab_test_platform.src.models.experiments import ExperimentStatus
+from ab_test_platform.src.models.experiments import ExperimentStatus, ExperimentResult
 from ab_test_platform.src.models.guardrail_triggers import GuardrailTriggers
 from ab_test_platform.src.models.metrics import MetricType, GuardrailAction
 
@@ -72,14 +72,21 @@ class GuardrailService:
                         )
                         await self.guardrail_repository.create_trigger(trigger)
 
-                        new_status = (
-                            ExperimentStatus.PAUSED
-                            if gm.action == GuardrailAction.PAUSE
-                            else ExperimentStatus.FINISHED
-                        )
-                        await self.experiment_repository.transition_status(
-                            experiment.id, new_status
-                        )
+                        if gm.action == GuardrailAction.PAUSE:
+                            await self.experiment_repository.transition_status(
+                                experiment.id, ExperimentStatus.PAUSED
+                            )
+                        else:
+                            await self.experiment_repository.transition_status(
+                                experiment.id,
+                                ExperimentStatus.FINISHED,
+                                result=ExperimentResult.ROLLBACK,
+                                result_description=(
+                                    f"Остановлен автоматически: guardrail метрика "
+                                    f"'{gm.metric_key}' превысила порог "
+                                    f"({float(row.value):.4f} > {gm.threshold:.4f})"
+                                ),
+                            )
                         logger.warning(
                             "Guardrail triggered: experiment=%s metric=%s value=%.4f threshold=%.4f action=%s",
                             experiment.id, gm.metric_key, float(row.value), gm.threshold, gm.action.value,

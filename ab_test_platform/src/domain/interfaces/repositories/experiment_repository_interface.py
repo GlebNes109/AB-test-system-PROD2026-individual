@@ -2,7 +2,7 @@ from abc import abstractmethod
 from typing import Optional, Protocol
 
 from ab_test_platform.src.domain.interfaces.repositories.base_repository_interface import BaseRepositoryInterface
-from ab_test_platform.src.models.experiments import ExperimentStatus
+from ab_test_platform.src.models.experiments import ExperimentStatus, ExperimentResult
 from ab_test_platform.src.schemas.experiments import ExperimentCreate, ExperimentUpdate, ExperimentResponse, PagedExperiments
 
 
@@ -32,7 +32,11 @@ class ExperimentsRepositoryInterface(BaseRepositoryInterface, Protocol):
 
     @abstractmethod
     async def transition_status(
-        self, experiment_id: str, new_status: ExperimentStatus
+        self,
+        experiment_id: str,
+        new_status: ExperimentStatus,
+        result: Optional[ExperimentResult] = None,
+        result_description: Optional[str] = None,
     ) -> ExperimentResponse:
         ...
 

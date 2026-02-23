@@ -32,6 +32,11 @@ ALLOWED_TRANSITIONS: dict[ExperimentStatus, list[ExperimentStatus]] = {
 # Статусы, на которых нельзя менять версию эксперимента
 FROZEN_STATUSES = {ExperimentStatus.RUNNING, ExperimentStatus.PAUSED}
 
+class ExperimentResult(Enum):
+    ROLLOUT = "ROLLOUT"
+    ROLLBACK = "ROLLBACK"
+    NO_EFFECT = "NO_EFFECT"
+
 
 class Experiments(SQLModel, table=True):
     __tablename__ = "experiments"
@@ -58,7 +63,8 @@ class Experiments(SQLModel, table=True):
             nullable=True,
         )
     )
-
+    result: Optional[ExperimentResult] = None
+    result_description: Optional[str] = None
     versions: List["ExperimentVersions"] = Relationship(back_populates="experiment")
 
 

@@ -13,7 +13,7 @@ from ab_test_platform.src.schemas.experiments import (
     ExperimentCreate,
     ExperimentUpdate,
     ExperimentResponse,
-    PagedExperiments,
+    PagedExperiments, ExperimentFinish,
 )
 from ab_test_platform.src.schemas.metrics import ExperimentMetricBind
 
@@ -167,9 +167,21 @@ class ExperimentService:
         """PAUSED ->  RUNNING"""
         return await self._transition(experiment_id, ExperimentStatus.RUNNING, actor_id)
 
-    async def finish_experiment(self, experiment_id: str, actor_id: str) -> ExperimentResponse:
+    async def finish_experiment(self, experiment_id: str, actor_id: str, experiment_results: ExperimentFinish) -> ExperimentResponse:
         """RUNNING | PAUSED -> FINISHED"""
-        return await self._transition(experiment_id, ExperimentStatus.FINISHED, actor_id)
+        experiment = await self.repository.get(experiment_id)
+        current_status = experiment.status
+
+        if ExperimentStatus.FINISHED not in ALLOWED_TRANSITIONS.get(current_status, []):
+            raise ConflictError(
+                f"Cannot transition from '{current_status.value}' to 'finished'"
+            )
+        return await self.repository.transition_status(
+            experiment_id,
+            ExperimentStatus.FINISHED,
+            result=experiment_results.result,
+            result_description=experiment_results.result_description,
+        )
 
     async def archive_experiment(self, experiment_id: str, actor_id: str) -> ExperimentResponse:
         """FINISHED -> ARCHIVED"""
