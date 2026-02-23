@@ -191,6 +191,8 @@ class ScenarioRunner:
                 occurred_at = virtual_event_time.isoformat()
 
             payload = {"event_type": ec.event_type, "decision_id": decision_id}
+            if ec.payload is not None:
+                payload["payload"] = ec.payload
             if occurred_at is not None:
                 payload["occurred_at"] = occurred_at
 

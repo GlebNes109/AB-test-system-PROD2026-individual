@@ -17,6 +17,11 @@ pip install requests
 python data_generator.py
 ```
 
+```bash
+# 3. Задать BASE_URL (по умолчанию localhost, замените на адрес деплоя)
+export BASE_URL="http://localhost"
+```
+
 ## Что создаёт генератор
 
 ### Эксперимент
@@ -43,7 +48,7 @@ python data_generator.py
 
 > **Важно:** `decision_id` и `experiment_id` генерируются на сервере. Подставьте их из вывода генератора во все команды ниже.
 
-Для выполнения сложных проверок можно делать запросы в [сваггере](http://localhost/docs), там же есть спецификация API и описание всех доступных эндпоинтов системы.
+Для выполнения сложных проверок можно делать запросы в [сваггере]($BASE_URL/docs), там же есть спецификация API и описание всех доступных эндпоинтов системы.
 
 
 ### Получение JWT-токена
@@ -51,7 +56,7 @@ python data_generator.py
 Для запросов к отчётам нужен токен:
 
 ```bash
-EXPERIMENTER_TOKEN=$(curl -s -X POST http://localhost/api/v1/auth/login \
+EXPERIMENTER_TOKEN=$(curl -s -X POST ${BASE_URL}/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email": "b4_experimenter@demo.com", "password": "Demo1234!x"}' \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['accessToken'])")
@@ -72,7 +77,7 @@ EXP_ID="<experiment id из вывода>"
 Отчёт по эксперименту: `GET /api/v1/experiments/{experiment_id}/reports`. Возвращает метрики в разрезе вариантов. Используйте эту команду в любой момент, чтобы проверить текущее состояние метрик:
 
 ```bash
-curl -s "http://localhost/api/v1/experiments/${EXP_ID}/reports" \
+curl -s "${BASE_URL}/api/v1/experiments/${EXP_ID}/reports" \
   -H "Authorization: Bearer $EXPERIMENTER_TOKEN" \
   | python3 -m json.tool
 ```
@@ -90,7 +95,7 @@ curl -s "http://localhost/api/v1/experiments/${EXP_ID}/reports" \
 ### Запрос (неверный тип поля)
 
 ```bash
-curl -s -X POST http://localhost/api/v1/events/batch \
+curl -s -X POST ${BASE_URL}/api/v1/events/batch \
   -H "Content-Type: application/json" \
   -d "{
     \"events\": [
@@ -127,7 +132,7 @@ curl -s -X POST http://localhost/api/v1/events/batch \
 ### Контрольный запрос (валидный payload)
 
 ```bash
-curl -s -X POST http://localhost/api/v1/events/batch \
+curl -s -X POST ${BASE_URL}/api/v1/events/batch \
   -H "Content-Type: application/json" \
   -d "{
     \"events\": [
@@ -154,7 +159,7 @@ curl -s -X POST http://localhost/api/v1/events/batch \
 
 ```bash
 # Создаём новый decision для другого субъекта
-NEW_DECISION=$(curl -s -X POST http://localhost/api/v1/decision \
+NEW_DECISION=$(curl -s -X POST ${BASE_URL}/api/v1/decision \
   -H "Content-Type: application/json" \
   -d '{
     "id": "b4-user-beta",
@@ -168,7 +173,7 @@ echo "NEW_DECISION=$NEW_DECISION"
 ### Запрос (отсутствует обязательное поле)
 
 ```bash
-curl -s -X POST http://localhost/api/v1/events/batch \
+curl -s -X POST ${BASE_URL}/api/v1/events/batch \
   -H "Content-Type: application/json" \
   -d "{
     \"events\": [
@@ -214,7 +219,7 @@ curl -s -X POST http://localhost/api/v1/events/batch \
 В B4-1 вы уже отправили `b4_click` с `DECISION_ID`. Если нет — отправьте (если уже отправляли, будет конфликт):
 
 ```bash
-curl -s -X POST http://localhost/api/v1/events/batch \
+curl -s -X POST ${BASE_URL}/api/v1/events/batch \
   -H "Content-Type: application/json" \
   -d "{
     \"events\": [
@@ -230,7 +235,7 @@ curl -s -X POST http://localhost/api/v1/events/batch \
 ### Шаг 2: Повторная отправка (дубликат)
 
 ```bash
-curl -s -X POST http://localhost/api/v1/events/batch \
+curl -s -X POST ${BASE_URL}/api/v1/events/batch \
   -H "Content-Type: application/json" \
   -d "{
     \"events\": [
@@ -269,7 +274,7 @@ curl -s -X POST http://localhost/api/v1/events/batch \
 Запросите отчёт:
 
 ```bash
-curl -s "http://localhost/api/v1/experiments/${EXP_ID}/reports" \
+curl -s "${BASE_URL}/api/v1/experiments/${EXP_ID}/reports" \
   -H "Authorization: Bearer $EXPERIMENTER_TOKEN" \
   | python3 -c "
 import sys, json
@@ -294,7 +299,7 @@ for v in data.get('variants', []):
 ### Запрос
 
 ```bash
-curl -s -X POST http://localhost/api/v1/events/batch \
+curl -s -X POST ${BASE_URL}/api/v1/events/batch \
   -H "Content-Type: application/json" \
   -d "{
     \"events\": [
@@ -327,7 +332,7 @@ curl -s -X POST http://localhost/api/v1/events/batch \
 Запросите отчёт, фильтруя по `b4_impression_count`:
 
 ```bash
-curl -s "http://localhost/api/v1/experiments/${EXP_ID}/reports" \
+curl -s "${BASE_URL}/api/v1/experiments/${EXP_ID}/reports" \
   -H "Authorization: Bearer $EXPERIMENTER_TOKEN" \
   | python3 -c "
 import sys, json
@@ -347,7 +352,7 @@ for v in data.get('variants', []):
 ### Негативный кейс: несуществующий decision_id
 
 ```bash
-curl -s -X POST http://localhost/api/v1/events/batch \
+curl -s -X POST ${BASE_URL}/api/v1/events/batch \
   -H "Content-Type: application/json" \
   -d '{
     "events": [
@@ -375,7 +380,7 @@ curl -s -X POST http://localhost/api/v1/events/batch \
 
 ```bash
 # Новый субъект — без клика
-DECISION_GAMMA=$(curl -s -X POST http://localhost/api/v1/decision \
+DECISION_GAMMA=$(curl -s -X POST ${BASE_URL}/api/v1/decision \
   -H "Content-Type: application/json" \
   -d '{
     "id": "b4-user-gamma",
@@ -387,7 +392,7 @@ echo "DECISION_GAMMA=$DECISION_GAMMA"
 ```
 
 ```bash
-curl -s -X POST http://localhost/api/v1/events/batch \
+curl -s -X POST ${BASE_URL}/api/v1/events/batch \
   -H "Content-Type: application/json" \
   -d "{
     \"events\": [
@@ -421,7 +426,7 @@ curl -s -X POST http://localhost/api/v1/events/batch \
 Подождите ~5 секунд и проверьте отчёт — `b4_purchase_count` не должен увеличиться:
 
 ```bash
-curl -s "http://localhost/api/v1/experiments/${EXP_ID}/reports" \
+curl -s "${BASE_URL}/api/v1/experiments/${EXP_ID}/reports" \
   -H "Authorization: Bearer $EXPERIMENTER_TOKEN" \
   | python3 -c "
 import sys, json
@@ -443,7 +448,7 @@ for v in data.get('variants', []):
 ### 5b. Отправляем предшествующий клик → конверсия промотируется
 
 ```bash
-curl -s -X POST http://localhost/api/v1/events/batch \
+curl -s -X POST ${BASE_URL}/api/v1/events/batch \
   -H "Content-Type: application/json" \
   -d "{
     \"events\": [
@@ -463,7 +468,7 @@ curl -s -X POST http://localhost/api/v1/events/batch \
 Проверьте отчёт - теперь обе метрики должны обновиться:
 
 ```bash
-curl -s "http://localhost/api/v1/experiments/${EXP_ID}/reports" \
+curl -s "${BASE_URL}/api/v1/experiments/${EXP_ID}/reports" \
   -H "Authorization: Bearer $EXPERIMENTER_TOKEN" \
   | python3 -c "
 import sys, json
@@ -487,7 +492,7 @@ for v in data.get('variants', []):
 Для `DECISION_ID` (субъект `b4-user-alpha`) мы уже отправили `b4_click` в сценарии B4-1. Теперь отправим `b4_purchase`:
 
 ```bash
-curl -s -X POST http://localhost/api/v1/events/batch \
+curl -s -X POST ${BASE_URL}/api/v1/events/batch \
   -H "Content-Type: application/json" \
   -d "{
     \"events\": [
@@ -519,7 +524,7 @@ curl -s -X POST http://localhost/api/v1/events/batch \
 ### Проверка через отчёт
 
 ```bash
-curl -s "http://localhost/api/v1/experiments/${EXP_ID}/reports" \
+curl -s "${BASE_URL}/api/v1/experiments/${EXP_ID}/reports" \
   -H "Authorization: Bearer $EXPERIMENTER_TOKEN" \
   | python3 -c "
 import sys, json

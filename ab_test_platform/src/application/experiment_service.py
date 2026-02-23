@@ -152,7 +152,7 @@ class ExperimentService:
         """APPROVED -> RUNNING. Базовая проверка на коллизию экспериментов"""
         experiment = await self.repository.get(experiment_id)
 
-        if await self.repository.has_active_experiment_for_flag(experiment.feature_flag_id):
+        if await self.repository.has_active_experiment_for_flag(experiment.feature_flag_id, exclude_experiment_id=experiment_id):
             raise ConflictError(
                 "Another experiment is already RUNNING or PAUSED for this feature flag"
             )

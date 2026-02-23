@@ -17,9 +17,14 @@ pip install requests
 python data_generator.py
 ```
 
-После запуска генератора будут созданы 4 feature flag и 3 эксперимента в статусе RUNNING. 
+```bash
+# 3. Задать BASE_URL (по умолчанию localhost, замените на адрес деплоя)
+export BASE_URL="http://localhost"
+```
 
-Для выполнения сложных проверок можно делать запросы в [сваггере](http://localhost/docs), там же есть спецификация API и описание всех доступных эндпоинтов системы
+После запуска генератора будут созданы 4 feature flag и 3 эксперимента в статусе RUNNING.
+
+Для выполнения сложных проверок можно делать запросы в [сваггере]($BASE_URL/docs), там же есть спецификация API и описание всех доступных эндпоинтов системы
 
 
 ---
@@ -33,7 +38,7 @@ python data_generator.py
 ### Запрос
 
 ```bash
-curl -s -X POST http://localhost/api/v1/decision \
+curl -s -X POST ${BASE_URL}/api/v1/decision \
   -H "Content-Type: application/json" \
   -d '{
     "id": "user-001",
@@ -69,7 +74,7 @@ curl -s -X POST http://localhost/api/v1/decision \
 ### 2a. Субъект проходит таргетинг (`country == "RU"`)
 
 ```bash
-curl -s -X POST http://localhost/api/v1/decision \
+curl -s -X POST ${BASE_URL}/api/v1/decision \
   -H "Content-Type: application/json" \
   -d '{
     "id": "user-ru-001",
@@ -97,7 +102,7 @@ curl -s -X POST http://localhost/api/v1/decision \
 ### 2b. Субъект НЕ проходит таргетинг (`country == "US"`)
 
 ```bash
-curl -s -X POST http://localhost/api/v1/decision \
+curl -s -X POST ${BASE_URL}/api/v1/decision \
   -H "Content-Type: application/json" \
   -d '{
     "id": "user-us-001",
@@ -131,7 +136,7 @@ curl -s -X POST http://localhost/api/v1/decision \
 Эксперимент на флаге `b2_variant` — без таргетинга, 100% аудитория, два варианта: `"old_design"` (control) и `"new_design"`.
 
 ```bash
-curl -s -X POST http://localhost/api/v1/decision \
+curl -s -X POST ${BASE_URL}/api/v1/decision \
   -H "Content-Type: application/json" \
   -d '{
     "id": "user-exp-001",
@@ -166,7 +171,7 @@ curl -s -X POST http://localhost/api/v1/decision \
 
 ```bash
 # Запрос 1
-curl -s -X POST http://localhost/api/v1/decision \
+curl -s -X POST ${BASE_URL}/api/v1/decision \
   -H "Content-Type: application/json" \
   -d '{
     "id": "user-sticky-001",
@@ -175,7 +180,7 @@ curl -s -X POST http://localhost/api/v1/decision \
   }' | python3 -m json.tool
 
 # Запрос 2 (тот же субъект)
-curl -s -X POST http://localhost/api/v1/decision \
+curl -s -X POST ${BASE_URL}/api/v1/decision \
   -H "Content-Type: application/json" \
   -d '{
     "id": "user-sticky-001",
@@ -184,7 +189,7 @@ curl -s -X POST http://localhost/api/v1/decision \
   }' | python3 -m json.tool
 
 # Запрос 3 (тот же субъект)
-curl -s -X POST http://localhost/api/v1/decision \
+curl -s -X POST ${BASE_URL}/api/v1/decision \
   -H "Content-Type: application/json" \
   -d '{
     "id": "user-sticky-001",
@@ -223,13 +228,13 @@ curl -s -X POST http://localhost/api/v1/decision \
 
 Для генерации большого объема данных с задержкой вы можете использовать систему-эмулятор (например для генерации 10 тысяч пользователей чтобы посмотреть их распределение).
 
-На процент отклонения и фактическое распредление вы можете также посмотреть в [metabase](localhost/metabase) (главное выбрать правильный id эксперимента, в этом пакете тестовых данных их 3. id генерируется на стороне сервера случайно при генерации тестовых данных, поэтому я не могу его здесь указать, к сожалению)
+На процент отклонения и фактическое распредление вы можете также посмотреть в [metabase]($BASE_URL/metabase) (главное выбрать правильный id эксперимента, в этом пакете тестовых данных их 3. id генерируется на стороне сервера случайно при генерации тестовых данных, поэтому я не могу его здесь указать, к сожалению)
 
 > **Важно:** из-за механизма охлаждения (cooling period = 1 день) повторная раздача варианта **новому** субъекту, который уже участвует в другом эксперименте, может вернуть default. Поэтому если будете тестировать вручную или своими скриптами, используйте субъектов, которые **не участвовали** в предыдущих экспериментах (уникальные id). В скрипте ниже такой проблемы нет.
 
 ```bash
 for i in $(seq 1 100); do
-  curl -s -X POST http://localhost/api/v1/decision \
+  curl -s -X POST ${BASE_URL}/api/v1/decision \
     -H "Content-Type: application/json" \
     -d "{
       \"id\": \"weight-test-$i\",

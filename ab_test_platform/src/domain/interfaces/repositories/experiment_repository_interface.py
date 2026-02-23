@@ -41,7 +41,7 @@ class ExperimentsRepositoryInterface(BaseRepositoryInterface, Protocol):
         ...
 
     @abstractmethod
-    async def has_active_experiment_for_flag(self, feature_flag_id: str) -> bool:
+    async def has_active_experiment_for_flag(self, feature_flag_id: str, exclude_experiment_id: str | None = None) -> bool:
         ...
 
     @abstractmethod

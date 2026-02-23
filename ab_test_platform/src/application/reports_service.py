@@ -53,7 +53,7 @@ class ReportsService:
 
         variant_metrics: dict[str, list[VariantMetricValue]] = {vid: [] for vid in variant_info}
 
-        # value_num/value_denom per metric key — для подсчёта корректных итогов по ratio-метрикам
+        # value_num/value_denom per metric key - для подсчёта корректных итогов по ratio-метрикам
         totals_num: dict[str, float] = {}
         totals_denom: dict[str, Optional[float]] = {}
         totals_has_denom: dict[str, bool] = {}

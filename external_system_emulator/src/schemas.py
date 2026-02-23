@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel
 
@@ -9,6 +9,7 @@ class EventsConfig(BaseModel):
     time_delay_seconds: int  # задержка перед отправкой события в секундах
     time_variation: int      # +- задержки в секундах
     probability: float       # вероятность отправки события (0.0 - 1.0)
+    payload: Optional[dict[str, Any]] = None  # статический payload, отправляется как есть
 
 
 class VariantConfig(BaseModel):

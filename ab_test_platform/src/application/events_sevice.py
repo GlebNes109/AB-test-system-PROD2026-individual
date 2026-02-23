@@ -305,7 +305,7 @@ class EventsService:
         for i, event_data in enumerate(events):
             try:
                 item = await self._process_single_event(event_data, i)
-                if item.status is None and item.error is not None:
+                if item.event_status is None and item.error is not None:
                     item.event_status = EventsStatus.REJECTED
                 results.append(item)
             except Exception as e:

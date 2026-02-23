@@ -394,15 +394,25 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
         flag_key = await self._get_flag_key(experiment.feature_flag_id)
         return self._build_response(experiment, current_version, flag_key, metrics)
 
-    async def has_active_experiment_for_flag(self, feature_flag_id: str) -> bool:
-        stmt = select(func.count()).select_from(
-            select(Experiments)
+    async def has_active_experiment_for_flag(
+            self,
+            feature_flag_id: str,
+            exclude_experiment_id: str | None = None,
+    ) -> bool:
+
+        stmt = (
+            select(func.count())
+            .select_from(Experiments)
             .where(
                 Experiments.feature_flag_id == feature_flag_id,
-                Experiments.status.in_([ExperimentStatus.RUNNING, ExperimentStatus.PAUSED]),
+                Experiments.status.in_(
+                    [ExperimentStatus.RUNNING, ExperimentStatus.PAUSED]
+                ),
             )
-            .subquery()
         )
+        if exclude_experiment_id:
+            stmt = stmt.where(Experiments.id != exclude_experiment_id)
+
         count = await self.session.scalar(stmt)
         return (count or 0) > 0
 

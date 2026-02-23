@@ -66,17 +66,25 @@ api_router.include_router(metrics.router, prefix="/metrics", tags=["Metrics"])
 api_router.include_router(reports.router, prefix="/experiments", tags=["Reports"])
 
 app.include_router(api_router)
+"""
+@app.get("/demo-prod/drop-database", tags=["Ops"])
+async def drop():
+    
+    hash_creator = get_hash_creator()
+    await drop_all_in_database()
+    await create_tables_and_mv()
+    async with async_session_maker() as session:
+        await add_super_admin(hash_creator, session)
+"""
 
 
 @app.get("/health", tags=["Ops"])
 async def health():
-    """Liveness: процесс жив и может обрабатывать запросы."""
     return {"status": "ok"}
 
 
 @app.get("/ready", tags=["Ops"])
 async def ready():
-    """Readiness: все критичные зависимости доступны (PostgreSQL, Redis)."""
     checks: dict[str, str] = {}
 
     try:
