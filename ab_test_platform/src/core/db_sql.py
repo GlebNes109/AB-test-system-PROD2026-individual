@@ -58,7 +58,9 @@ CREATE OR REPLACE FUNCTION fn_metric_summary(
     p_experiment_id TEXT,
     p_metric_key    TEXT,
     p_date_from     TIMESTAMPTZ,
-    p_date_to       TIMESTAMPTZ
+    p_date_to       TIMESTAMPTZ,
+ p_payloadfield_name TEXT DEFAULT '',
+ p_payloadfield_value TEXT DEFAULT ''
 )
 RETURNS TABLE(
     variant_id   TEXT,
@@ -79,6 +81,8 @@ DECLARE
     v_denom_expr       TEXT;
     v_sql              TEXT;
 BEGIN
+
+    -- считать настройки вычисления метрик из каталога метрик
     SELECT m.event_type, m.aggregation, m.payload_field,
            m.denominator_event_type, m.denominator_aggregation
     INTO   v_event_type, v_aggregation, v_payload_field,
@@ -92,83 +96,74 @@ BEGIN
     IF NOT FOUND THEN
         RETURN;
     END IF;
+    
+    
+    RETURN QUERY
+      
+    WITH numerator AS ( -- агрегация числителя
+      SELECT 
+        e.variant_id::text,
+        e.variant_name::text,
+        e.is_control,
+        CASE v_aggregation
+          WHEN 'COUNT'        THEN count(e.id)::numeric -- число событий
+          WHEN 'COUNT_UNIQUE' THEN count(distinct e.subject_id)::numeric -- число уникальных пользователей
+          WHEN 'SUM'          THEN sum((e.payload->>v_payload_field)::numeric) -- сумма по доп. полю
+          WHEN 'AVG'          THEN avg((e.payload->>v_payload_field)::numeric) -- среднее по доп. полю
+          ELSE count(e.id)
+        END AS num_val
+      FROM mv_events_enriched e
+      WHERE e.experiment_id = p_experiment_id
+        AND e.event_type_key = v_event_type -- метрика числителя
+        AND e.occurred_at BETWEEN p_date_from AND p_date_to
+  AND (
+   (p_payloadfield_name = '' AND p_payloadfield_value = '') -- фильтр по разрезам не передан
+   OR 
+   (e.payload->>p_payloadfield_name)::text = p_payloadfield_value -- применить фильтр по разрезам
+  )
+      GROUP BY e.variant_id, e.variant_name, e.is_control
+    ),
+    
+    denominator AS ( -- агрегация знаменателя
+      SELECT 
+        d.variant_id::text,
+        CASE v_denom_agg
+          WHEN 'COUNT'        THEN count(d.id)::numeric -- число событий
+          WHEN 'COUNT_UNIQUE' THEN count(distinct d.subject_id)::numeric -- число уникальных пользователей
+          ELSE count(d.id)
+        END AS denom_val
+      FROM mv_events_enriched d
+      WHERE d.experiment_id = p_experiment_id
+        AND d.event_type_key = v_denom_event_type -- метрика знаменателя
+        AND d.occurred_at BETWEEN p_date_from AND p_date_to
+  AND (
+   (p_payloadfield_name = '' AND p_payloadfield_value = '') -- фильтр по разрезам не передан
+   OR 
+   (d.payload->>p_payloadfield_name)::text = p_payloadfield_value -- применить фильтр по разрезам
+  )
+      GROUP BY d.variant_id
+    )
+  
+    SELECT
+      n.variant_id,
+      n.variant_name,
+      n.is_control,
+      CASE 
+        WHEN d.denom_val > 0 THEN n.num_val / d.denom_val -- если есть знаменатель, считать отношение
+        ELSE n.num_val -- знаменателя нет, вернуть метрику числителя
+      END AS value,
+      n.num_val AS value_num,
+      COALESCE(d.denom_val, NULL) AS value_denom
+    FROM numerator n
+    LEFT JOIN denominator d ON n.variant_id = d.variant_id;
 
-    v_num_expr := CASE v_aggregation
-        WHEN 'COUNT'        THEN 'count(e.id)::numeric'
-        WHEN 'COUNT_UNIQUE' THEN 'count(distinct e.subject_id)::numeric'
-        WHEN 'SUM'          THEN format('sum((e.payload->>%L)::numeric)', v_payload_field)
-        WHEN 'AVG'          THEN format('avg((e.payload->>%L)::numeric)', v_payload_field)
-        ELSE                     'count(e.id)::numeric'
-    END;
-
-    IF v_denom_event_type IS NOT NULL THEN
-        v_denom_expr := CASE v_denom_agg
-            WHEN 'COUNT'        THEN 'count(d.id)::numeric'
-            WHEN 'COUNT_UNIQUE' THEN 'count(distinct d.subject_id)::numeric'
-            ELSE                     'count(d.id)::numeric'
-        END;
-
-        v_sql := format(
-            'SELECT
-                n.variant_id::text,
-                n.variant_name::text,
-                n.is_control,
-                CASE WHEN d.denom_val > 0
-                     THEN n.num_val / d.denom_val
-                     ELSE NULL
-                END                       AS value,
-                n.num_val                 AS value_num,
-                d.denom_val               AS value_denom
-             FROM (
-                 SELECT e.variant_id::text, e.variant_name::text, e.is_control,
-                        %s AS num_val
-                 FROM mv_events_enriched e
-                 WHERE e.experiment_id = %L
-                   AND e.event_type_key = %L
-                   AND e.occurred_at BETWEEN %L AND %L
-                 GROUP BY e.variant_id, e.variant_name, e.is_control
-             ) n
-             LEFT JOIN (
-                 SELECT d.variant_id::text,
-                        %s AS denom_val
-                 FROM mv_events_enriched d
-                 WHERE d.experiment_id = %L
-                   AND d.event_type_key = %L
-                   AND d.occurred_at BETWEEN %L AND %L
-                 GROUP BY d.variant_id
-             ) d ON n.variant_id = d.variant_id',
-            v_num_expr,
-            p_experiment_id, v_event_type, p_date_from, p_date_to,
-            v_denom_expr,
-            p_experiment_id, v_denom_event_type, p_date_from, p_date_to
-        );
-    ELSE
-        v_sql := format(
-            'SELECT
-                e.variant_id::text,
-                e.variant_name::text,
-                e.is_control,
-                %s            AS value,
-                %s            AS value_num,
-                NULL::numeric AS value_denom
-             FROM mv_events_enriched e
-             WHERE e.experiment_id = %L
-               AND e.event_type_key = %L
-               AND e.occurred_at BETWEEN %L AND %L
-             GROUP BY e.variant_id, e.variant_name, e.is_control',
-            v_num_expr, v_num_expr,
-            p_experiment_id, v_event_type, p_date_from, p_date_to
-        );
-    END IF;
-
-    RETURN QUERY EXECUTE v_sql;
 END;
 $$;
 """
 
 # ---------------------------------------------------------------------------
 # fn_metric_timeseries
-# Возвращает метрику по временны́м бакетам для каждого варианта.
+# Возвращает метрику по временнЫм бакетам для каждого варианта.
 # Колонки: variant_id, variant_name, is_control, bucket_start, bucket_end, value
 # ---------------------------------------------------------------------------
 
@@ -178,7 +173,9 @@ CREATE OR REPLACE FUNCTION fn_metric_timeseries(
     p_metric_key    TEXT,
     p_date_from     TIMESTAMPTZ,
     p_date_to       TIMESTAMPTZ,
-    p_granularity   TEXT
+    p_granularity   TEXT,
+    p_payloadfield_name TEXT DEFAULT '',
+    p_payloadfield_value TEXT DEFAULT ''
 )
 RETURNS TABLE(
     variant_id   TEXT,
@@ -195,11 +192,9 @@ DECLARE
     v_payload_field    TEXT;
     v_denom_event_type TEXT;
     v_denom_agg        TEXT;
-    v_num_expr         TEXT;
-    v_denom_expr       TEXT;
     v_interval         TEXT;
-    v_sql              TEXT;
 BEGIN
+    -- Получаем настройки метрики
     SELECT m.event_type, m.aggregation, m.payload_field,
            m.denominator_event_type, m.denominator_aggregation
     INTO   v_event_type, v_aggregation, v_payload_field,
@@ -221,88 +216,68 @@ BEGIN
         ELSE               '1 hour'
     END;
 
-    v_num_expr := CASE v_aggregation
-        WHEN 'COUNT'        THEN 'count(e.id)::numeric'
-        WHEN 'COUNT_UNIQUE' THEN 'count(distinct e.subject_id)::numeric'
-        WHEN 'SUM'          THEN format('sum((e.payload->>%L)::numeric)', v_payload_field)
-        WHEN 'AVG'          THEN format('avg((e.payload->>%L)::numeric)', v_payload_field)
-        ELSE                     'count(e.id)::numeric'
-    END;
+    RETURN QUERY
+    
+    WITH numerator AS ( -- агрегация числителя
+        SELECT 
+            e.variant_id::text,
+            e.variant_name::text,
+            e.is_control,
+            date_trunc(p_granularity, e.occurred_at) AS bucket_start, -- дата начала бакета
+            CASE v_aggregation
+                WHEN 'COUNT'        THEN count(e.id)::numeric -- число событий
+                WHEN 'COUNT_UNIQUE' THEN count(distinct e.subject_id)::numeric -- число уникальных пользователей
+                WHEN 'SUM'          THEN sum((e.payload->>v_payload_field)::numeric) -- сумма по доп. полю
+                WHEN 'AVG'          THEN avg((e.payload->>v_payload_field)::numeric) -- среднее по доп. полю
+                ELSE count(e.id)::numeric
+            END AS num_val
+        FROM mv_events_enriched e
+        WHERE e.experiment_id = p_experiment_id
+            AND e.event_type_key = v_event_type
+            AND e.occurred_at BETWEEN p_date_from AND p_date_to
+            AND (
+                (p_payloadfield_name = '' AND p_payloadfield_value = '')
+                OR 
+                (e.payload->>p_payloadfield_name)::text = p_payloadfield_value
+            )
+        GROUP BY e.variant_id, e.variant_name, e.is_control, 
+                 date_trunc(p_granularity, e.occurred_at)
+    ),
+    
+    denominator AS (  -- агрегация знаменателя
+        SELECT 
+            d.variant_id::text,
+            date_trunc(p_granularity, d.occurred_at) AS bucket_start,
+            CASE v_denom_agg
+                WHEN 'COUNT'        THEN count(d.id)::numeric
+                WHEN 'COUNT_UNIQUE' THEN count(distinct d.subject_id)::numeric
+                ELSE count(d.id)::numeric
+            END AS denom_val
+        FROM mv_events_enriched d
+        WHERE d.experiment_id = p_experiment_id
+            AND d.event_type_key = v_denom_event_type
+            AND d.occurred_at BETWEEN p_date_from AND p_date_to
+            AND (
+                (p_payloadfield_name = '' AND p_payloadfield_value = '')
+                OR 
+                (d.payload->>p_payloadfield_name)::text = p_payloadfield_value
+            )
+        GROUP BY d.variant_id, date_trunc(p_granularity, d.occurred_at)
+    )
 
-    IF v_denom_event_type IS NOT NULL THEN
-        v_denom_expr := CASE v_denom_agg
-            WHEN 'COUNT'        THEN 'count(d.id)::numeric'
-            WHEN 'COUNT_UNIQUE' THEN 'count(distinct d.subject_id)::numeric'
-            ELSE                     'count(d.id)::numeric'
-        END;
+    SELECT
+      n.variant_id,
+      n.variant_name,
+      n.is_control,
+   n.bucket_start,
+   n.bucket_start + v_interval::interval AS bucket_end,
+      CASE 
+        WHEN d.denom_val > 0 THEN n.num_val / d.denom_val -- если есть знаменатель, считать отношение
+        ELSE n.num_val -- знаменателя нет, вернуть метрику числителя
+      END AS value
+    FROM numerator n
+    LEFT JOIN denominator d ON n.variant_id = d.variant_id;
 
-        v_sql := format(
-            'SELECT
-                n.variant_id::text,
-                n.variant_name::text,
-                n.is_control,
-                n.bucket_start,
-                n.bucket_start + %L::interval AS bucket_end,
-                CASE WHEN d.denom_val > 0
-                     THEN n.num_val / d.denom_val
-                     ELSE NULL
-                END AS value
-             FROM (
-                 SELECT e.variant_id::text, e.variant_name::text, e.is_control,
-                        date_trunc(%L, e.occurred_at) AS bucket_start,
-                        %s AS num_val
-                 FROM mv_events_enriched e
-                 WHERE e.experiment_id = %L
-                   AND e.event_type_key = %L
-                   AND e.occurred_at BETWEEN %L AND %L
-                 GROUP BY e.variant_id, e.variant_name, e.is_control,
-                          date_trunc(%L, e.occurred_at)
-             ) n
-             LEFT JOIN (
-                 SELECT d.variant_id::text,
-                        date_trunc(%L, d.occurred_at) AS bucket_start,
-                        %s AS denom_val
-                 FROM mv_events_enriched d
-                 WHERE d.experiment_id = %L
-                   AND d.event_type_key = %L
-                   AND d.occurred_at BETWEEN %L AND %L
-                 GROUP BY d.variant_id,
-                          date_trunc(%L, d.occurred_at)
-             ) d ON n.variant_id = d.variant_id
-                AND n.bucket_start = d.bucket_start
-             ORDER BY n.variant_id, n.bucket_start',
-            v_interval,
-            p_granularity, v_num_expr,
-            p_experiment_id, v_event_type, p_date_from, p_date_to,
-            p_granularity,
-            p_granularity, v_denom_expr,
-            p_experiment_id, v_denom_event_type, p_date_from, p_date_to,
-            p_granularity
-        );
-    ELSE
-        v_sql := format(
-            'SELECT
-                e.variant_id::text,
-                e.variant_name::text,
-                e.is_control,
-                date_trunc(%L, e.occurred_at)                AS bucket_start,
-                date_trunc(%L, e.occurred_at) + %L::interval AS bucket_end,
-                %s                                           AS value
-             FROM mv_events_enriched e
-             WHERE e.experiment_id = %L
-               AND e.event_type_key = %L
-               AND e.occurred_at BETWEEN %L AND %L
-             GROUP BY e.variant_id, e.variant_name, e.is_control,
-                      date_trunc(%L, e.occurred_at)
-             ORDER BY e.variant_id, date_trunc(%L, e.occurred_at)',
-            p_granularity, p_granularity, v_interval,
-            v_num_expr,
-            p_experiment_id, v_event_type, p_date_from, p_date_to,
-            p_granularity, p_granularity
-        );
-    END IF;
-
-    RETURN QUERY EXECUTE v_sql;
 END;
 $$;
 """
