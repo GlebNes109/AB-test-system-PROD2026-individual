@@ -30,7 +30,7 @@ admin@mail.ru
 
 Учетка в metabase (доп фича)
 ```
-admin@example.com
+admin@test.com
 metabase12
 ```
 

@@ -11,6 +11,7 @@ from ab_test_platform.src.application.decisions_service import DecisionsService
 from ab_test_platform.src.application.events_sevice import EventsService
 from ab_test_platform.src.application.experiment_service import ExperimentService
 from ab_test_platform.src.application.feature_flag_service import FeatureFlagService
+from ab_test_platform.src.application.learnings_service import LearningsService
 from ab_test_platform.src.application.metrics_service import MetricsService
 from ab_test_platform.src.application.reports_service import ReportsService
 from ab_test_platform.src.application.reviews_service import ReviewsService
@@ -31,6 +32,9 @@ from ab_test_platform.src.infra.database.repositories.feature_flag_repository im
 )
 from ab_test_platform.src.infra.database.repositories.guardrail_repository import (
     GuardrailRepository,
+)
+from ab_test_platform.src.infra.database.repositories.learnings_repository import (
+    LearningsRepository,
 )
 from ab_test_platform.src.infra.database.repositories.metrics_repository import MetricsRepository
 from ab_test_platform.src.infra.database.repositories.reports_repository import ReportsRepository
@@ -267,6 +271,24 @@ def get_reports_service(
 ) -> ReportsService:
     return ReportsService(
         reports_repository=reports_repo,
+        experiment_repository=experiment_repo,
+        metrics_repository=metrics_repo,
+    )
+
+
+def get_learnings_repository(
+    session: AsyncSession = Depends(get_session),
+) -> LearningsRepository:
+    return LearningsRepository(session=session)
+
+
+def get_learnings_service(
+    learnings_repo: LearningsRepository = Depends(get_learnings_repository),
+    experiment_repo: ExperimentsRepository = Depends(get_experiment_repository),
+    metrics_repo: MetricsRepository = Depends(get_metrics_repository),
+) -> LearningsService:
+    return LearningsService(
+        repository=learnings_repo,
         experiment_repository=experiment_repo,
         metrics_repository=metrics_repo,
     )

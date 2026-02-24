@@ -12,6 +12,7 @@ from ab_test_platform.src.api.routes import (
     events,
     experiments,
     feature_flags,
+    learnings,
     metrics,
     reports,
     reviews,
@@ -82,18 +83,9 @@ api_router.include_router(decisions.router, prefix="", tags=["Decisions"])
 api_router.include_router(events.router, prefix="/events", tags=["Events"])
 api_router.include_router(metrics.router, prefix="/metrics", tags=["Metrics"])
 api_router.include_router(reports.router, prefix="/experiments", tags=["Reports"])
+api_router.include_router(learnings.router, prefix="/learnings", tags=["Learnings"])
 
 app.include_router(api_router)
-"""
-@app.get("/demo-prod/drop-database", tags=["Ops"])
-async def drop():
-    
-    hash_creator = get_hash_creator()
-    await drop_all_in_database()
-    await create_tables_and_mv()
-    async with async_session_maker() as session:
-        await add_super_admin(hash_creator, session)
-"""
 
 
 @app.get("/health", tags=["Ops"])

@@ -26,6 +26,9 @@ from ab_test_platform.src.models.feature_flags import (
 from ab_test_platform.src.models.guardrail_triggers import (
     GuardrailTriggers,  # noqa: F401 — needed for metadata
 )
+from ab_test_platform.src.models.learnings import (
+    Learnings,  # noqa: F401 — needed for metadata
+)
 from ab_test_platform.src.models.metrics import (  # noqa: F401 — needed for metadata
     ExperimentMetrics,
     Metrics,
@@ -92,6 +95,20 @@ async def create_tables_and_mv(db_engine=None) -> None:
         await conn.execute(text("DROP FUNCTION IF EXISTS fn_metric_timeseries CASCADE"))
         await conn.execute(text(SQL_CREATE_FN_METRIC_SUMMARY))
         await conn.execute(text(SQL_CREATE_FN_METRIC_TIMESERIES))
+        await conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS ix_learnings_fts
+            ON learnings USING GIN (
+                to_tsvector('russian',
+                    coalesce(hypothesis, '') || ' ' ||
+                    coalesce(notes, '') || ' ' ||
+                    coalesce(result_description, '')
+                )
+            )
+        """))
+        await conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS ix_learnings_tags
+            ON learnings USING GIN (tags)
+        """))
 
 
 async def initial_mv_refresh(db_engine=None) -> None:

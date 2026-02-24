@@ -119,12 +119,14 @@ echo "EXPERIMENTER_TOKEN=$EXPERIMENTER_TOKEN"
 
 > Эмулятор поддерживает поле `payload` в конфиге событий — оно передаётся как есть в AB-платформу. В этом конфиге control получает средний чек 79.90, treatment - 129.90. Метрика `b6_avg_revenue` (AVG по `amount`) покажет разницу среднего чека между вариантами.
 >
-> **Нюанс:** `b6_purchase` это зависимое событие (`requires_event_type: b6_click`). Если клик не пришёл (probability < 1), покупка уйдёт в `PENDING`. Для control: 60% получат клик, из них 30% покупку. Для treatment: 80% клик, 50% покупка. В целом это нормальный сценарий, он повторяет реальную систему, потому что с внешней системы могут приходить не очень правильные данные (действие без экспозиции)
+> **Нюанс:** `b6_purchase` это зависимое событие (`requires_event_type: b6_click`). Если клик не пришёл (probability < 1), покупка уйдёт в `PENDING`. Для control: 60% получат клик, из них 30% покупку. Для treatment: 80% клик, 50% покупка. В целом это нормальный сценарий, он повторяет реальную систему, потому что с внешней системы могут приходить не очень правильные данные (действие без экспозиции). 
+> 
+> Целевое значение конверсии для treatment варианта 0.8 * 0.5=0.48, для control - 0.6 * 0.3=0.18. Сгенерируйте тестовые данные в эмуляторе и проверьте, что конверсия корректная (может быть небольшая погрешность из-за того что вероятности в эмуляторе считаются независимо и часть событий ушла в pending).
 
 Запуск:
 1. `POST ${BASE_URL}/emulator/scenarios` с JSON выше
 2. `POST ${BASE_URL}/emulator/scenarios/{id}/run`
-3. Подождите несколько минут
+3. Подождите несколько минут - пока в статусе `GET ${BASE_URL}/emulator/scenarios/{id}` не будет finished
 4. `GET ${BASE_URL}/api/v1/experiments/${EXP_REPORTS_ID}/reports` -- отчёт с большим количеством данных
 5. `GET ${BASE_URL}/api/v1/experiments/${EXP_REPORTS_ID}/reports/timeseries?granularity=minute` -- динамика по времени (гранулярность может быть задана в минутах, часах, днях)
 
@@ -275,6 +277,7 @@ Metrics in experiment config:
   b6_views_count (PRIMARY)
   b6_clicks_count (SECONDARY)
   b6_conversion (SECONDARY)
+  b6_avg_revenue (SECONDARY)
 ```
 
 Отчёт:
@@ -283,6 +286,7 @@ Metrics in report (variant=control):
   b6_views_count = <val>
   b6_clicks_count = <val>
   b6_conversion = <val>
+  b6_avg_revenue = <val>
 ```
 
 **Что проверить:**

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Запускает API под coverage.py, ждёт окончания тестов, генерирует отчёт.
 
 DONE_FILE="/coverage/pytest_done"
@@ -24,12 +24,35 @@ while [ ! -f "$DONE_FILE" ]; do
 done
 
 echo "[coverage] Tests done signal received. Stopping API..."
-kill -TERM "$API_PID" 2>/dev/null || true
+# SIGINT triggers Python atexit more reliably than SIGTERM under uvicorn
+kill -INT "$API_PID" 2>/dev/null || true
+sleep 3
+if kill -0 "$API_PID" 2>/dev/null; then
+    kill -TERM "$API_PID" 2>/dev/null || true
+fi
 wait "$API_PID" 2>/dev/null || true
+
+echo "[coverage] Coverage data files in $COV_DATA_DIR:"
+ls -la "$COV_DATA_DIR"/ 2>&1 || true
 
 # Объединяем параллельные файлы покрытия и генерируем отчёт из /app
 cd /app
-python -m coverage combine --rcfile=/app/ab_test_platform/.coveragerc "$COV_DATA_DIR"/.coverage* 2>/dev/null || true
+
+# Проверяем наличие файлов данных перед combine
+COV_FILES=$(ls "$COV_DATA_DIR"/.coverage.* 2>/dev/null || true)
+if [ -z "$COV_FILES" ]; then
+    echo "[coverage] ERROR: No coverage data files found in $COV_DATA_DIR"
+    echo "[coverage] Expected files matching: $COV_DATA_DIR/.coverage.*"
+    exit 1
+fi
+
+echo "[coverage] Combining coverage data..."
+python -m coverage combine --rcfile=/app/ab_test_platform/.coveragerc $COV_FILES
+
+if [ ! -f /app/.coverage ]; then
+    echo "[coverage] ERROR: coverage combine did not produce /app/.coverage"
+    exit 1
+fi
 
 echo ""
 echo "========================= Coverage Report ========================="
