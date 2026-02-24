@@ -37,7 +37,9 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
             raise EntityNotFoundError(f"Experiment {experiment_id} not found")
         return row
 
-    async def _get_current_version(self, experiment_id: str, version_number: int) -> ExperimentVersions:
+    async def _get_current_version(
+        self, experiment_id: str, version_number: int
+    ) -> ExperimentVersions:
         stmt = (
             select(ExperimentVersions)
             .where(
@@ -49,7 +51,9 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
         result = await self.session.execute(stmt)
         row = result.scalar_one_or_none()
         if row is None:
-            raise EntityNotFoundError(f"ExperimentVersion not found for experiment {experiment_id} v{version_number}")
+            raise EntityNotFoundError(
+                f"ExperimentVersion not found for experiment {experiment_id} v{version_number}"
+            )
         return row
 
     async def _get_experiment_metrics(self, experiment_id: str) -> list[ExperimentMetricResponse]:
@@ -72,21 +76,29 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
             for em, m in rows
         ]
 
-    async def _save_metrics(self, experiment_id: str, metrics: list[ExperimentMetricBind], metric_id_map: dict[str, str]) -> None:
+    async def _save_metrics(
+        self, experiment_id: str, metrics: list[ExperimentMetricBind], metric_id_map: dict[str, str]
+    ) -> None:
         for m in metrics:
-            self.session.add(ExperimentMetricsModel(
-                id=str(uuid.uuid4()),
-                experiment_id=experiment_id,
-                metric_id=metric_id_map[m.metric_key],
-                type=m.type,
-                threshold=m.threshold,
-                window_minutes=m.window_minutes,
-                action=m.action,
-            ))
+            self.session.add(
+                ExperimentMetricsModel(
+                    id=str(uuid.uuid4()),
+                    experiment_id=experiment_id,
+                    metric_id=metric_id_map[m.metric_key],
+                    type=m.type,
+                    threshold=m.threshold,
+                    window_minutes=m.window_minutes,
+                    action=m.action,
+                )
+            )
 
-    async def _replace_metrics(self, experiment_id: str, metrics: list[ExperimentMetricBind], metric_id_map: dict[str, str]) -> None:
+    async def _replace_metrics(
+        self, experiment_id: str, metrics: list[ExperimentMetricBind], metric_id_map: dict[str, str]
+    ) -> None:
         await self.session.execute(
-            delete(ExperimentMetricsModel).where(ExperimentMetricsModel.experiment_id == experiment_id)
+            delete(ExperimentMetricsModel).where(
+                ExperimentMetricsModel.experiment_id == experiment_id
+            )
         )
         await self._save_metrics(experiment_id, metrics, metric_id_map)
 
@@ -98,11 +110,19 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
     async def _get_flag_keys_batch(self, feature_flag_ids: list[str]) -> dict[str, str]:
         if not feature_flag_ids:
             return {}
-        stmt = select(FeatureFlags.id, FeatureFlags.key).where(FeatureFlags.id.in_(feature_flag_ids))
+        stmt = select(FeatureFlags.id, FeatureFlags.key).where(
+            FeatureFlags.id.in_(feature_flag_ids)
+        )
         rows = (await self.session.execute(stmt)).all()
         return {row[0]: row[1] for row in rows}
 
-    def _build_response(self, experiment: Experiments, version: ExperimentVersions, feature_flag_key: str, metrics: list[ExperimentMetricResponse] = None) -> ExperimentResponse:
+    def _build_response(
+        self,
+        experiment: Experiments,
+        version: ExperimentVersions,
+        feature_flag_key: str,
+        metrics: list[ExperimentMetricResponse] = None,
+    ) -> ExperimentResponse:
         return ExperimentResponse(
             id=experiment.id,
             feature_flag_id=experiment.feature_flag_id,
@@ -131,11 +151,11 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
             result_description=experiment.result_description,
         )
 
-    async def create_experiment(self, data: ExperimentCreate, created_by: str, flag, metric_id_map: dict[str, str] = None) -> ExperimentResponse:
+    async def create_experiment(
+        self, data: ExperimentCreate, created_by: str, flag, metric_id_map: dict[str, str] = None
+    ) -> ExperimentResponse:
         experiment_id = str(uuid.uuid4())
         version_id = str(uuid.uuid4())
-        flag_default_value = flag.default_value
-
         experiment = Experiments(
             id=experiment_id,
             feature_flag_id=flag.id,
@@ -159,14 +179,16 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
         await self.session.flush()
 
         for var in data.variants:
-            self.session.add(Variants(
-                id=str(uuid.uuid4()),
-                experiment_version_id=version_id,
-                name=var.name,
-                value=str(var.value),
-                weight=var.weight,
-                is_control=var.is_control,
-            ))
+            self.session.add(
+                Variants(
+                    id=str(uuid.uuid4()),
+                    experiment_version_id=version_id,
+                    name=var.name,
+                    value=str(var.value),
+                    weight=var.weight,
+                    is_control=var.is_control,
+                )
+            )
 
         # Дефолтный вариант создается вместе с другими. Пользователи вне тестовой группы получают значение флага по умолчанию
         """self.session.add(Variants(
@@ -213,9 +235,8 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
             .scalar_subquery()
         )
 
-        stmt = (
-            select(Experiments, ExperimentVersions)
-            .join(ExperimentVersions, ExperimentVersions.id == subq)
+        stmt = select(Experiments, ExperimentVersions).join(
+            ExperimentVersions, ExperimentVersions.id == subq
         )
         if status is not None:
             stmt = stmt.where(Experiments.status == status)
@@ -237,7 +258,9 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
 
         # Batch-load метрик для всех экспериментов
         experiment_ids = [exp.id for exp, _ in rows]
-        metrics_by_experiment: dict[str, list[ExperimentMetricResponse]] = {eid: [] for eid in experiment_ids}
+        metrics_by_experiment: dict[str, list[ExperimentMetricResponse]] = {
+            eid: [] for eid in experiment_ids
+        }
         if experiment_ids:
             metrics_stmt = (
                 select(ExperimentMetricsModel, Metrics)
@@ -279,8 +302,11 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
                 modified_by=version.modified_by,
                 variants=[
                     VariantResponse(
-                        id=v.id, name=v.name, value=v.value,
-                        weight=v.weight, is_control=v.is_control,
+                        id=v.id,
+                        name=v.name,
+                        value=v.value,
+                        weight=v.weight,
+                        is_control=v.is_control,
                     )
                     for v in variants_by_version.get(version.id, [])
                 ],
@@ -291,21 +317,34 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
         return PagedExperiments(items=items, total=total or 0, page=page, size=size)
 
     async def update_experiment(
-        self, experiment_id: str, data: ExperimentUpdate, modified_by: str, flag_default_value: str | None = None, metric_id_map: dict[str, str] | None = None
+        self,
+        experiment_id: str,
+        data: ExperimentUpdate,
+        modified_by: str,
+        flag_default_value: str | None = None,
+        metric_id_map: dict[str, str] | None = None,
     ) -> ExperimentResponse:
         experiment = await self._get_experiment_row(experiment_id)
         prev_version = await self._get_current_version(experiment_id, experiment.version)
 
         new_version_number = experiment.version + 1
         new_version_id = str(uuid.uuid4())
-        new_audience = data.audience_percentage if data.audience_percentage is not None else prev_version.audience_percentage
+        new_audience = (
+            data.audience_percentage
+            if data.audience_percentage is not None
+            else prev_version.audience_percentage
+        )
 
         new_version = ExperimentVersions(
             id=new_version_id,
             experiment_id=experiment_id,
             name=data.name if data.name is not None else prev_version.name,
             version_number=new_version_number,
-            targeting_rule=data.targeting_rule if data.targeting_rule is not None else prev_version.targeting_rule,
+            targeting_rule=(
+                data.targeting_rule
+                if data.targeting_rule is not None
+                else prev_version.targeting_rule
+            ),
             audience_percentage=new_audience,
             modified_by=modified_by,
         )
@@ -314,14 +353,16 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
 
         if data.variants is not None:
             for var in data.variants:
-                self.session.add(Variants(
-                    id=str(uuid.uuid4()),
-                    experiment_version_id=new_version_id,
-                    name=var.name,
-                    value=str(var.value),
-                    weight=var.weight,
-                    is_control=var.is_control,
-                ))
+                self.session.add(
+                    Variants(
+                        id=str(uuid.uuid4()),
+                        experiment_version_id=new_version_id,
+                        name=var.name,
+                        value=str(var.value),
+                        weight=var.weight,
+                        is_control=var.is_control,
+                    )
+                )
             # Пересчет дефолтного варианта под новый audience и variants
             """if flag_default_value is not None:
                 self.session.add(Variants(
@@ -383,9 +424,7 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
             values["result_description"] = result_description
 
         await self.session.execute(
-            update(Experiments)
-            .where(Experiments.id == experiment_id)
-            .values(**values)
+            update(Experiments).where(Experiments.id == experiment_id).values(**values)
         )
         await self.session.commit()
 
@@ -396,9 +435,9 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
         return self._build_response(experiment, current_version, flag_key, metrics)
 
     async def has_active_experiment_for_flag(
-            self,
-            feature_flag_id: str,
-            exclude_experiment_id: str | None = None,
+        self,
+        feature_flag_id: str,
+        exclude_experiment_id: str | None = None,
     ) -> bool:
 
         stmt = (
@@ -406,9 +445,7 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
             .select_from(Experiments)
             .where(
                 Experiments.feature_flag_id == feature_flag_id,
-                Experiments.status.in_(
-                    [ExperimentStatus.RUNNING, ExperimentStatus.PAUSED]
-                ),
+                Experiments.status.in_([ExperimentStatus.RUNNING, ExperimentStatus.PAUSED]),
             )
         )
         if exclude_experiment_id:
@@ -429,8 +466,13 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
             results.append(self._build_response(experiment, current_version, flag_key, metrics))
         return results
 
-    async def get_active_experiment_for_flag(self, feature_flag_id: str) -> ExperimentResponse | None:
-        stmt = select(Experiments).where(Experiments.feature_flag_id == feature_flag_id, Experiments.status == ExperimentStatus.RUNNING)
+    async def get_active_experiment_for_flag(
+        self, feature_flag_id: str
+    ) -> ExperimentResponse | None:
+        stmt = select(Experiments).where(
+            Experiments.feature_flag_id == feature_flag_id,
+            Experiments.status == ExperimentStatus.RUNNING,
+        )
         experiment = (await self.session.execute(stmt)).scalar_one_or_none()
         if experiment is None:
             return None

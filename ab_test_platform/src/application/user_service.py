@@ -14,7 +14,13 @@ from ab_test_platform.src.schemas.users import PagedUsers, UsersResponse, UsersU
 
 
 class UsersService:
-    def __init__(self, repository: UserRepositoryInterface, token_creator: TokenCreatorInterface, hash_creator: HashCreatorInterface, approve_groups_repository: ApproveGroupsRepositoryInterface):
+    def __init__(
+        self,
+        repository: UserRepositoryInterface,
+        token_creator: TokenCreatorInterface,
+        hash_creator: HashCreatorInterface,
+        approve_groups_repository: ApproveGroupsRepositoryInterface,
+    ):
         self.repository = repository
         self.approve_groups_repository = approve_groups_repository
         self.token_creator = token_creator
@@ -23,9 +29,7 @@ class UsersService:
     async def create_user(self, user_create) -> UsersResponse:
         password_hash = await self.hash_creator.create_hash(user_create.password)
 
-        user = Users(email=user_create.email,
-                     password_hash=password_hash,
-                     role=user_create.role)
+        user = Users(email=user_create.email, password_hash=password_hash, role=user_create.role)
 
         user_read = await self.repository.create(user)
 
@@ -35,16 +39,15 @@ class UsersService:
         try:
             user_read = await self.repository.get_by_email(user.email)
         except EntityNotFoundError:
-            raise UnauthorizedError("Токен отсутствует или невалиден")
+            raise UnauthorizedError("Токен отсутствует или невалиден") from None
 
         if user_read.password_hash == await self.hash_creator.create_hash(user.password):
             access_token, expires_in = await self.token_creator.create_access_token(user_read.id)
             return AuthResponse(
-            accessToken=access_token,
-            expiresIn=expires_in,
-            user=UsersResponse.model_validate(user_read, from_attributes=True)
+                accessToken=access_token,
+                expiresIn=expires_in,
+                user=UsersResponse.model_validate(user_read, from_attributes=True),
             )
-
 
         else:
             raise UnauthorizedError("Токен отсутствует или невалиден")
@@ -52,12 +55,15 @@ class UsersService:
     async def get_users(self, page, size):
         offset = page * size
         limit = size
-        users, total = await self.repository.get_all(limit, offset, "createdAt", order=SortOrder.ASC)
+        users, total = await self.repository.get_all(
+            limit, offset, "createdAt", order=SortOrder.ASC
+        )
         return PagedUsers(
             items=[UsersResponse.model_validate(user, from_attributes=True) for user in users],
             total=total,
             page=page,
-            size=size)
+            size=size,
+        )
 
     async def get_user(self, user_id: str) -> UsersResponse:
         user_read = await self.repository.get(user_id)

@@ -39,8 +39,7 @@ class ReportsRepositoryInterface(Protocol):
         experiment_id: str,
         date_from: datetime,
         date_to: datetime,
-    ) -> list[Any]:
-        ...
+    ) -> list[Any]: ...
 
     @abstractmethod
     async def refresh_mv(self) -> None:

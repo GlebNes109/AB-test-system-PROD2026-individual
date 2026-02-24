@@ -71,7 +71,6 @@ app = FastAPI(
 )
 
 
-
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(auth.router, prefix="/auth", tags=["Auth"])
 api_router.include_router(users.router, prefix="/users", tags=["Users"])
@@ -160,6 +159,7 @@ async def app_exception_handler(request: Request, exc: AppException):
         content=jsonable_encoder(error),
     )
 
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     def bad_request_response(message: str) -> JSONResponse:
@@ -193,12 +193,16 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
     field_errors = []
     for err in errors:
-        loc = ".".join([str(part) for part in err.get("loc", []) if part not in ("body", "query", "path")])
-        field_errors.append({
-            "field": loc or "request",
-            "issue": err.get("msg", "Invalid value"),
-            "rejectedValue": err.get("input"),
-        })
+        loc = ".".join(
+            [str(part) for part in err.get("loc", []) if part not in ("body", "query", "path")]
+        )
+        field_errors.append(
+            {
+                "field": loc or "request",
+                "issue": err.get("msg", "Invalid value"),
+                "rejectedValue": err.get("input"),
+            }
+        )
 
     error = ValidationErrorResponse(
         code=ErrorCode.VALIDATION_FAILED,
@@ -213,6 +217,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=422,
         content=jsonable_encoder(error),
     )
+
 
 if __name__ == "__main__":
     server_address = settings.server_address

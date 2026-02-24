@@ -38,9 +38,7 @@ from sqlmodel import SQLModel, select
 
 async def add_super_admin(hash_creator: HashCreator, session: AsyncSession):
     # SQLModel.metadata.create_all(engine)
-    res = await session.execute(
-        select(Users).where(Users.email == settings.admin_email)
-    )
+    res = await session.execute(select(Users).where(Users.email == settings.admin_email))
     obj = res.scalar_one_or_none()
     if obj is None:
         user_id = str(uuid.uuid4())
@@ -48,12 +46,13 @@ async def add_super_admin(hash_creator: HashCreator, session: AsyncSession):
             id=user_id,
             email=settings.admin_email,
             password_hash=await hash_creator.create_hash(settings.admin_password),
-            role=UserRole.ADMIN
+            role=UserRole.ADMIN,
         )
         session.add(user_db)
         await session.commit()
     await session.close()
     # print("добавлен")
+
 
 async def drop_all_in_database():
     async with engine.begin() as conn:

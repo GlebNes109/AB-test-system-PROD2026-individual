@@ -21,9 +21,11 @@ class DecisionsRepository(BaseRepository, DecisionsRepositoryInterface):
             obj = result.scalar_one()
             return self.read_schema.model_validate(obj, from_attributes=True)
         except NoResultFound:
-            raise EntityNotFoundError
+            raise EntityNotFoundError from None
 
-    async def get_decision_by_subject_and_experiment(self, subject_id: str, experiment_id: str) -> Decisions:
+    async def get_decision_by_subject_and_experiment(
+        self, subject_id: str, experiment_id: str
+    ) -> Decisions:
         stmt = select(Decisions).where(
             Decisions.subject_id == subject_id,
             Decisions.experiment_id == experiment_id,
@@ -38,16 +40,14 @@ class DecisionsRepository(BaseRepository, DecisionsRepositoryInterface):
         stmt = (
             select(func.count())
             .select_from(Decisions)
-            .join(
-                Experiments,
-                Decisions.experiment_id == Experiments.id
-            )
+            .join(Experiments, Decisions.experiment_id == Experiments.id)
             .where(
                 Decisions.subject_id == subject_id,
                 or_(
-                    Experiments.status == ExperimentStatus.RUNNING, # TODO вынести блокирующие статусы в домен/application слой
+                    Experiments.status
+                    == ExperimentStatus.RUNNING,  # TODO вынести блокирующие статусы в домен/application слой
                     Experiments.status == ExperimentStatus.PAUSED,
-                )
+                ),
             )
         )
 

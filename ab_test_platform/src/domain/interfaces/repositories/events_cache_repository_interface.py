@@ -14,16 +14,12 @@ class EventsCacheRepositoryInterface(Protocol):
     """
 
     @abstractmethod
-    async def set_pending(
-        self, decision_id: str, required_type_id: str, event_data: dict
-    ) -> None:
+    async def set_pending(self, decision_id: str, required_type_id: str, event_data: dict) -> None:
         """Положить событие в Redis 1 (pending)."""
         ...
 
     @abstractmethod
-    async def pop_pending(
-        self, decision_id: str, fulfilled_type_id: str
-    ) -> dict | None:
+    async def pop_pending(self, decision_id: str, fulfilled_type_id: str) -> dict | None:
         """Извлечь и удалить событие из Redis 1 по ключу (decision_id, required_type_id)."""
         ...
 

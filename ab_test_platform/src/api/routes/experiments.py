@@ -1,4 +1,3 @@
-
 from ab_test_platform.src.api.deps import (
     check_experimenter_access,
     get_experiment_service,
@@ -30,7 +29,11 @@ _EDITORS = ["ADMIN", "EXPERIMENTER"]
 @router.post(
     "",
     summary="Создание эксперимента",
-    description="Создаёт эксперимент и первую версию конфигурации (version=1, status=draft).",
+    description="Создаёт эксперимент и первую версию конфигурации (version=1, status=draft). "
+                "Версия эксперимента меняется при изменении через patch."
+                "При создании эксперимента к нему надо прикрепить метрики, которые потом будут в отчете"
+                "Если метрика PRIMARY или SECONDARY - передавать поля threshold window_minutes и action НЕ надо (не пройдет валидацию)."
+                "Если метрика типа GUARDRAIL для этого эксперимента - эти поля обязательны",
     status_code=status.HTTP_201_CREATED,
     response_model=ExperimentResponse,
 )
@@ -107,7 +110,7 @@ async def submit_experiment(
     experiment_id: str,
     current_user: Users = Depends(require_roles(_EDITORS)),
     service: ExperimentService = Depends(get_experiment_service),
-    _: None = Depends(check_experimenter_access)
+    _: None = Depends(check_experimenter_access),
 ) -> ExperimentResponse:
     return await service.submit_for_review(experiment_id, current_user.id)
 
@@ -118,13 +121,12 @@ async def submit_experiment(
     description="Переводит эксперимент из approved в running. Проверяет отсутствие другого активного эксперимента на том же флаге.",
     status_code=status.HTTP_200_OK,
     response_model=ExperimentResponse,
-
 )
 async def start_experiment(
     experiment_id: str,
     current_user: Users = Depends(require_roles(_EDITORS)),
     service: ExperimentService = Depends(get_experiment_service),
-    _: None = Depends(check_experimenter_access)
+    _: None = Depends(check_experimenter_access),
 ) -> ExperimentResponse:
     return await service.start_experiment(experiment_id, current_user.id)
 
@@ -140,7 +142,7 @@ async def pause_experiment(
     experiment_id: str,
     current_user: Users = Depends(require_roles(_EDITORS)),
     service: ExperimentService = Depends(get_experiment_service),
-    _: None = Depends(check_experimenter_access)
+    _: None = Depends(check_experimenter_access),
 ) -> ExperimentResponse:
     return await service.pause_experiment(experiment_id, current_user.id)
 
@@ -188,7 +190,7 @@ async def archive_experiment(
     experiment_id: str,
     current_user: Users = Depends(require_roles(_EDITORS)),
     service: ExperimentService = Depends(get_experiment_service),
-    _: None = Depends(check_experimenter_access)
+    _: None = Depends(check_experimenter_access),
 ) -> ExperimentResponse:
     return await service.archive_experiment(experiment_id, current_user.id)
 

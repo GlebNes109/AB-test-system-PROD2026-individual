@@ -16,7 +16,7 @@ class EventsRepository(BaseRepository, EventsRepositoryInterface):
             await self.session.refresh(obj)
             return EventTypes.model_validate(obj, from_attributes=True)
         except IntegrityError as e:
-            if e.orig.sqlstate == '23505':
+            if e.orig.sqlstate == "23505":
                 raise EntityAlreadyExistsError from e
             else:
                 raise
@@ -38,7 +38,9 @@ class EventsRepository(BaseRepository, EventsRepositoryInterface):
             raise EntityNotFoundError(f"Event type '{type_key}' not found")
         return obj
 
-    async def get_event_by_decision_and_type(self, decision_id: str, event_type_id: str) -> Events | None:
+    async def get_event_by_decision_and_type(
+        self, decision_id: str, event_type_id: str
+    ) -> Events | None:
         stmt = select(Events).where(
             Events.decision_id == decision_id,
             Events.event_type_id == event_type_id,
@@ -46,12 +48,18 @@ class EventsRepository(BaseRepository, EventsRepositoryInterface):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_non_rejected_raw_event_by_decision_and_type(self, decision_id: str, event_type_id: str) -> EventsRaw | None:
-        stmt = select(EventsRaw).where(
-            EventsRaw.decision_id == decision_id,
-            EventsRaw.event_type_id == event_type_id,
-            EventsRaw.status != EventsStatus.REJECTED,
-        ).limit(1)
+    async def get_non_rejected_raw_event_by_decision_and_type(
+        self, decision_id: str, event_type_id: str
+    ) -> EventsRaw | None:
+        stmt = (
+            select(EventsRaw)
+            .where(
+                EventsRaw.decision_id == decision_id,
+                EventsRaw.event_type_id == event_type_id,
+                EventsRaw.status != EventsStatus.REJECTED,
+            )
+            .limit(1)
+        )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -67,9 +75,7 @@ class EventsRepository(BaseRepository, EventsRepositoryInterface):
 
     async def update_raw_event_status(self, raw_event_id: str, status: EventsStatus) -> None:
         await self.session.execute(
-            update(EventsRaw)
-            .where(EventsRaw.id == raw_event_id)
-            .values(status=status)
+            update(EventsRaw).where(EventsRaw.id == raw_event_id).values(status=status)
         )
 
     async def commit(self) -> None:

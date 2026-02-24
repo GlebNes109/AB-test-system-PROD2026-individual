@@ -16,6 +16,7 @@ class ReviewsRead(BaseModel):
     comment: str
     created_at: datetime
 
+
 class PagedReviews(BaseModel):
     items: list[ReviewsRead]
     total: int

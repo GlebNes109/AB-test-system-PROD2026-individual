@@ -4,7 +4,7 @@ from enum import Enum
 from pydantic import BaseModel
 
 
-class Granularity(str, Enum):
+class Granularity(Enum):
     MINUTE = "minute"
     HOUR = "hour"
     DAY = "day"

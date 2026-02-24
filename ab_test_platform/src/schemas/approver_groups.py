@@ -1,4 +1,3 @@
-
 from ab_test_platform.src.domain.exceptions import UnsupportableContentError
 from pydantic import BaseModel, field_validator
 

@@ -21,12 +21,7 @@ class TokenCreator(TokenCreatorInterface):
         user = await self.repository.get(user_id)
         now = int(datetime.now(UTC).timestamp())
         expire = now + 3600
-        to_encode = {
-            "sub": user_id,
-            "role": user.role.value,
-            "iat": now,
-            "exp": expire
-        }
+        to_encode = {"sub": user_id, "role": user.role.value, "iat": now, "exp": expire}
         token = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
         return token, expire
 
@@ -39,4 +34,4 @@ class TokenCreator(TokenCreatorInterface):
             return user_id
 
         except jwt.PyJWTError:
-            raise UnauthorizedError
+            raise UnauthorizedError from None

@@ -18,9 +18,7 @@ class FeatureFlagRepository(BaseRepository, FeatureFlagRepositoryInterface):
     async def update_default_value(self, key: str, default_value: str):
         await self.get_by_key(key)
         await self.session.execute(
-            update(self.model)
-            .where(self.model.key == key)
-            .values(default_value=default_value)
+            update(self.model).where(self.model.key == key).values(default_value=default_value)
         )
         await self.session.commit()
         return await self.get_by_key(key)

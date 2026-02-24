@@ -10,14 +10,18 @@ from ab_test_platform.src.schemas.approver_groups import ApproverGroupCreate, Ap
 
 
 class ApproveGroupsService:
-    def __init__(self, repository: ApproveGroupsRepositoryInterface, user_repo: UserRepositoryInterface):
+    def __init__(
+        self, repository: ApproveGroupsRepositoryInterface, user_repo: UserRepositoryInterface
+    ):
         self.repository = repository
         self.user_repo = user_repo
 
     def _default_min_approvals(self, role: UserRole) -> int:
         return 0 if role == UserRole.ADMIN else 1
 
-    async def update_approve_group(self, data: ApproverGroupCreate, experimenter_id: str) -> ApproverGroupResponse:
+    async def update_approve_group(
+        self, data: ApproverGroupCreate, experimenter_id: str
+    ) -> ApproverGroupResponse:
         user = await self.user_repo.get(experimenter_id)
         if user.role != UserRole.EXPERIMENTER and user.role != UserRole.ADMIN:
             raise UnsupportableContentError("This user is not EXPERIMENTER and not ADMIN")
@@ -26,7 +30,7 @@ class ApproveGroupsService:
             try:
                 approver = await self.user_repo.get(approver_id)
             except EntityNotFoundError:
-                raise EntityNotFoundError(f"Approver with id {approver_id} not found")
+                raise EntityNotFoundError(f"Approver with id {approver_id} not found") from None
             if approver.role not in (UserRole.APPROVER, UserRole.ADMIN):
                 raise UnsupportableContentError(f"User {approver_id} is not APPROVER or ADMIN")
 
@@ -35,7 +39,9 @@ class ApproveGroupsService:
                 f"min_approvals ({data.min_approvals}) cannot exceed number of approvers ({len(data.approver_ids)})"
             )
 
-        group = await self.repository.get_or_create(experimenter_id, self._default_min_approvals(user.role))
+        group = await self.repository.get_or_create(
+            experimenter_id, self._default_min_approvals(user.role)
+        )
         group.min_approvals = data.min_approvals
         await self.repository.update(group)
         await self.repository.create_members(data.approver_ids, group.id)
@@ -51,7 +57,9 @@ class ApproveGroupsService:
         if user.role != UserRole.EXPERIMENTER and user.role != UserRole.ADMIN:
             raise UnsupportableContentError("This user is not EXPERIMENTER and not ADMIN")
 
-        group = await self.repository.get_or_create(experimenter_id, self._default_min_approvals(user.role))
+        group = await self.repository.get_or_create(
+            experimenter_id, self._default_min_approvals(user.role)
+        )
         members = await self.repository.get_members(group.id)
 
         return ApproverGroupResponse(

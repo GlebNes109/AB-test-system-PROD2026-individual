@@ -12,3 +12,7 @@ ignore = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/api/routes/*.py" = ["B008"]
+"src/api/deps.py" = ["B008", "E402"]

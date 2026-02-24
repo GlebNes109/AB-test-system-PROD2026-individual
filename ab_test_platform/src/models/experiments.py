@@ -6,7 +6,7 @@ from sqlalchemy import Column, DateTime, Text
 from sqlmodel import Field, Relationship, SQLModel
 
 
-class ExperimentStatus(str, Enum):
+class ExperimentStatus(Enum):
     DRAFT = "draft"
     REVIEW = "review"
     APPROVED = "approved"
@@ -19,7 +19,11 @@ class ExperimentStatus(str, Enum):
 
 ALLOWED_TRANSITIONS: dict[ExperimentStatus, list[ExperimentStatus]] = {
     ExperimentStatus.DRAFT: [ExperimentStatus.REVIEW],
-    ExperimentStatus.REVIEW: [ExperimentStatus.APPROVED, ExperimentStatus.DRAFT, ExperimentStatus.REJECTED],
+    ExperimentStatus.REVIEW: [
+        ExperimentStatus.APPROVED,
+        ExperimentStatus.DRAFT,
+        ExperimentStatus.REJECTED,
+    ],
     ExperimentStatus.APPROVED: [ExperimentStatus.RUNNING],
     ExperimentStatus.RUNNING: [ExperimentStatus.PAUSED, ExperimentStatus.FINISHED],
     ExperimentStatus.PAUSED: [ExperimentStatus.RUNNING, ExperimentStatus.FINISHED],
@@ -30,6 +34,7 @@ ALLOWED_TRANSITIONS: dict[ExperimentStatus, list[ExperimentStatus]] = {
 
 # Статусы, на которых нельзя менять версию эксперимента
 FROZEN_STATUSES = {ExperimentStatus.RUNNING, ExperimentStatus.PAUSED}
+
 
 class ExperimentResult(Enum):
     ROLLOUT = "ROLLOUT"
@@ -60,7 +65,7 @@ class Experiments(SQLModel, table=True):
         sa_column=Column(
             DateTime(timezone=True),
             nullable=True,
-        )
+        ),
     )
     result: ExperimentResult | None = None
     result_description: str | None = None

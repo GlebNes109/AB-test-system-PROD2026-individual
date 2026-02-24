@@ -37,4 +37,3 @@ async def get_my_reviews(
     service: ReviewsService = Depends(get_reviews_service),
 ):
     return await service.get_reviews(page, size, reviewer_id=current_user.id)
-

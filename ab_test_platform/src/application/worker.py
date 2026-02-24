@@ -23,7 +23,9 @@ async def guardrail_loop(interval_seconds: int = 60) -> None:
         try:
             async with async_session_maker() as session:
                 service = GuardrailService(
-                    experiment_repository=ExperimentsRepository(session, Experiments, ExperimentResponse),
+                    experiment_repository=ExperimentsRepository(
+                        session, Experiments, ExperimentResponse
+                    ),
                     reports_repository=ReportsRepository(session),
                     metrics_repository=MetricsRepository(session, Metrics, Metrics),
                     guardrail_repository=GuardrailRepository(session),

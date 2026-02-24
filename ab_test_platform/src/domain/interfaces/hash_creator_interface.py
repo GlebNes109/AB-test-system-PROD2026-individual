@@ -4,5 +4,4 @@ from typing import Protocol
 
 class HashCreatorInterface(Protocol):
     @abstractmethod
-    async def create_hash(self, password):
-        ...
+    async def create_hash(self, password): ...

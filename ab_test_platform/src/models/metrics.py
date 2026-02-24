@@ -6,7 +6,7 @@ from sqlalchemy import Column, DateTime
 from sqlmodel import Field, SQLModel
 
 
-class AggregationType(str, Enum):
+class AggregationType(Enum):
     COUNT = "COUNT"
     COUNT_UNIQUE = "COUNT_UNIQUE"
     SUM = "SUM"
@@ -40,13 +40,13 @@ class Metrics(SQLModel, table=True):
     )
 
 
-class MetricType(str, Enum):
+class MetricType(Enum):
     PRIMARY = "PRIMARY"
     SECONDARY = "SECONDARY"
     GUARDRAIL = "GUARDRAIL"
 
 
-class GuardrailAction(str, Enum):
+class GuardrailAction(Enum):
     PAUSE = "PAUSE"
     ROLLBACK = "ROLLBACK"
 

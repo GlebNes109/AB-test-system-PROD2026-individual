@@ -13,10 +13,9 @@ class ApproverGroups(SQLModel, table=True):
     experimenter_id: str = Field()
     min_approvals: int = Field(default=1)
 
+
 class ApproverGroupMembers(SQLModel, table=True):
     __tablename__ = "approver_group_members"
 
     group_id: str = Field(primary_key=True)
     approver_id: str = Field(primary_key=True)
-
-

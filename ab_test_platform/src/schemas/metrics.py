@@ -17,7 +17,10 @@ class MetricCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_aggregation_fields(self) -> "MetricCreate":
-        if self.aggregation in (AggregationType.SUM, AggregationType.AVG) and not self.payload_field:
+        if (
+            self.aggregation in (AggregationType.SUM, AggregationType.AVG)
+            and not self.payload_field
+        ):
             raise UnsupportableContentError(
                 f"payload_field is required for {self.aggregation.value} aggregation"
             )
@@ -78,11 +81,15 @@ class ExperimentMetricBind(BaseModel):
             if self.action is None:
                 missing.append("action")
             if missing:
-                raise UnsupportableContentError(
-                    f"Guardrail metrics require: {', '.join(missing)}"
-                )
+                raise UnsupportableContentError(f"Guardrail metrics require: {', '.join(missing)}")
         else:
-            if any([self.threshold is not None, self.window_minutes is not None, self.action is not None]):
+            if any(
+                [
+                    self.threshold is not None,
+                    self.window_minutes is not None,
+                    self.action is not None,
+                ]
+            ):
                 raise UnsupportableContentError(
                     "threshold, window_minutes, action can only be set for GUARDRAIL metrics"
                 )

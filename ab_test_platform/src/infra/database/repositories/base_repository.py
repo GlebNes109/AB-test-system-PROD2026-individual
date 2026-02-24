@@ -12,7 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class BaseRepository(BaseRepositoryInterface):
-    def __init__(self, session: AsyncSession, model: type[ModelType], read_schema: type[ReadModelType]):
+    def __init__(
+        self, session: AsyncSession, model: type[ModelType], read_schema: type[ReadModelType]
+    ):
         self.session = session
         self.model = model
         self.read_schema = read_schema
@@ -24,9 +26,15 @@ class BaseRepository(BaseRepositoryInterface):
             obj = result.scalar_one()
             return self.read_schema.model_validate(obj, from_attributes=True)
         except NoResultFound:
-            raise EntityNotFoundError
+            raise EntityNotFoundError from None
 
-    async def get_all(self, limit: int, offset: int, order_by: str | None = None, order: SortOrder = SortOrder.DESC) -> tuple[list[ReadModelType], int]:
+    async def get_all(
+        self,
+        limit: int,
+        offset: int,
+        order_by: str | None = None,
+        order: SortOrder = SortOrder.DESC,
+    ) -> tuple[list[ReadModelType], int]:
         stmt = select(self.model).limit(limit).offset(offset)
         if order_by:
             column = getattr(self.model, order_by, None)
@@ -34,8 +42,7 @@ class BaseRepository(BaseRepositoryInterface):
                 raise ValueError(f"Invalid order_by field: {order_by}")
 
             stmt = stmt.order_by(
-                asc(column) if order == SortOrder.ASC else desc(column),
-                asc(self.model.id)
+                asc(column) if order == SortOrder.ASC else desc(column), asc(self.model.id)
             )
         else:
             stmt = stmt.order_by(asc(self.model.id))
@@ -55,7 +62,7 @@ class BaseRepository(BaseRepositoryInterface):
             await self.session.refresh(db_obj)
             return self.read_schema.model_validate(db_obj, from_attributes=True)
         except IntegrityError as e:
-            if e.orig.sqlstate == '23505':
+            if e.orig.sqlstate == "23505":
                 raise EntityAlreadyExistsError from e
             else:
                 raise
@@ -70,13 +77,15 @@ class BaseRepository(BaseRepositoryInterface):
             await self.session.commit()
             return await self.get(obj.id)
         except IntegrityError as e:
-            if e.orig.sqlstate == '23505':
+            if e.orig.sqlstate == "23505":
                 raise EntityAlreadyExistsError from e
             else:
                 raise
 
     async def delete(self, id: Any) -> bool:
-        await self.get(id) # проверка что существует (чтобы не удаляли по нескольку раз одно и то же)))
+        await self.get(
+            id
+        )  # проверка что существует (чтобы не удаляли по нескольку раз одно и то же)))
         await self.session.execute(delete(self.model).where(self.model.id == id))
         await self.session.commit()
         return True

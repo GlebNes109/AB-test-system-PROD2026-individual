@@ -52,24 +52,27 @@ class DecisionsService:
                 return variant
         return None
 
-
     async def _make_ab_decision(self, subject_id: str, experiment) -> Decisions | None:
         bucket = self._hash_bucket(subject_id, experiment.id)
         variant = self._pick_variant(experiment.variants, bucket)
         if variant is None:
             return None
 
-        decision = await self.decisions_repository.create(Decisions(
-            subject_id=subject_id,
-            variant_id=variant.id,
-            experiment_id=experiment.id,
-            value=variant.value,
-        ))
+        decision = await self.decisions_repository.create(
+            Decisions(
+                subject_id=subject_id,
+                variant_id=variant.id,
+                experiment_id=experiment.id,
+                value=variant.value,
+            )
+        )
 
         return decision
 
     def _return_default_without_experiment(self, feature_flag):
-        return DecisionsResponse(value=feature_flag.default_value, id=None, created_at=datetime.now(UTC))
+        return DecisionsResponse(
+            value=feature_flag.default_value, id=None, created_at=datetime.now(UTC)
+        )
 
     async def make_decision(self, subject: Subject) -> list[DecisionsResponse]:
         # конфликт экспериментов в одном домене и рассчет приоритета - будет реализовано в будущем
@@ -83,7 +86,9 @@ class DecisionsService:
             feature_flag_id = feature_flag.id
 
             # проверка что такой эксперимент есть.
-            experiment = await self.experiments_repository.get_active_experiment_for_flag(feature_flag_id)
+            experiment = await self.experiments_repository.get_active_experiment_for_flag(
+                feature_flag_id
+            )
             if experiment is None:
                 decisions.append(self._return_default_without_experiment(feature_flag))
                 continue
@@ -99,7 +104,11 @@ class DecisionsService:
                     subject_id=subject.id,
                     experiment_id=experiment.id,
                 )
-                decisions.append(DecisionsResponse(value=decision.value, id=decision.id, created_at=decision.createdAt))
+                decisions.append(
+                    DecisionsResponse(
+                        value=decision.value, id=decision.id, created_at=decision.createdAt
+                    )
+                )
                 continue
             except EntityNotFoundError:
                 pass
@@ -109,7 +118,10 @@ class DecisionsService:
             # 1. если число активных экспериментов на этом пользователе выше критического значения
             # 2. если пользователь уже недавно участвовал в эксперименте (с момента создания последнего decisions для этого пользователя прошло мало времени)
 
-            if await self.decisions_repository.count_active_experiments_by_subject(subject.id) >= self.max_active_experiments:
+            if (
+                await self.decisions_repository.count_active_experiments_by_subject(subject.id)
+                >= self.max_active_experiments
+            ):
                 decisions.append(self._return_default_without_experiment(feature_flag))
                 continue
 
@@ -120,20 +132,16 @@ class DecisionsService:
                     decisions.append(self._return_default_without_experiment(feature_flag))
                     continue
 
-
             decision = await self._make_ab_decision(subject_id=subject.id, experiment=experiment)
             # если пользователь не попал в эксперимент по результатам проверки
             if decision is None:
                 decisions.append(self._return_default_without_experiment(feature_flag))
                 continue
 
-            decisions.append(DecisionsResponse(value=decision.value, id=decision.id, created_at=decision.createdAt))
+            decisions.append(
+                DecisionsResponse(
+                    value=decision.value, id=decision.id, created_at=decision.createdAt
+                )
+            )
 
         return decisions
-
-
-
-
-
-
-

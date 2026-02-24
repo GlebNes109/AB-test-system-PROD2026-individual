@@ -9,8 +9,10 @@ def base_normalize(parent, child):
         return f"({s})"
     return s
 
+
 class Expr:
     priority = 0
+
     def eval(self, tx: dict) -> bool:
         raise NotImplementedError
 
@@ -26,6 +28,7 @@ class Expr:
 
 class And(Expr):
     priority = 2
+
     def __init__(self, items):
         self.items = items
 
@@ -47,6 +50,7 @@ class And(Expr):
 
 class Or(Expr):
     priority = 1
+
     def __init__(self, items):
         self.items = items
 
@@ -68,6 +72,7 @@ class Or(Expr):
 
 class Not(Expr):
     priority = 3
+
     def __init__(self, expr):
         self.expr = expr
 
@@ -89,6 +94,7 @@ class Not(Expr):
 
 class Comparison(Expr):
     priority = 4
+
     def __init__(self, field: str, op: str, value: Any):
         self.field = field
         self.op = op
@@ -135,6 +141,3 @@ class Comparison(Expr):
 
     def count_nodes(self):
         return 1
-
-
-

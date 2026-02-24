@@ -20,15 +20,11 @@ class EventsCacheRepository(EventsCacheRepositoryInterface):
     def _fulfilled_key(self, decision_id: str, event_type_id: str) -> str:
         return f"{_FULFILLED_PREFIX}:{decision_id}:{event_type_id}"
 
-    async def set_pending(
-        self, decision_id: str, required_type_id: str, event_data: dict
-    ) -> None:
+    async def set_pending(self, decision_id: str, required_type_id: str, event_data: dict) -> None:
         key = self._pending_key(decision_id, required_type_id)
         await self.client.set(key, json.dumps(event_data), ex=self.ttl)
 
-    async def pop_pending(
-        self, decision_id: str, fulfilled_type_id: str
-    ) -> dict | None:
+    async def pop_pending(self, decision_id: str, fulfilled_type_id: str) -> dict | None:
         key = self._pending_key(decision_id, fulfilled_type_id)
         value = await self.client.getdel(key)
         if value is None:

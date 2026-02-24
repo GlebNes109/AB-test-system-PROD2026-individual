@@ -22,21 +22,29 @@ class ApproveGroupsRepository(BaseRepository, ApproveGroupsRepositoryInterface):
         result = await self.session.execute(stmt)
         obj = result.scalar_one_or_none()
         if obj is None:
-            raise EntityNotFoundError(f"Approver group for experimenter {experimenter_id} not found")
+            raise EntityNotFoundError(
+                f"Approver group for experimenter {experimenter_id} not found"
+            )
         return obj
 
-    async def get_or_create(self, experimenter_id: str, default_min_approvals: int) -> ApproverGroups:
+    async def get_or_create(
+        self, experimenter_id: str, default_min_approvals: int
+    ) -> ApproverGroups:
         stmt = select(ApproverGroups).where(ApproverGroups.experimenter_id == experimenter_id)
         result = await self.session.execute(stmt)
         obj = result.scalar_one_or_none()
         if obj is None:
-            return await self.create(ApproverGroups(
-                experimenter_id=experimenter_id,
-                min_approvals=default_min_approvals,
-            ))
+            return await self.create(
+                ApproverGroups(
+                    experimenter_id=experimenter_id,
+                    min_approvals=default_min_approvals,
+                )
+            )
         return obj
 
     async def get_members(self, group_id: str) -> list[str]:
-        stmt = select(ApproverGroupMembers.approver_id).where(ApproverGroupMembers.group_id == group_id)
+        stmt = select(ApproverGroupMembers.approver_id).where(
+            ApproverGroupMembers.group_id == group_id
+        )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())

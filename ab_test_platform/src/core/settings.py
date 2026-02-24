@@ -1,4 +1,3 @@
-
 from pydantic_settings import BaseSettings
 
 
@@ -6,7 +5,7 @@ class Settings(BaseSettings):
     admin_email: str
     admin_fullname: str
     admin_password: str
-    server_address: str | None = None # TODO сделать нормально
+    server_address: str | None = None  # TODO сделать нормально
     db_host: str
     db_port: str
     db_name: str
@@ -30,5 +29,6 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+
 
 settings = Settings()

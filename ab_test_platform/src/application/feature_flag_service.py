@@ -15,7 +15,9 @@ class FeatureFlagService:
     def __init__(self, repository: FeatureFlagRepositoryInterface):
         self.repository = repository
 
-    async def create_flag(self, flag_create: FeatureFlagCreate, created_by: str) -> FeatureFlagResponse:
+    async def create_flag(
+        self, flag_create: FeatureFlagCreate, created_by: str
+    ) -> FeatureFlagResponse:
         validated_default = validate_value_for_flag_type(
             flag_create.default_value, flag_create.type, "default_value"
         )
@@ -47,7 +49,9 @@ class FeatureFlagService:
             size=size,
         )
 
-    async def update_default_value(self, key: str, update_data: FeatureFlagUpdateDefault) -> FeatureFlagResponse:
+    async def update_default_value(
+        self, key: str, update_data: FeatureFlagUpdateDefault
+    ) -> FeatureFlagResponse:
         flag = await self.repository.get_by_key(key)
         validated = validate_value_for_flag_type(
             update_data.default_value, flag.type, "default_value"

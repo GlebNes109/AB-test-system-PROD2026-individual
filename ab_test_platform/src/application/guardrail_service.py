@@ -61,7 +61,8 @@ class GuardrailService:
                 except Exception:
                     logger.exception(
                         "Failed to compute metric %s for experiment %s",
-                        gm.metric_key, experiment.id,
+                        gm.metric_key,
+                        experiment.id,
                     )
                     continue
 
@@ -96,7 +97,11 @@ class GuardrailService:
                             )
                         logger.warning(
                             "Guardrail triggered: experiment=%s metric=%s value=%.4f threshold=%.4f action=%s",
-                            experiment.id, gm.metric_key, float(row.value), gm.threshold, gm.action.value,
+                            experiment.id,
+                            gm.metric_key,
+                            float(row.value),
+                            gm.threshold,
+                            gm.action.value,
                         )
                         triggered = True
                         break

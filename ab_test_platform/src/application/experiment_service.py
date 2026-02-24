@@ -1,4 +1,3 @@
-
 from ab_test_platform.src.domain.exceptions import (
     AccessDeniedError,
     BadRequestError,
@@ -76,7 +75,7 @@ class ExperimentService:
         try:
             flag = await self.feature_flags_repository.get_by_key(data.feature_flag_key)
         except EntityNotFoundError:
-            raise EntityNotFoundError(f"Feature flag '{data.feature_flag_key}' not found")
+            raise EntityNotFoundError(f"Feature flag '{data.feature_flag_key}' not found") from None
 
         await self._validate_variants_type(flag.id, data.variants)
 
@@ -101,7 +100,7 @@ class ExperimentService:
                 raise BadRequestError(
                     f"Invalid status value '{status}'. "
                     f"Allowed: {[s.value for s in ExperimentStatus]}"
-                )
+                ) from None
         return await self.repository.get_all_experiments(page, size, status_filter)
 
     async def update_experiment(
@@ -130,7 +129,11 @@ class ExperimentService:
         if data.variants is not None:
             await self._validate_variants_type(experiment.feature_flag_id, data.variants)
 
-            effective_audience = data.audience_percentage if data.audience_percentage is not None else experiment.audience_percentage
+            effective_audience = (
+                data.audience_percentage
+                if data.audience_percentage is not None
+                else experiment.audience_percentage
+            )
             total_weight = sum(var.weight for var in data.variants)
             if total_weight != effective_audience:
                 raise UnsupportableContentError(
@@ -142,7 +145,9 @@ class ExperimentService:
             metric_id_map = await self._resolve_metric_keys(data.metrics)
 
         flag = await self.feature_flags_repository.get(experiment.feature_flag_id)
-        return await self.repository.update_experiment(experiment_id, data, modified_by, flag.default_value, metric_id_map)
+        return await self.repository.update_experiment(
+            experiment_id, data, modified_by, flag.default_value, metric_id_map
+        )
 
     async def _transition(
         self,
@@ -167,7 +172,9 @@ class ExperimentService:
         """APPROVED -> RUNNING. Базовая проверка на коллизию экспериментов"""
         experiment = await self.repository.get(experiment_id)
 
-        if await self.repository.has_active_experiment_for_flag(experiment.feature_flag_id, exclude_experiment_id=experiment_id):
+        if await self.repository.has_active_experiment_for_flag(
+            experiment.feature_flag_id, exclude_experiment_id=experiment_id
+        ):
             raise ConflictError(
                 "Another experiment is already RUNNING or PAUSED for this feature flag"
             )
@@ -182,15 +189,15 @@ class ExperimentService:
         """PAUSED ->  RUNNING"""
         return await self._transition(experiment_id, ExperimentStatus.RUNNING, actor_id)
 
-    async def finish_experiment(self, experiment_id: str, actor_id: str, experiment_results: ExperimentFinish) -> ExperimentResponse:
+    async def finish_experiment(
+        self, experiment_id: str, actor_id: str, experiment_results: ExperimentFinish
+    ) -> ExperimentResponse:
         """RUNNING | PAUSED -> FINISHED"""
         experiment = await self.repository.get(experiment_id)
         current_status = experiment.status
 
         if ExperimentStatus.FINISHED not in ALLOWED_TRANSITIONS.get(current_status, []):
-            raise ConflictError(
-                f"Cannot transition from '{current_status.value}' to 'finished'"
-            )
+            raise ConflictError(f"Cannot transition from '{current_status.value}' to 'finished'")
         return await self.repository.transition_status(
             experiment_id,
             ExperimentStatus.FINISHED,

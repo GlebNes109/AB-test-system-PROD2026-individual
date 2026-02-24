@@ -14,7 +14,9 @@ from ab_test_platform.src.schemas.metrics import (
 
 
 class MetricsService:
-    def __init__(self, repository: MetricsRepositoryInterface, events_repository: EventsRepositoryInterface):
+    def __init__(
+        self, repository: MetricsRepositoryInterface, events_repository: EventsRepositoryInterface
+    ):
         self.repository = repository
         self.events_repository = events_repository
 

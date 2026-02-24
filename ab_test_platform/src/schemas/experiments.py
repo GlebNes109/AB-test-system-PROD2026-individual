@@ -49,7 +49,9 @@ class ExperimentCreate(BaseModel):
 
     @field_validator("metrics")
     @classmethod
-    def validate_metrics_not_empty(cls, v: list[ExperimentMetricBind]) -> list[ExperimentMetricBind]:
+    def validate_metrics_not_empty(
+        cls, v: list[ExperimentMetricBind]
+    ) -> list[ExperimentMetricBind]:
         if not v:
             raise UnsupportableContentError("metrics must not be empty")
         return v
@@ -141,6 +143,7 @@ class PagedExperiments(BaseModel):
     total: int
     page: int
     size: int
+
 
 class ExperimentFinish(BaseModel):
     result: ExperimentResult

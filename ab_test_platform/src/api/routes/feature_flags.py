@@ -65,13 +65,14 @@ async def update_feature_flag_default(
 ):
     return await service.update_default_value(key, update_data)
 
+
 @router.delete(
     "/{key}",
     summary="удаление по ключу",
     description="Удаление флага по ключу",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-async def update_feature_flag_default(
+async def delete_feature_flag(
     key: str,
     update_data: FeatureFlagUpdateDefault,
     current_user: Users = Depends(require_roles(["ADMIN", "EXPERIMENTER"])),

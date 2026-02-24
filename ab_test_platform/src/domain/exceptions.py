@@ -6,7 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 
-class ErrorCode(str, Enum):
+class ErrorCode(Enum):
     BAD_REQUEST = "BAD_REQUEST"
     VALIDATION_FAILED = "VALIDATION_FAILED"
     UNAUTHORIZED = "UNAUTHORIZED"
@@ -63,7 +63,6 @@ class AppException(Exception):
         self.details = details
 
 
-
 class EmailAlreadyExistsError(AppException):
     status_code = 409
     error_code = ErrorCode.EMAIL_ALREADY_EXISTS
@@ -86,7 +85,6 @@ class UserInactiveError(AppException):
     status_code = 423
     error_code = ErrorCode.USER_INACTIVE
     message = "Пользователь деактивирован"
-
 
 
 class BadRequestError(AppException):

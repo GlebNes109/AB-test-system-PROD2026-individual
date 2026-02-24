@@ -43,7 +43,14 @@ class EventsService:
         if data.requires_event_type is not None:
             requires_event_type = await self.repository.get_type_by_key(data.requires_event_type)
 
-        event_type = await self.repository.create_type(EventTypes(**data.model_dump(), requires_event_id=requires_event_type.id if requires_event_type is not None else None))
+        event_type = await self.repository.create_type(
+            EventTypes(
+                **data.model_dump(),
+                requires_event_id=(
+                    requires_event_type.id if requires_event_type is not None else None
+                ),
+            )
+        )
         return EventTypesResponse.model_validate(event_type, from_attributes=True)
 
     async def get_event_types(self, page: int, size: int) -> PagedEventTypes:
@@ -74,7 +81,9 @@ class EventsService:
                 continue
             py_type = type_map.get(expected_type)
             if py_type and not isinstance(payload[field], py_type):
-                errors.append(f"field '{field}' must be {expected_type}, got {type(payload[field]).__name__}")
+                errors.append(
+                    f"field '{field}' must be {expected_type}, got {type(payload[field]).__name__}"
+                )
         return "; ".join(errors) if errors else None
 
     async def _process_single_event(self, event_data: EventCreate, index: int) -> EventItemResponse:
@@ -170,9 +179,13 @@ class EventsService:
 
         # 4. Обработка в зависимости от наличия зависимости у типа события
         if event_type.requires_event_id is None:
-            return await self._process_independent_event(event_data, event_type, subject_id, index, now, occurred_at)
+            return await self._process_independent_event(
+                event_data, event_type, subject_id, index, now, occurred_at
+            )
         else:
-            return await self._process_dependent_event(event_data, event_type, subject_id, index, now, occurred_at)
+            return await self._process_dependent_event(
+                event_data, event_type, subject_id, index, now, occurred_at
+            )
 
     async def _process_independent_event(
         self,
@@ -328,11 +341,13 @@ class EventsService:
                     item.event_status = EventsStatus.REJECTED
                 results.append(item)
             except Exception as e:
-                results.append(EventItemResponse(
-                    index=i,
-                    status_code=500,
-                    error=str(e),
-                ))
+                results.append(
+                    EventItemResponse(
+                        index=i,
+                        status_code=500,
+                        error=str(e),
+                    )
+                )
 
         await self.repository.commit()
         return EventsBatchResponse(results=results)

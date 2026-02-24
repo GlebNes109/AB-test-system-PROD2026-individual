@@ -7,13 +7,15 @@ from sqlalchemy import Column, DateTime
 from sqlmodel import Field, SQLModel
 
 
-class FlagType(str, Enum):
+class FlagType(Enum):
     STRING = "string"
     NUMBER = "number"
     BOOL = "bool"
 
 
-def validate_value_for_flag_type(value: object, flag_type: FlagType, field_name: str = "value") -> str:
+def validate_value_for_flag_type(
+    value: object, flag_type: FlagType, field_name: str = "value"
+) -> str:
     str_val = str(value)
 
     if flag_type == FlagType.BOOL:
@@ -26,9 +28,7 @@ def validate_value_for_flag_type(value: object, flag_type: FlagType, field_name:
         try:
             float(str_val)
         except (ValueError, TypeError):
-            raise UnsupportableContentError(
-                f"{field_name}: expected a number, got '{value}'"
-            )
+            raise UnsupportableContentError(f"{field_name}: expected a number, got '{value}'") from None
 
     return str_val
 
@@ -36,10 +36,7 @@ def validate_value_for_flag_type(value: object, flag_type: FlagType, field_name:
 class FeatureFlags(SQLModel, table=True):
     __tablename__ = "feature_flags"
 
-    id: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
-        primary_key=True
-    )
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     key: str = Field(unique=True, index=True)
     type: FlagType
     default_value: str
