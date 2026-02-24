@@ -1,9 +1,6 @@
 from datetime import datetime
-from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
-
-from ab_test_platform.src.api.deps import require_roles, get_reports_service
+from ab_test_platform.src.api.deps import get_reports_service, require_roles
 from ab_test_platform.src.application.reports_service import ReportsService
 from ab_test_platform.src.models.users import Users
 from ab_test_platform.src.schemas.reports import (
@@ -11,6 +8,7 @@ from ab_test_platform.src.schemas.reports import (
     ExperimentTimeseriesReport,
     Granularity,
 )
+from fastapi import APIRouter, Depends, Query
 
 router = APIRouter()
 
@@ -24,8 +22,8 @@ _ALL_ROLES = ["ADMIN", "EXPERIMENTER", "APPROVER", "VIEWER"]
 )
 async def get_report(
     experiment_id: str,
-    date_from: Optional[datetime] = Query(None),
-    date_to: Optional[datetime] = Query(None),
+    date_from: datetime | None = Query(None),
+    date_to: datetime | None = Query(None),
     current_user: Users = Depends(require_roles(_ALL_ROLES)),
     service: ReportsService = Depends(get_reports_service),
 ) -> ExperimentReport:
@@ -39,8 +37,8 @@ async def get_report(
 )
 async def get_timeseries_report(
     experiment_id: str,
-    date_from: Optional[datetime] = Query(None),
-    date_to: Optional[datetime] = Query(None),
+    date_from: datetime | None = Query(None),
+    date_to: datetime | None = Query(None),
     granularity: Granularity = Query(Granularity.DAY),
     current_user: Users = Depends(require_roles(_ALL_ROLES)),
     service: ReportsService = Depends(get_reports_service),

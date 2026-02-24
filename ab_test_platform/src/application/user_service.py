@@ -1,13 +1,16 @@
 from ab_test_platform.src.domain.exceptions import EntityNotFoundError, UnauthorizedError
 from ab_test_platform.src.domain.interfaces.hash_creator_interface import HashCreatorInterface
-from ab_test_platform.src.domain.interfaces.repositories.approve_groups_repository_interface import ApproveGroupsRepositoryInterface
+from ab_test_platform.src.domain.interfaces.repositories.approve_groups_repository_interface import (
+    ApproveGroupsRepositoryInterface,
+)
 from ab_test_platform.src.domain.interfaces.repositories.base_repository_interface import SortOrder
-from ab_test_platform.src.domain.interfaces.repositories.user_repository_interface import UserRepositoryInterface
+from ab_test_platform.src.domain.interfaces.repositories.user_repository_interface import (
+    UserRepositoryInterface,
+)
 from ab_test_platform.src.domain.interfaces.token_creator_interface import TokenCreatorInterface
-from ab_test_platform.src.schemas.auth import AuthResponse
 from ab_test_platform.src.models.users import Users
-
-from ab_test_platform.src.schemas.users import UsersResponse, UsersUpdate, PagedUsers
+from ab_test_platform.src.schemas.auth import AuthResponse
+from ab_test_platform.src.schemas.users import PagedUsers, UsersResponse, UsersUpdate
 
 
 class UsersService:

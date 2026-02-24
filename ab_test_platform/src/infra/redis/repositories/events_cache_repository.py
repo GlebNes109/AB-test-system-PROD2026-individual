@@ -1,8 +1,6 @@
 import json
-from typing import Optional
 
 import redis.asyncio as aioredis
-
 from ab_test_platform.src.domain.interfaces.repositories.events_cache_repository_interface import (
     EventsCacheRepositoryInterface,
 )
@@ -30,7 +28,7 @@ class EventsCacheRepository(EventsCacheRepositoryInterface):
 
     async def pop_pending(
         self, decision_id: str, fulfilled_type_id: str
-    ) -> Optional[dict]:
+    ) -> dict | None:
         key = self._pending_key(decision_id, fulfilled_type_id)
         value = await self.client.getdel(key)
         if value is None:

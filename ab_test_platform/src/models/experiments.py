@@ -1,10 +1,9 @@
 import uuid
-from datetime import datetime, timezone
-from enum import Enum, UNIQUE
-from typing import Optional, List
+from datetime import UTC, datetime
+from enum import Enum
 
 from sqlalchemy import Column, DateTime, Text
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import Field, Relationship, SQLModel
 
 
 class ExperimentStatus(str, Enum):
@@ -53,19 +52,19 @@ class Experiments(SQLModel, table=True):
         sa_column=Column(
             DateTime(timezone=True),
             nullable=False,
-            default=lambda: datetime.now(timezone.utc),
+            default=lambda: datetime.now(UTC),
         )
     )
-    started_at: Optional[datetime] = Field(
+    started_at: datetime | None = Field(
         default=None,
         sa_column=Column(
             DateTime(timezone=True),
             nullable=True,
         )
     )
-    result: Optional[ExperimentResult] = None
-    result_description: Optional[str] = None
-    versions: List["ExperimentVersions"] = Relationship(back_populates="experiment")
+    result: ExperimentResult | None = None
+    result_description: str | None = None
+    versions: list["ExperimentVersions"] = Relationship(back_populates="experiment")
 
 
 class ExperimentVersions(SQLModel, table=True):
@@ -78,22 +77,22 @@ class ExperimentVersions(SQLModel, table=True):
     experiment_id: str = Field(foreign_key="experiments.id", nullable=False)
     name: str
     version_number: int
-    targeting_rule: Optional[str] = Field(
+    targeting_rule: str | None = Field(
         default=None,
         sa_column=Column(Text, nullable=True),
     )
     audience_percentage: int
-    modified_by: Optional[str] = Field(default=None, foreign_key="users.id")
+    modified_by: str | None = Field(default=None, foreign_key="users.id")
     created_at: datetime = Field(
         sa_column=Column(
             DateTime(timezone=True),
             nullable=False,
-            default=lambda: datetime.now(timezone.utc),
+            default=lambda: datetime.now(UTC),
         )
     )
 
-    experiment: Optional[Experiments] = Relationship(back_populates="versions")
-    variants: List["Variants"] = Relationship(back_populates="experiment_version")
+    experiment: Experiments | None = Relationship(back_populates="versions")
+    variants: list["Variants"] = Relationship(back_populates="experiment_version")
 
 
 class Variants(SQLModel, table=True):
@@ -109,4 +108,4 @@ class Variants(SQLModel, table=True):
     weight: int
     is_control: bool = Field(default=False)
 
-    experiment_version: Optional[ExperimentVersions] = Relationship(back_populates="variants")
+    experiment_version: ExperimentVersions | None = Relationship(back_populates="variants")

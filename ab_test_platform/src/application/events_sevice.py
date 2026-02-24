@@ -1,11 +1,30 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ab_test_platform.src.domain.exceptions import EntityNotFoundError
-from ab_test_platform.src.domain.interfaces.repositories.decisions_repository_interface import DecisionsRepositoryInterface
-from ab_test_platform.src.domain.interfaces.repositories.events_cache_repository_interface import EventsCacheRepositoryInterface
-from ab_test_platform.src.domain.interfaces.repositories.events_repository_interface import EventsRepositoryInterface
-from ab_test_platform.src.models.events import Events, EventsRaw, EventTypes, EventsStatus, RejectedReason
-from ab_test_platform.src.schemas.events import EventCreate, EventTypesCreate, EventItemResponse, EventsBatchResponse, EventTypesResponse, PagedEventTypes
+from ab_test_platform.src.domain.interfaces.repositories.decisions_repository_interface import (
+    DecisionsRepositoryInterface,
+)
+from ab_test_platform.src.domain.interfaces.repositories.events_cache_repository_interface import (
+    EventsCacheRepositoryInterface,
+)
+from ab_test_platform.src.domain.interfaces.repositories.events_repository_interface import (
+    EventsRepositoryInterface,
+)
+from ab_test_platform.src.models.events import (
+    Events,
+    EventsRaw,
+    EventsStatus,
+    EventTypes,
+    RejectedReason,
+)
+from ab_test_platform.src.schemas.events import (
+    EventCreate,
+    EventItemResponse,
+    EventsBatchResponse,
+    EventTypesCreate,
+    EventTypesResponse,
+    PagedEventTypes,
+)
 
 
 class EventsService:
@@ -59,7 +78,7 @@ class EventsService:
         return "; ".join(errors) if errors else None
 
     async def _process_single_event(self, event_data: EventCreate, index: int) -> EventItemResponse:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         occurred_at = event_data.occurred_at or now
 
         # 1. Валидация типа события

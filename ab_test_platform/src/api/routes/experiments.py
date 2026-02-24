@@ -1,19 +1,25 @@
-from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
-from starlette import status
-
-from ab_test_platform.src.api.deps import require_roles, get_experiment_service, check_experimenter_access, get_guardrail_repository
+from ab_test_platform.src.api.deps import (
+    check_experimenter_access,
+    get_experiment_service,
+    get_guardrail_repository,
+    require_roles,
+)
 from ab_test_platform.src.application.experiment_service import ExperimentService
-from ab_test_platform.src.infra.database.repositories.guardrail_repository import GuardrailRepository
+from ab_test_platform.src.infra.database.repositories.guardrail_repository import (
+    GuardrailRepository,
+)
 from ab_test_platform.src.models.guardrail_triggers import GuardrailTriggers
 from ab_test_platform.src.models.users import Users
 from ab_test_platform.src.schemas.experiments import (
     ExperimentCreate,
-    ExperimentUpdate,
+    ExperimentFinish,
     ExperimentResponse,
-    PagedExperiments, ExperimentFinish,
+    ExperimentUpdate,
+    PagedExperiments,
 )
+from fastapi import APIRouter, Depends, Query
+from starlette import status
 
 router = APIRouter()
 
@@ -46,7 +52,7 @@ async def create_experiment(
 async def list_experiments(
     page: int = Query(0, ge=0),
     size: int = Query(20, ge=1, le=100),
-    status_filter: Optional[str] = Query(None, alias="status", description="Фильтр по статусу"),
+    status_filter: str | None = Query(None, alias="status", description="Фильтр по статусу"),
     current_user: Users = Depends(require_roles(_ALL_ROLES)),
     service: ExperimentService = Depends(get_experiment_service),
 ) -> PagedExperiments:

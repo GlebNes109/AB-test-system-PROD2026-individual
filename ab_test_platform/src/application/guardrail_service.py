@@ -1,14 +1,21 @@
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
-from ab_test_platform.src.domain.interfaces.repositories.experiment_repository_interface import \
-    ExperimentsRepositoryInterface
-from ab_test_platform.src.domain.interfaces.repositories.metrics_repository_interface import MetricsRepositoryInterface
-from ab_test_platform.src.domain.interfaces.repositories.reports_repository_interface import ReportsRepositoryInterface
-from ab_test_platform.src.infra.database.repositories.guardrail_repository import GuardrailRepository
-from ab_test_platform.src.models.experiments import ExperimentStatus, ExperimentResult
+from ab_test_platform.src.domain.interfaces.repositories.experiment_repository_interface import (
+    ExperimentsRepositoryInterface,
+)
+from ab_test_platform.src.domain.interfaces.repositories.metrics_repository_interface import (
+    MetricsRepositoryInterface,
+)
+from ab_test_platform.src.domain.interfaces.repositories.reports_repository_interface import (
+    ReportsRepositoryInterface,
+)
+from ab_test_platform.src.infra.database.repositories.guardrail_repository import (
+    GuardrailRepository,
+)
+from ab_test_platform.src.models.experiments import ExperimentResult, ExperimentStatus
 from ab_test_platform.src.models.guardrail_triggers import GuardrailTriggers
-from ab_test_platform.src.models.metrics import MetricType, GuardrailAction
+from ab_test_platform.src.models.metrics import GuardrailAction, MetricType
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +47,7 @@ class GuardrailService:
             for gm in guardrail_metrics:
                 metric = await self.metrics_repository.get(gm.metric_id)
 
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
                 date_from = now - timedelta(minutes=gm.window_minutes)
                 date_to = now
 

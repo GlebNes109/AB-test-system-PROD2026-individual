@@ -1,9 +1,16 @@
 from abc import abstractmethod
-from typing import Optional, Protocol
+from typing import Protocol
 
-from ab_test_platform.src.domain.interfaces.repositories.base_repository_interface import BaseRepositoryInterface
-from ab_test_platform.src.models.experiments import ExperimentStatus, ExperimentResult
-from ab_test_platform.src.schemas.experiments import ExperimentCreate, ExperimentUpdate, ExperimentResponse, PagedExperiments
+from ab_test_platform.src.domain.interfaces.repositories.base_repository_interface import (
+    BaseRepositoryInterface,
+)
+from ab_test_platform.src.models.experiments import ExperimentResult, ExperimentStatus
+from ab_test_platform.src.schemas.experiments import (
+    ExperimentCreate,
+    ExperimentResponse,
+    ExperimentUpdate,
+    PagedExperiments,
+)
 
 
 class ExperimentsRepositoryInterface(BaseRepositoryInterface, Protocol):
@@ -20,7 +27,7 @@ class ExperimentsRepositoryInterface(BaseRepositoryInterface, Protocol):
         self,
         page: int,
         size: int,
-        status: Optional[ExperimentStatus] = None,
+        status: ExperimentStatus | None = None,
     ) -> PagedExperiments:
         ...
 
@@ -35,8 +42,8 @@ class ExperimentsRepositoryInterface(BaseRepositoryInterface, Protocol):
         self,
         experiment_id: str,
         new_status: ExperimentStatus,
-        result: Optional[ExperimentResult] = None,
-        result_description: Optional[str] = None,
+        result: ExperimentResult | None = None,
+        result_description: str | None = None,
     ) -> ExperimentResponse:
         ...
 

@@ -1,10 +1,10 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Optional, Dict, Any
+from typing import Any
 
-from sqlalchemy import Column, JSON, DateTime
-from sqlmodel import SQLModel, Field
+from sqlalchemy import JSON, Column, DateTime
+from sqlmodel import Field, SQLModel
 
 
 class EventsStatus(Enum):
@@ -27,8 +27,8 @@ class EventsRaw(SQLModel, table=True):
     )
     event_type_id: str
     decision_id: str
-    subject_id: Optional[str] = None
-    payload: Optional[Dict[str, Any]] = Field(
+    subject_id: str | None = None
+    payload: dict[str, Any] | None = Field(
         default=None,
         sa_column=Column(JSON, nullable=True)
     )
@@ -38,7 +38,7 @@ class EventsRaw(SQLModel, table=True):
         sa_column=Column(
             DateTime(timezone=True),
             nullable=False,
-            default=lambda: datetime.now(timezone.utc),
+            default=lambda: datetime.now(UTC),
         )
     ) # если в апи не передано иное - считается что событие произошло в момент получения
 
@@ -46,10 +46,10 @@ class EventsRaw(SQLModel, table=True):
         sa_column=Column(
             DateTime(timezone=True),
             nullable=False,
-            default=lambda: datetime.now(timezone.utc),
+            default=lambda: datetime.now(UTC),
         )
     )
-    rejected_reason: Optional[RejectedReason] = None
+    rejected_reason: RejectedReason | None = None
 
 
 class Events(SQLModel, table=True):
@@ -60,7 +60,7 @@ class Events(SQLModel, table=True):
     event_type_id: str
     decision_id: str
     subject_id: str
-    payload: Optional[Dict[str, Any]] = Field(
+    payload: dict[str, Any] | None = Field(
         default=None,
         sa_column=Column(JSON, nullable=True)
     )
@@ -70,7 +70,7 @@ class Events(SQLModel, table=True):
         sa_column=Column(
             DateTime(timezone=True),
             nullable=False,
-            default=lambda: datetime.now(timezone.utc),
+            default=lambda: datetime.now(UTC),
         )
     ) # если в апи не передано иное - считается что событие произошло в момент получения
 
@@ -78,7 +78,7 @@ class Events(SQLModel, table=True):
         sa_column=Column(
             DateTime(timezone=True),
             nullable=False,
-            default=lambda: datetime.now(timezone.utc),
+            default=lambda: datetime.now(UTC),
         )
     )
 
@@ -90,8 +90,8 @@ class EventTypes(SQLModel, table=True):
     )
     type: str = Field(unique=True)
     description: str
-    requires_event_id: Optional[str] = None
-    payload_schema: Optional[Dict[str, Any]] = Field(
+    requires_event_id: str | None = None
+    payload_schema: dict[str, Any] | None = Field(
         default=None,
         sa_column=Column(JSON, nullable=True),
     )
@@ -99,6 +99,6 @@ class EventTypes(SQLModel, table=True):
         sa_column=Column(
             DateTime(timezone=True),
             nullable=False,
-            default=lambda: datetime.now(timezone.utc),
+            default=lambda: datetime.now(UTC),
         )
     )

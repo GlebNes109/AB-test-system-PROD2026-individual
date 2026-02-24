@@ -1,30 +1,31 @@
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
-
-from sqlalchemy import select, update, insert, delete, func, literal
-from sqlalchemy.orm import selectinload
+from datetime import UTC, datetime
 
 from ab_test_platform.src.domain.exceptions import EntityNotFoundError
-from ab_test_platform.src.domain.interfaces.repositories.experiment_repository_interface import ExperimentsRepositoryInterface
+from ab_test_platform.src.domain.interfaces.repositories.experiment_repository_interface import (
+    ExperimentsRepositoryInterface,
+)
 from ab_test_platform.src.infra.database.repositories.base_repository import BaseRepository
 from ab_test_platform.src.models.experiments import (
+    ExperimentResult,
     Experiments,
+    ExperimentStatus,
     ExperimentVersions,
     Variants,
-    ExperimentStatus,
-    ExperimentResult,
 )
 from ab_test_platform.src.models.feature_flags import FeatureFlags
-from ab_test_platform.src.models.metrics import ExperimentMetrics as ExperimentMetricsModel, Metrics
+from ab_test_platform.src.models.metrics import ExperimentMetrics as ExperimentMetricsModel
+from ab_test_platform.src.models.metrics import Metrics
 from ab_test_platform.src.schemas.experiments import (
     ExperimentCreate,
-    ExperimentUpdate,
     ExperimentResponse,
-    VariantResponse,
+    ExperimentUpdate,
     PagedExperiments,
+    VariantResponse,
 )
 from ab_test_platform.src.schemas.metrics import ExperimentMetricBind, ExperimentMetricResponse
+from sqlalchemy import delete, func, insert, literal, select, update
+from sqlalchemy.orm import selectinload
 
 
 class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
@@ -197,7 +198,7 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
         self,
         page: int,
         size: int,
-        status: Optional[ExperimentStatus] = None,
+        status: ExperimentStatus | None = None,
     ) -> PagedExperiments:
         offset = page * size
 
@@ -368,14 +369,14 @@ class ExperimentsRepository(BaseRepository, ExperimentsRepositoryInterface):
         self,
         experiment_id: str,
         new_status: ExperimentStatus,
-        result: Optional[ExperimentResult] = None,
-        result_description: Optional[str] = None,
+        result: ExperimentResult | None = None,
+        result_description: str | None = None,
     ) -> ExperimentResponse:
         experiment = await self._get_experiment_row(experiment_id)
 
         values: dict = {"status": new_status}
         if new_status == ExperimentStatus.RUNNING and experiment.started_at is None:
-            values["started_at"] = datetime.now(timezone.utc)
+            values["started_at"] = datetime.now(UTC)
         if result is not None:
             values["result"] = result
         if result_description is not None:

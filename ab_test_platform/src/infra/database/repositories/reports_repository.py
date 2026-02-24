@@ -1,13 +1,13 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select, func, distinct
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
-
 from ab_test_platform.src.core.db_sql import SQL_REFRESH_MV
-from ab_test_platform.src.domain.interfaces.repositories.reports_repository_interface import ReportsRepositoryInterface
+from ab_test_platform.src.domain.interfaces.repositories.reports_repository_interface import (
+    ReportsRepositoryInterface,
+)
 from ab_test_platform.src.models.decisions import Decisions
+from sqlalchemy import distinct, func, select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class ReportsRepository(ReportsRepositoryInterface):

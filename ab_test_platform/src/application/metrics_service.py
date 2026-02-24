@@ -1,7 +1,16 @@
-from ab_test_platform.src.domain.interfaces.repositories.events_repository_interface import EventsRepositoryInterface
-from ab_test_platform.src.domain.interfaces.repositories.metrics_repository_interface import MetricsRepositoryInterface
+from ab_test_platform.src.domain.interfaces.repositories.events_repository_interface import (
+    EventsRepositoryInterface,
+)
+from ab_test_platform.src.domain.interfaces.repositories.metrics_repository_interface import (
+    MetricsRepositoryInterface,
+)
 from ab_test_platform.src.models.metrics import Metrics
-from ab_test_platform.src.schemas.metrics import MetricCreate, MetricUpdate, MetricResponse, PagedMetrics
+from ab_test_platform.src.schemas.metrics import (
+    MetricCreate,
+    MetricResponse,
+    MetricUpdate,
+    PagedMetrics,
+)
 
 
 class MetricsService:

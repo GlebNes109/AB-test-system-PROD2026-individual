@@ -1,8 +1,9 @@
-from sqlalchemy import select, update
-
 from ab_test_platform.src.domain.exceptions import EntityNotFoundError
-from ab_test_platform.src.domain.interfaces.repositories.feature_flag_repository_interface import FeatureFlagRepositoryInterface
+from ab_test_platform.src.domain.interfaces.repositories.feature_flag_repository_interface import (
+    FeatureFlagRepositoryInterface,
+)
 from ab_test_platform.src.infra.database.repositories.base_repository import BaseRepository
+from sqlalchemy import select, update
 
 
 class FeatureFlagRepository(BaseRepository, FeatureFlagRepositoryInterface):

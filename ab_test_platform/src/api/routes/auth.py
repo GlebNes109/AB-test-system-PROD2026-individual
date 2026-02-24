@@ -1,8 +1,7 @@
-from fastapi import APIRouter, Depends
-
 from ab_test_platform.src.api.deps import get_user_service
-from ab_test_platform.src.schemas.users import UsersLogin
 from ab_test_platform.src.application.user_service import UsersService
+from ab_test_platform.src.schemas.users import UsersLogin
+from fastapi import APIRouter, Depends
 
 router = APIRouter()
 

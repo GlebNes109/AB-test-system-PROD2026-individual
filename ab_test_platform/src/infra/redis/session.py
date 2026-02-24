@@ -1,5 +1,4 @@
 import redis.asyncio as aioredis
-
 from ab_test_platform.src.core.settings import settings
 
 _redis_client: aioredis.Redis | None = None

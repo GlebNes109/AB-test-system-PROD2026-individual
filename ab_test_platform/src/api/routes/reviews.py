@@ -1,10 +1,9 @@
-from fastapi import Depends, Query, APIRouter
-from starlette import status
-
-from ab_test_platform.src.api.deps import require_roles, get_reviews_service
+from ab_test_platform.src.api.deps import get_reviews_service, require_roles
 from ab_test_platform.src.application.reviews_service import ReviewsService
 from ab_test_platform.src.models.users import Users
-from ab_test_platform.src.schemas.reviews import ReviewsCreate, PagedReviews
+from ab_test_platform.src.schemas.reviews import PagedReviews, ReviewsCreate
+from fastapi import APIRouter, Depends, Query
+from starlette import status
 
 router = APIRouter()
 

@@ -1,25 +1,44 @@
 import asyncio
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import uvicorn
-from fastapi import FastAPI, APIRouter
-from fastapi.encoders import jsonable_encoder
-from fastapi.requests import Request
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from sqlalchemy import text
-
 from ab_test_platform.src.api.deps import get_hash_creator
-from ab_test_platform.src.api.routes import reports, feature_flags, decisions, experiments, auth, approve_groups, \
-    events, users, reviews, metrics
-from ab_test_platform.src.domain.exceptions import AppException, ApiError, ErrorCode, ValidationErrorResponse, FieldError
+from ab_test_platform.src.api.routes import (
+    approve_groups,
+    auth,
+    decisions,
+    events,
+    experiments,
+    feature_flags,
+    metrics,
+    reports,
+    reviews,
+    users,
+)
 from ab_test_platform.src.application.worker import guardrail_loop, mv_refresh_loop
-from ab_test_platform.src.core.init_data import add_super_admin, create_tables_and_mv,  drop_all_in_database
+from ab_test_platform.src.core.init_data import (
+    add_super_admin,
+    create_tables_and_mv,
+    drop_all_in_database,
+)
 from ab_test_platform.src.core.settings import settings
+from ab_test_platform.src.domain.exceptions import (
+    ApiError,
+    AppException,
+    ErrorCode,
+    FieldError,
+    ValidationErrorResponse,
+)
 from ab_test_platform.src.infra.database.session import async_session_maker, engine
 from ab_test_platform.src.infra.redis.session import get_redis_client
+from fastapi import APIRouter, FastAPI
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.requests import Request
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 
 @asynccontextmanager
@@ -118,7 +137,7 @@ async def app_exception_handler(request: Request, exc: AppException):
             code=ErrorCode.VALIDATION_FAILED,
             message=exc.message,
             traceId=trace_id,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             path=request.url.path,
             fieldErrors=[FieldError(**fe) for fe in field_errors],
         )
@@ -131,7 +150,7 @@ async def app_exception_handler(request: Request, exc: AppException):
         code=exc.error_code,
         message=exc.message,
         traceId=trace_id,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         path=request.url.path,
         details=exc.details,
     )
@@ -148,7 +167,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             code=ErrorCode.BAD_REQUEST,
             message=message,
             traceId=uuid4(),
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             path=request.url.path,
             details=None,
         )
@@ -185,7 +204,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         code=ErrorCode.VALIDATION_FAILED,
         message="Некоторые поля не прошли валидацию",
         traceId=uuid4(),
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         path=request.url.path,
         fieldErrors=[FieldError(**fe) for fe in field_errors],
     )

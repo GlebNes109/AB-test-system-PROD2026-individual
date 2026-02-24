@@ -1,4 +1,6 @@
-from ab_test_platform.src.domain.interfaces.repositories.feature_flag_repository_interface import FeatureFlagRepositoryInterface
+from ab_test_platform.src.domain.interfaces.repositories.feature_flag_repository_interface import (
+    FeatureFlagRepositoryInterface,
+)
 from ab_test_platform.src.infra.database.repositories.base_repository import SortOrder
 from ab_test_platform.src.models.feature_flags import FeatureFlags, validate_value_for_flag_type
 from ab_test_platform.src.schemas.feature_flags import (

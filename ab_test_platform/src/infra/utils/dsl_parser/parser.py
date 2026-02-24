@@ -1,11 +1,10 @@
-from lark import UnexpectedInput
-
 from ab_test_platform.src.domain.interfaces.dsl_parser import DslParserInterface
+from ab_test_platform.src.infra.utils.dsl_parser.ast_nodes import Expr
 from ab_test_platform.src.infra.utils.dsl_parser.builder import ASTBuilder
+from ab_test_platform.src.infra.utils.dsl_parser.exceptions import ParserError
 from ab_test_platform.src.infra.utils.dsl_parser.grammar import parser
 from ab_test_platform.src.infra.utils.dsl_parser.validation import ValidationContext, validate_rule
-from ab_test_platform.src.infra.utils.dsl_parser.ast_nodes import Expr
-from ab_test_platform.src.infra.utils.dsl_parser.exceptions import ParserError
+from lark import UnexpectedInput
 
 
 class DslParser(DslParserInterface):

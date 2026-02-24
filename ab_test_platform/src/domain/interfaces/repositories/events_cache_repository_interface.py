@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Protocol, Optional
+from typing import Protocol
 
 
 class EventsCacheRepositoryInterface(Protocol):
@@ -23,7 +23,7 @@ class EventsCacheRepositoryInterface(Protocol):
     @abstractmethod
     async def pop_pending(
         self, decision_id: str, fulfilled_type_id: str
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """Извлечь и удалить событие из Redis 1 по ключу (decision_id, required_type_id)."""
         ...
 

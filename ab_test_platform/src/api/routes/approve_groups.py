@@ -1,10 +1,9 @@
-from fastapi import APIRouter, Depends
-from starlette import status
-
-from ab_test_platform.src.api.deps import require_roles, get_approve_groups_service
+from ab_test_platform.src.api.deps import get_approve_groups_service, require_roles
 from ab_test_platform.src.application.approve_groups_service import ApproveGroupsService
 from ab_test_platform.src.models.users import Users
 from ab_test_platform.src.schemas.approver_groups import ApproverGroupCreate, ApproverGroupResponse
+from fastapi import APIRouter, Depends
+from starlette import status
 
 router = APIRouter()
 

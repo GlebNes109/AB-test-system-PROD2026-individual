@@ -1,12 +1,12 @@
-from sqlalchemy import select, func, asc, desc
-
 from ab_test_platform.src.domain.interfaces.repositories.base_repository_interface import SortOrder
-from ab_test_platform.src.domain.interfaces.repositories.reviews_repository_interface import ReviewsRepositoryInterface
+from ab_test_platform.src.domain.interfaces.repositories.reviews_repository_interface import (
+    ReviewsRepositoryInterface,
+)
 from ab_test_platform.src.infra.database.repositories.base_repository import BaseRepository
 from ab_test_platform.src.models.experiments import Experiments
-from ab_test_platform.src.models.reviews import Reviews, ReviewDecisions
+from ab_test_platform.src.models.reviews import ReviewDecisions, Reviews
 from ab_test_platform.src.schemas.reviews import ReviewsRead
-
+from sqlalchemy import asc, desc, func, select
 
 
 class ReviewsRepository(BaseRepository, ReviewsRepositoryInterface):

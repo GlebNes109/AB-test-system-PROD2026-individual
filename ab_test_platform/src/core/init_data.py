@@ -1,27 +1,39 @@
 import uuid
 
+from ab_test_platform.src.core.db_sql import (
+    SQL_CREATE_FN_METRIC_SUMMARY,
+    SQL_CREATE_FN_METRIC_TIMESERIES,
+    SQL_CREATE_IDX_EXPERIMENT_TYPE_TIME,
+    SQL_CREATE_IDX_EXPERIMENT_VARIANT,
+    SQL_CREATE_MV,
+    SQL_REFRESH_MV,
+)
+from ab_test_platform.src.core.settings import settings
+from ab_test_platform.src.infra.database.session import engine
+from ab_test_platform.src.infra.utils.hash_creator import HashCreator
+from ab_test_platform.src.models.approver_groups import (  # noqa: F401 — needed for metadata
+    ApproverGroupMembers,
+    ApproverGroups,
+)
+from ab_test_platform.src.models.experiments import (  # noqa: F401 — needed for metadata
+    Experiments,
+    ExperimentVersions,
+    Variants,
+)
+from ab_test_platform.src.models.feature_flags import (
+    FeatureFlags,  # noqa: F401 — needed for metadata
+)
+from ab_test_platform.src.models.guardrail_triggers import (
+    GuardrailTriggers,  # noqa: F401 — needed for metadata
+)
+from ab_test_platform.src.models.metrics import (  # noqa: F401 — needed for metadata
+    ExperimentMetrics,
+    Metrics,
+)
+from ab_test_platform.src.models.users import UserRole, Users
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import SQLModel, select
-
-from ab_test_platform.src.core.settings import settings
-from ab_test_platform.src.core.db_sql import (
-    SQL_CREATE_MV,
-    SQL_CREATE_IDX_EXPERIMENT_TYPE_TIME,
-    SQL_CREATE_IDX_EXPERIMENT_VARIANT,
-    SQL_REFRESH_MV,
-    SQL_CREATE_FN_METRIC_SUMMARY,
-    SQL_CREATE_FN_METRIC_TIMESERIES,
-)
-from ab_test_platform.src.infra.database.session import engine
-from ab_test_platform.src.models.users import Users, UserRole
-from ab_test_platform.src.models.feature_flags import FeatureFlags  # noqa: F401 — needed for metadata
-from ab_test_platform.src.models.experiments import Experiments, ExperimentVersions, Variants  # noqa: F401 — needed for metadata
-from ab_test_platform.src.models.approver_groups import ApproverGroups, ApproverGroupMembers  # noqa: F401 — needed for metadata
-from ab_test_platform.src.models.metrics import Metrics, ExperimentMetrics  # noqa: F401 — needed for metadata
-from ab_test_platform.src.models.guardrail_triggers import GuardrailTriggers  # noqa: F401 — needed for metadata
-
-from ab_test_platform.src.infra.utils.hash_creator import HashCreator
 
 
 async def add_super_admin(hash_creator: HashCreator, session: AsyncSession):

@@ -1,6 +1,5 @@
-import json
 from datetime import datetime
-from typing import Optional, Any
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -12,6 +11,6 @@ class Subject(BaseModel):
 
 
 class DecisionsResponse(BaseModel):
-    id: Optional[str] = None
+    id: str | None = None
     created_at: datetime
     value: Any

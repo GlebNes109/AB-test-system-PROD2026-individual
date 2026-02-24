@@ -1,11 +1,10 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 
-from sqlalchemy import Column, DateTime
-from sqlmodel import SQLModel, Field
-
 from ab_test_platform.src.domain.exceptions import UnsupportableContentError
+from sqlalchemy import Column, DateTime
+from sqlmodel import Field, SQLModel
 
 
 class FlagType(str, Enum):
@@ -51,6 +50,6 @@ class FeatureFlags(SQLModel, table=True):
         sa_column=Column(
             DateTime(timezone=True),
             nullable=False,
-            default=lambda: datetime.now(timezone.utc),
+            default=lambda: datetime.now(UTC),
         )
     )

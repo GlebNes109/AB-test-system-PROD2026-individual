@@ -1,11 +1,12 @@
-from sqlalchemy.exc import NoResultFound
-from sqlalchemy import select, func, or_, desc
-
 from ab_test_platform.src.domain.exceptions import EntityNotFoundError
-from ab_test_platform.src.domain.interfaces.repositories.decisions_repository_interface import DecisionsRepositoryInterface
+from ab_test_platform.src.domain.interfaces.repositories.decisions_repository_interface import (
+    DecisionsRepositoryInterface,
+)
 from ab_test_platform.src.infra.database.repositories.base_repository import BaseRepository
 from ab_test_platform.src.models.decisions import Decisions
 from ab_test_platform.src.models.experiments import Experiments, ExperimentStatus
+from sqlalchemy import desc, func, or_, select
+from sqlalchemy.exc import NoResultFound
 
 
 class DecisionsRepository(BaseRepository, DecisionsRepositoryInterface):

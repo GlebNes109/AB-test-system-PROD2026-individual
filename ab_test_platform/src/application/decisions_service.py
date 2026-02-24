@@ -1,13 +1,19 @@
 import hashlib
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
 from ab_test_platform.src.domain.exceptions import EntityNotFoundError
 from ab_test_platform.src.domain.interfaces.dsl_parser import DslParserInterface
-from ab_test_platform.src.domain.interfaces.repositories.decisions_repository_interface import DecisionsRepositoryInterface
-from ab_test_platform.src.domain.interfaces.repositories.experiment_repository_interface import ExperimentsRepositoryInterface
-from ab_test_platform.src.domain.interfaces.repositories.feature_flag_repository_interface import FeatureFlagRepositoryInterface
+from ab_test_platform.src.domain.interfaces.repositories.decisions_repository_interface import (
+    DecisionsRepositoryInterface,
+)
+from ab_test_platform.src.domain.interfaces.repositories.experiment_repository_interface import (
+    ExperimentsRepositoryInterface,
+)
+from ab_test_platform.src.domain.interfaces.repositories.feature_flag_repository_interface import (
+    FeatureFlagRepositoryInterface,
+)
 from ab_test_platform.src.models.decisions import Decisions
-from ab_test_platform.src.schemas.decisions import Subject, DecisionsResponse
+from ab_test_platform.src.schemas.decisions import DecisionsResponse, Subject
 from ab_test_platform.src.schemas.experiments import VariantResponse
 
 
@@ -63,7 +69,7 @@ class DecisionsService:
         return decision
 
     def _return_default_without_experiment(self, feature_flag):
-        return DecisionsResponse(value=feature_flag.default_value, id=None, created_at=datetime.now(timezone.utc))
+        return DecisionsResponse(value=feature_flag.default_value, id=None, created_at=datetime.now(UTC))
 
     async def make_decision(self, subject: Subject) -> list[DecisionsResponse]:
         # конфликт экспериментов в одном домене и рассчет приоритета - будет реализовано в будущем
@@ -109,7 +115,7 @@ class DecisionsService:
 
             last_decision = await self.decisions_repository.get_last_decision_by_subject(subject.id)
             if last_decision is not None:
-                time_since_last = datetime.now(timezone.utc) - last_decision.createdAt
+                time_since_last = datetime.now(UTC) - last_decision.createdAt
                 if time_since_last < self.cooling_period:
                     decisions.append(self._return_default_without_experiment(feature_flag))
                     continue

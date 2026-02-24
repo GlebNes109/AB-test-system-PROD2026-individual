@@ -1,8 +1,7 @@
 from datetime import datetime
 
-from pydantic import BaseModel
-
 from ab_test_platform.src.models.reviews import ReviewDecisions
+from pydantic import BaseModel
 
 
 class ReviewsCreate(BaseModel):

@@ -1,9 +1,13 @@
+from ab_test_platform.src.api.deps import get_metrics_service, require_roles
+from ab_test_platform.src.application.metrics_service import MetricsService
+from ab_test_platform.src.schemas.metrics import (
+    MetricCreate,
+    MetricResponse,
+    MetricUpdate,
+    PagedMetrics,
+)
 from fastapi import APIRouter, Depends, Query
 from starlette import status
-
-from ab_test_platform.src.api.deps import require_roles, get_metrics_service
-from ab_test_platform.src.application.metrics_service import MetricsService
-from ab_test_platform.src.schemas.metrics import MetricCreate, MetricUpdate, MetricResponse, PagedMetrics
 
 router = APIRouter()
 

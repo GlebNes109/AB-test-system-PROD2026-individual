@@ -1,17 +1,18 @@
+from typing import Any
+
+from ab_test_platform.src.domain.exceptions import EntityAlreadyExistsError, EntityNotFoundError
+from ab_test_platform.src.domain.interfaces.repositories.base_repository_interface import (
+    BaseRepositoryInterface,
+    SortOrder,
+)
+from ab_test_platform.src.models.models import ModelType, ReadModelType
+from sqlalchemy import asc, delete, desc, func, select, update
 from sqlalchemy.exc import IntegrityError, NoResultFound
-from typing import Type, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete, func, asc, desc
-
-from ab_test_platform.src.domain.exceptions import EntityNotFoundError, EntityAlreadyExistsError
-
-from ab_test_platform.src.domain.interfaces.repositories.base_repository_interface import SortOrder, BaseRepositoryInterface
-from ab_test_platform.src.models.models import ReadModelType, ModelType
-
 
 
 class BaseRepository(BaseRepositoryInterface):
-    def __init__(self, session: AsyncSession, model: Type[ModelType], read_schema: Type[ReadModelType]):
+    def __init__(self, session: AsyncSession, model: type[ModelType], read_schema: type[ReadModelType]):
         self.session = session
         self.model = model
         self.read_schema = read_schema

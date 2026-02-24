@@ -1,10 +1,9 @@
 import uuid
-from datetime import datetime, timezone
-
-from sqlalchemy import Column, DateTime
-from sqlmodel import SQLModel, Field
+from datetime import UTC, datetime
 
 from ab_test_platform.src.models.metrics import GuardrailAction
+from sqlalchemy import Column, DateTime
+from sqlmodel import Field, SQLModel
 
 
 class GuardrailTriggers(SQLModel, table=True):
@@ -23,6 +22,6 @@ class GuardrailTriggers(SQLModel, table=True):
         sa_column=Column(
             DateTime(timezone=True),
             nullable=False,
-            default=lambda: datetime.now(timezone.utc),
+            default=lambda: datetime.now(UTC),
         )
     )

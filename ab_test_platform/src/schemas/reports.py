@@ -1,6 +1,5 @@
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -14,7 +13,7 @@ class Granularity(str, Enum):
 class VariantMetricValue(BaseModel):
     metric_key: str
     metric_name: str
-    value: Optional[float] = 0
+    value: float | None = 0
 
 
 class VariantReport(BaseModel):
@@ -39,7 +38,7 @@ class ExperimentReport(BaseModel):
 class TimeseriesPoint(BaseModel):
     bucket_start: datetime
     bucket_end: datetime
-    value: Optional[float] = None
+    value: float | None = None
 
 
 class VariantTimeseries(BaseModel):

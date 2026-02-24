@@ -1,6 +1,10 @@
-from ab_test_platform.src.domain.exceptions import UnsupportableContentError, EntityNotFoundError
-from ab_test_platform.src.domain.interfaces.repositories.approve_groups_repository_interface import ApproveGroupsRepositoryInterface
-from ab_test_platform.src.domain.interfaces.repositories.user_repository_interface import UserRepositoryInterface
+from ab_test_platform.src.domain.exceptions import EntityNotFoundError, UnsupportableContentError
+from ab_test_platform.src.domain.interfaces.repositories.approve_groups_repository_interface import (
+    ApproveGroupsRepositoryInterface,
+)
+from ab_test_platform.src.domain.interfaces.repositories.user_repository_interface import (
+    UserRepositoryInterface,
+)
 from ab_test_platform.src.models.users import UserRole
 from ab_test_platform.src.schemas.approver_groups import ApproverGroupCreate, ApproverGroupResponse
 

@@ -1,9 +1,10 @@
-from sqlalchemy import delete, select
-
 from ab_test_platform.src.domain.exceptions import EntityNotFoundError
-from ab_test_platform.src.domain.interfaces.repositories.approve_groups_repository_interface import ApproveGroupsRepositoryInterface
+from ab_test_platform.src.domain.interfaces.repositories.approve_groups_repository_interface import (
+    ApproveGroupsRepositoryInterface,
+)
 from ab_test_platform.src.infra.database.repositories.base_repository import BaseRepository
-from ab_test_platform.src.models.approver_groups import ApproverGroups, ApproverGroupMembers
+from ab_test_platform.src.models.approver_groups import ApproverGroupMembers, ApproverGroups
+from sqlalchemy import delete, select
 
 
 class ApproveGroupsRepository(BaseRepository, ApproveGroupsRepositoryInterface):

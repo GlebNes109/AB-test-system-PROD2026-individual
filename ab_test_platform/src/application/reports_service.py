@@ -1,19 +1,24 @@
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
-from ab_test_platform.src.domain.interfaces.repositories.experiment_repository_interface import ExperimentsRepositoryInterface
-from ab_test_platform.src.domain.interfaces.repositories.metrics_repository_interface import MetricsRepositoryInterface
-from ab_test_platform.src.domain.interfaces.repositories.reports_repository_interface import ReportsRepositoryInterface
+from ab_test_platform.src.domain.interfaces.repositories.experiment_repository_interface import (
+    ExperimentsRepositoryInterface,
+)
+from ab_test_platform.src.domain.interfaces.repositories.metrics_repository_interface import (
+    MetricsRepositoryInterface,
+)
+from ab_test_platform.src.domain.interfaces.repositories.reports_repository_interface import (
+    ReportsRepositoryInterface,
+)
 from ab_test_platform.src.models.metrics import MetricType
 from ab_test_platform.src.schemas.reports import (
     ExperimentReport,
-    VariantReport,
-    VariantMetricValue,
     ExperimentTimeseriesReport,
-    MetricTimeseries,
-    VariantTimeseries,
-    TimeseriesPoint,
     Granularity,
+    MetricTimeseries,
+    TimeseriesPoint,
+    VariantMetricValue,
+    VariantReport,
+    VariantTimeseries,
 )
 
 
@@ -31,15 +36,15 @@ class ReportsService:
     async def get_summary_report(
         self,
         experiment_id: str,
-        date_from: Optional[datetime],
-        date_to: Optional[datetime],
+        date_from: datetime | None,
+        date_to: datetime | None,
     ) -> ExperimentReport:
         experiment = await self.experiment_repository.get(experiment_id)
 
         if date_from is None:
             date_from = experiment.started_at or experiment.created_at
         if date_to is None:
-            date_to = datetime.now(timezone.utc)
+            date_to = datetime.now(UTC)
 
         # GUARDRAIL метрики не считаются в отчёте
         bound_metrics = [m for m in experiment.metrics if m.type != MetricType.GUARDRAIL]
@@ -55,7 +60,7 @@ class ReportsService:
 
         # value_num/value_denom per metric key - для подсчёта корректных итогов по ratio-метрикам
         totals_num: dict[str, float] = {}
-        totals_denom: dict[str, Optional[float]] = {}
+        totals_denom: dict[str, float | None] = {}
         totals_has_denom: dict[str, bool] = {}
 
         for bm in bound_metrics:
@@ -66,15 +71,15 @@ class ReportsService:
                 date_to=date_to,
             )
 
-            values_by_variant: dict[str, Optional[float]] = {
+            values_by_variant: dict[str, float | None] = {
                 row.variant_id: (float(row.value) if row.value is not None else None)
                 for row in rows
             }
-            num_by_variant: dict[str, Optional[float]] = {
+            num_by_variant: dict[str, float | None] = {
                 row.variant_id: (float(row.value_num) if row.value_num is not None else None)
                 for row in rows
             }
-            denom_by_variant: dict[str, Optional[float]] = {
+            denom_by_variant: dict[str, float | None] = {
                 row.variant_id: (float(row.value_denom) if row.value_denom is not None else None)
                 for row in rows
             }
@@ -144,8 +149,8 @@ class ReportsService:
     async def get_timeseries_report(
         self,
         experiment_id: str,
-        date_from: Optional[datetime],
-        date_to: Optional[datetime],
+        date_from: datetime | None,
+        date_to: datetime | None,
         granularity: Granularity,
     ) -> ExperimentTimeseriesReport:
         experiment = await self.experiment_repository.get(experiment_id)
@@ -153,7 +158,7 @@ class ReportsService:
         if date_from is None:
             date_from = experiment.started_at or experiment.created_at
         if date_to is None:
-            date_to = datetime.now(timezone.utc)
+            date_to = datetime.now(UTC)
 
         bound_metrics = [m for m in experiment.metrics if m.type != MetricType.GUARDRAIL]
 

@@ -1,10 +1,11 @@
-from sqlalchemy import select, update, func
-from sqlalchemy.exc import IntegrityError
-
-from ab_test_platform.src.domain.exceptions import EntityNotFoundError, EntityAlreadyExistsError
-from ab_test_platform.src.domain.interfaces.repositories.events_repository_interface import EventsRepositoryInterface
+from ab_test_platform.src.domain.exceptions import EntityAlreadyExistsError, EntityNotFoundError
+from ab_test_platform.src.domain.interfaces.repositories.events_repository_interface import (
+    EventsRepositoryInterface,
+)
 from ab_test_platform.src.infra.database.repositories.base_repository import BaseRepository
-from ab_test_platform.src.models.events import EventTypes, Events, EventsRaw, EventsStatus
+from ab_test_platform.src.models.events import Events, EventsRaw, EventsStatus, EventTypes
+from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 
 
 class EventsRepository(BaseRepository, EventsRepositoryInterface):

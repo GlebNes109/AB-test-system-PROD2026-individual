@@ -1,19 +1,34 @@
-from typing import Optional
 
-from ab_test_platform.src.domain.exceptions import BadRequestError, ConflictError, EntityNotFoundError, AccessDeniedError, UnsupportableContentError
-
+from ab_test_platform.src.domain.exceptions import (
+    AccessDeniedError,
+    BadRequestError,
+    ConflictError,
+    EntityNotFoundError,
+    UnsupportableContentError,
+)
 from ab_test_platform.src.domain.interfaces.dsl_parser import DslParserInterface
-from ab_test_platform.src.domain.interfaces.repositories.experiment_repository_interface import ExperimentsRepositoryInterface
-from ab_test_platform.src.domain.interfaces.repositories.feature_flag_repository_interface import FeatureFlagRepositoryInterface
-from ab_test_platform.src.domain.interfaces.repositories.metrics_repository_interface import MetricsRepositoryInterface
-from ab_test_platform.src.models.experiments import ExperimentStatus, ALLOWED_TRANSITIONS, FROZEN_STATUSES
+from ab_test_platform.src.domain.interfaces.repositories.experiment_repository_interface import (
+    ExperimentsRepositoryInterface,
+)
+from ab_test_platform.src.domain.interfaces.repositories.feature_flag_repository_interface import (
+    FeatureFlagRepositoryInterface,
+)
+from ab_test_platform.src.domain.interfaces.repositories.metrics_repository_interface import (
+    MetricsRepositoryInterface,
+)
+from ab_test_platform.src.models.experiments import (
+    ALLOWED_TRANSITIONS,
+    FROZEN_STATUSES,
+    ExperimentStatus,
+)
 from ab_test_platform.src.models.feature_flags import validate_value_for_flag_type
 from ab_test_platform.src.models.users import UserRole
 from ab_test_platform.src.schemas.experiments import (
     ExperimentCreate,
-    ExperimentUpdate,
+    ExperimentFinish,
     ExperimentResponse,
-    PagedExperiments, ExperimentFinish,
+    ExperimentUpdate,
+    PagedExperiments,
 )
 from ab_test_platform.src.schemas.metrics import ExperimentMetricBind
 
@@ -76,9 +91,9 @@ class ExperimentService:
         self,
         page: int,
         size: int,
-        status: Optional[str] = None,
+        status: str | None = None,
     ) -> PagedExperiments:
-        status_filter: Optional[ExperimentStatus] = None
+        status_filter: ExperimentStatus | None = None
         if status is not None:
             try:
                 status_filter = ExperimentStatus(status)

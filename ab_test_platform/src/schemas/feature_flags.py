@@ -1,16 +1,14 @@
-from typing import Optional
 from datetime import datetime
 
-from pydantic import BaseModel, Field
-
 from ab_test_platform.src.models.feature_flags import FlagType
+from pydantic import BaseModel, Field
 
 
 class FeatureFlagCreate(BaseModel):
     key: str = Field(min_length=1, max_length=255)
     type: FlagType
     default_value: str
-    description: Optional[str] = None
+    description: str | None = None
 
 
 class FeatureFlagUpdateDefault(BaseModel):

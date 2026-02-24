@@ -1,21 +1,19 @@
 from datetime import datetime
-from typing import Optional, List
-
-from pydantic import BaseModel, model_validator
 
 from ab_test_platform.src.domain.exceptions import UnsupportableContentError
-from ab_test_platform.src.models.metrics import AggregationType, MetricType, GuardrailAction
+from ab_test_platform.src.models.metrics import AggregationType, GuardrailAction, MetricType
+from pydantic import BaseModel, model_validator
 
 
 class MetricCreate(BaseModel):
     key: str
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     event_type: str
     aggregation: AggregationType
-    payload_field: Optional[str] = None
-    denominator_event_type: Optional[str] = None
-    denominator_aggregation: Optional[AggregationType] = None
+    payload_field: str | None = None
+    denominator_event_type: str | None = None
+    denominator_aggregation: AggregationType | None = None
 
     @model_validator(mode="after")
     def validate_aggregation_fields(self) -> "MetricCreate":
@@ -31,32 +29,32 @@ class MetricCreate(BaseModel):
 
 
 class MetricUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    event_type: Optional[str] = None
-    aggregation: Optional[AggregationType] = None
-    payload_field: Optional[str] = None
-    denominator_event_type: Optional[str] = None
-    denominator_aggregation: Optional[AggregationType] = None
+    name: str | None = None
+    description: str | None = None
+    event_type: str | None = None
+    aggregation: AggregationType | None = None
+    payload_field: str | None = None
+    denominator_event_type: str | None = None
+    denominator_aggregation: AggregationType | None = None
 
 
 class MetricResponse(BaseModel):
     id: str
     key: str
     name: str
-    description: Optional[str]
+    description: str | None
     event_type: str
     aggregation: AggregationType
-    payload_field: Optional[str]
-    denominator_event_type: Optional[str]
-    denominator_aggregation: Optional[AggregationType]
+    payload_field: str | None
+    denominator_event_type: str | None
+    denominator_aggregation: AggregationType | None
     created_at: datetime
 
     model_config = {"from_attributes": True}
 
 
 class PagedMetrics(BaseModel):
-    items: List[MetricResponse]
+    items: list[MetricResponse]
     total: int
     page: int
     size: int
@@ -65,9 +63,9 @@ class PagedMetrics(BaseModel):
 class ExperimentMetricBind(BaseModel):
     metric_key: str
     type: MetricType
-    threshold: Optional[float] = None
-    window_minutes: Optional[int] = None
-    action: Optional[GuardrailAction] = None
+    threshold: float | None = None
+    window_minutes: int | None = None
+    action: GuardrailAction | None = None
 
     @model_validator(mode="after")
     def validate_guardrail(self) -> "ExperimentMetricBind":
@@ -96,8 +94,8 @@ class ExperimentMetricResponse(BaseModel):
     metric_key: str
     metric_name: str
     type: MetricType
-    threshold: Optional[float] = None
-    window_minutes: Optional[int] = None
-    action: Optional[GuardrailAction] = None
+    threshold: float | None = None
+    window_minutes: int | None = None
+    action: GuardrailAction | None = None
 
     model_config = {"from_attributes": True}

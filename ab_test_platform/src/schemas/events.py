@@ -1,9 +1,9 @@
 from datetime import datetime
-from typing import Any, Optional
-
-from pydantic import BaseModel
+from typing import Any
 
 from ab_test_platform.src.models.events import EventsStatus
+from pydantic import BaseModel
+
 
 class PayloadSchemaTypes:
     STRING = "string"
@@ -14,7 +14,7 @@ class PayloadSchemaTypes:
 class EventTypesCreate(BaseModel):
     type: str
     description: str
-    requires_event_type: Optional[str] = None
+    requires_event_type: str | None = None
     payload_schema: dict[str, str] = {}  # field_name -> type ("string"|"number"|"bool")
 
 
@@ -22,7 +22,7 @@ class EventTypesResponse(BaseModel):
     id: str
     type: str
     description: str
-    requires_event_id: Optional[str] = None
+    requires_event_id: str | None = None
     payload_schema: dict[str, str] = {}
     created_at: datetime
 
@@ -30,8 +30,8 @@ class EventTypesResponse(BaseModel):
 class EventCreate(BaseModel):
     event_type: str
     decision_id: str
-    payload: Optional[dict[str, Any]] = None
-    occurred_at: Optional[datetime] = None
+    payload: dict[str, Any] | None = None
+    occurred_at: datetime | None = None
 
 
 class EventsBatchRequest(BaseModel):
@@ -41,9 +41,9 @@ class EventsBatchRequest(BaseModel):
 class EventItemResponse(BaseModel):
     index: int
     status_code: int
-    event_id: Optional[str] = None
-    event_status: Optional[EventsStatus] = None
-    error: Optional[str] = None
+    event_id: str | None = None
+    event_status: EventsStatus | None = None
+    error: str | None = None
 
 
 class EventsBatchResponse(BaseModel):

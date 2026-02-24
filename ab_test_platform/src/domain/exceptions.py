@@ -1,10 +1,9 @@
 import uuid
-from enum import Enum
-from typing import Optional, List
-
-from pydantic import BaseModel, Field
 from datetime import datetime
+from enum import Enum
 from uuid import UUID
+
+from pydantic import BaseModel
 
 
 class ErrorCode(str, Enum):

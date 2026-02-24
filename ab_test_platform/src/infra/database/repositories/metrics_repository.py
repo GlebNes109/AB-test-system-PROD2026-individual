@@ -1,9 +1,10 @@
-from sqlalchemy import select
-
 from ab_test_platform.src.domain.exceptions import EntityNotFoundError
-from ab_test_platform.src.domain.interfaces.repositories.metrics_repository_interface import MetricsRepositoryInterface
+from ab_test_platform.src.domain.interfaces.repositories.metrics_repository_interface import (
+    MetricsRepositoryInterface,
+)
 from ab_test_platform.src.infra.database.repositories.base_repository import BaseRepository
 from ab_test_platform.src.models.metrics import Metrics
+from sqlalchemy import select
 
 
 class MetricsRepository(BaseRepository, MetricsRepositoryInterface):

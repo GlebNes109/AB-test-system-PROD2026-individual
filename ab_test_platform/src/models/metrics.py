@@ -1,10 +1,9 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Optional
 
 from sqlalchemy import Column, DateTime
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field, SQLModel
 
 
 class AggregationType(str, Enum):
@@ -23,20 +22,20 @@ class Metrics(SQLModel, table=True):
     )
     key: str = Field(unique=True, nullable=False)
     name: str = Field(nullable=False)
-    description: Optional[str] = None
+    description: str | None = None
 
     event_type: str = Field(nullable=False)
     aggregation: AggregationType = Field(nullable=False)
-    payload_field: Optional[str] = None
+    payload_field: str | None = None
 
-    denominator_event_type: Optional[str] = None
-    denominator_aggregation: Optional[AggregationType] = None
+    denominator_event_type: str | None = None
+    denominator_aggregation: AggregationType | None = None
 
     created_at: datetime = Field(
         sa_column=Column(
             DateTime(timezone=True),
             nullable=False,
-            default=lambda: datetime.now(timezone.utc),
+            default=lambda: datetime.now(UTC),
         )
     )
 
@@ -64,6 +63,6 @@ class ExperimentMetrics(SQLModel, table=True):
     type: MetricType = Field(nullable=False)
 
     # guardrail-specific fields
-    threshold: Optional[float] = None
-    window_minutes: Optional[int] = None
-    action: Optional[GuardrailAction] = None
+    threshold: float | None = None
+    window_minutes: int | None = None
+    action: GuardrailAction | None = None

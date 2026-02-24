@@ -1,8 +1,9 @@
+from abc import abstractmethod
 from enum import Enum
 from typing import Any, Protocol
-from abc import abstractmethod
 
 from ab_test_platform.src.models.models import ModelType, ReadModelType
+
 
 class SortOrder(str, Enum):
     ASC = "asc"

@@ -1,11 +1,10 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 
-from pydantic import BaseModel
 from sqlalchemy import Column, DateTime
+from sqlmodel import Field, SQLModel
 
-from sqlmodel import SQLModel, Field
 
 class ReviewDecisions(Enum):
     ACCEPT = "ACCEPT"
@@ -28,6 +27,6 @@ class Reviews(SQLModel, table=True):
         sa_column=Column(
             DateTime(timezone=True),
             nullable=False,
-            default=lambda: datetime.now(timezone.utc),
+            default=lambda: datetime.now(UTC),
         )
     )

@@ -1,7 +1,6 @@
+from ab_test_platform.src.models.guardrail_triggers import GuardrailTriggers
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from ab_test_platform.src.models.guardrail_triggers import GuardrailTriggers
 
 
 class GuardrailRepository:

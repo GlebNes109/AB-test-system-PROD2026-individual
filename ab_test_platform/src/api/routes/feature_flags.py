@@ -1,12 +1,11 @@
-from fastapi import APIRouter, Depends
-from fastapi.params import Query
-from starlette import status
-from starlette.responses import JSONResponse, Response
-
-from ab_test_platform.src.api.deps import require_roles, get_feature_flag_service
+from ab_test_platform.src.api.deps import get_feature_flag_service, require_roles
 from ab_test_platform.src.application.feature_flag_service import FeatureFlagService
 from ab_test_platform.src.models.users import Users
 from ab_test_platform.src.schemas.feature_flags import FeatureFlagCreate, FeatureFlagUpdateDefault
+from fastapi import APIRouter, Depends
+from fastapi.params import Query
+from starlette import status
+from starlette.responses import Response
 
 router = APIRouter()
 

@@ -1,13 +1,10 @@
-from typing import List
-
-from pydantic import BaseModel, field_validator
 
 from ab_test_platform.src.domain.exceptions import UnsupportableContentError
-
+from pydantic import BaseModel, field_validator
 
 
 class ApproverGroupCreate(BaseModel):
-    approver_ids: List[str]
+    approver_ids: list[str]
     min_approvals: int = 1
 
     @field_validator("min_approvals")
@@ -20,5 +17,5 @@ class ApproverGroupCreate(BaseModel):
 
 class ApproverGroupResponse(BaseModel):
     experimenter_id: str
-    approver_ids: List[str]
+    approver_ids: list[str]
     min_approvals: int

@@ -1,47 +1,57 @@
 from fastapi import Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.requests import Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.ext.asyncio import AsyncSession
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
-from ab_test_platform.src.infra.database.repositories.guardrail_repository import GuardrailRepository
+from ab_test_platform.src.application.approve_groups_service import ApproveGroupsService
+from ab_test_platform.src.application.auth_service import authorize_roles
 from ab_test_platform.src.application.decisions_service import DecisionsService
 from ab_test_platform.src.application.events_sevice import EventsService
+from ab_test_platform.src.application.experiment_service import ExperimentService
+from ab_test_platform.src.application.feature_flag_service import FeatureFlagService
+from ab_test_platform.src.application.metrics_service import MetricsService
 from ab_test_platform.src.application.reports_service import ReportsService
-from ab_test_platform.src.infra.database.repositories.reports_repository import ReportsRepository
 from ab_test_platform.src.application.reviews_service import ReviewsService
-from ab_test_platform.src.infra.database.repositories.decisions_repository import DecisionsRepository
+from ab_test_platform.src.application.user_service import UsersService
+from ab_test_platform.src.core.settings import settings
+from ab_test_platform.src.infra.database.repositories.approve_groups_repository import (
+    ApproveGroupsRepository,
+)
+from ab_test_platform.src.infra.database.repositories.decisions_repository import (
+    DecisionsRepository,
+)
 from ab_test_platform.src.infra.database.repositories.events_repository import EventsRepository
+from ab_test_platform.src.infra.database.repositories.experiment_repository import (
+    ExperimentsRepository,
+)
+from ab_test_platform.src.infra.database.repositories.feature_flag_repository import (
+    FeatureFlagRepository,
+)
+from ab_test_platform.src.infra.database.repositories.guardrail_repository import (
+    GuardrailRepository,
+)
+from ab_test_platform.src.infra.database.repositories.metrics_repository import MetricsRepository
+from ab_test_platform.src.infra.database.repositories.reports_repository import ReportsRepository
 from ab_test_platform.src.infra.database.repositories.reviews_repository import ReviewsRepository
 from ab_test_platform.src.infra.database.repositories.user_repository import UserRepository
-from ab_test_platform.src.infra.redis.session import get_redis_client
-from ab_test_platform.src.infra.redis.repositories.events_cache_repository import EventsCacheRepository
-
-from ab_test_platform.src.core.settings import settings
 from ab_test_platform.src.infra.database.session import get_session
+from ab_test_platform.src.infra.redis.repositories.events_cache_repository import (
+    EventsCacheRepository,
+)
+from ab_test_platform.src.infra.redis.session import get_redis_client
+from ab_test_platform.src.infra.utils.dsl_parser.parser import DslParser
+from ab_test_platform.src.infra.utils.hash_creator import HashCreator
+from ab_test_platform.src.infra.utils.token_creator import TokenCreator
 from ab_test_platform.src.models.approver_groups import ApproverGroups
 from ab_test_platform.src.models.decisions import Decisions
 from ab_test_platform.src.models.events import Events
 from ab_test_platform.src.models.experiments import Experiments
+from ab_test_platform.src.models.feature_flags import FeatureFlags
+from ab_test_platform.src.models.metrics import Metrics
 from ab_test_platform.src.models.reviews import Reviews
 from ab_test_platform.src.models.users import Users
-from ab_test_platform.src.application.user_service import UsersService
-from ab_test_platform.src.application.auth_service import authorize_roles
-
-from ab_test_platform.src.infra.utils.hash_creator import HashCreator
-from ab_test_platform.src.infra.utils.token_creator import TokenCreator
-from ab_test_platform.src.infra.database.repositories.feature_flag_repository import FeatureFlagRepository
-from ab_test_platform.src.models.feature_flags import FeatureFlags
-from ab_test_platform.src.application.feature_flag_service import FeatureFlagService
-from ab_test_platform.src.infra.utils.dsl_parser.parser import DslParser
-from ab_test_platform.src.infra.database.repositories.experiment_repository import ExperimentsRepository
-from ab_test_platform.src.application.experiment_service import ExperimentService
-from ab_test_platform.src.infra.database.repositories.approve_groups_repository import ApproveGroupsRepository
-from ab_test_platform.src.application.approve_groups_service import ApproveGroupsService
-from ab_test_platform.src.application.metrics_service import MetricsService
-from ab_test_platform.src.infra.database.repositories.metrics_repository import MetricsRepository
-from ab_test_platform.src.models.metrics import Metrics
 from ab_test_platform.src.schemas.experiments import ExperimentResponse
 from ab_test_platform.src.schemas.reviews import ReviewsRead
 

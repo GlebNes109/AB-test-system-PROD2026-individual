@@ -1,9 +1,14 @@
+from ab_test_platform.src.api.deps import get_events_service, require_roles
+from ab_test_platform.src.application.events_sevice import EventsService
+from ab_test_platform.src.schemas.events import (
+    EventsBatchRequest,
+    EventsBatchResponse,
+    EventTypesCreate,
+    EventTypesResponse,
+    PagedEventTypes,
+)
 from fastapi import APIRouter, Depends, Query
 from starlette import status
-
-from ab_test_platform.src.api.deps import require_roles, get_events_service
-from ab_test_platform.src.application.events_sevice import EventsService
-from ab_test_platform.src.schemas.events import EventTypesCreate, EventTypesResponse, EventsBatchRequest, EventsBatchResponse, PagedEventTypes
 
 router = APIRouter()
 

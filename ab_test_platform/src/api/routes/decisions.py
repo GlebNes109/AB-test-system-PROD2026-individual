@@ -1,9 +1,8 @@
-from fastapi import APIRouter, Depends
-from starlette import status
-
 from ab_test_platform.src.api.deps import get_decisions_service
 from ab_test_platform.src.application.decisions_service import DecisionsService
 from ab_test_platform.src.schemas.decisions import DecisionsResponse, Subject
+from fastapi import APIRouter, Depends
+from starlette import status
 
 router = APIRouter()
 

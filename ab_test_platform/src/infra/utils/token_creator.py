@@ -1,7 +1,6 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import jwt
-
 from ab_test_platform.src.domain.exceptions import UnauthorizedError
 from ab_test_platform.src.domain.interfaces.token_creator_interface import TokenCreatorInterface
 from ab_test_platform.src.infra.database.repositories.user_repository import UserRepository
@@ -20,7 +19,7 @@ class TokenCreator(TokenCreatorInterface):
 
     async def create_access_token(self, user_id: str) -> tuple[str, int]:
         user = await self.repository.get(user_id)
-        now = int(datetime.now(timezone.utc).timestamp())
+        now = int(datetime.now(UTC).timestamp())
         expire = now + 3600
         to_encode = {
             "sub": user_id,

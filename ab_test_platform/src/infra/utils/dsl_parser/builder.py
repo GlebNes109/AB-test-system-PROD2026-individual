@@ -1,6 +1,5 @@
+from ab_test_platform.src.infra.utils.dsl_parser.ast_nodes import And, Comparison, Not, Or
 from lark import Transformer
-
-from ab_test_platform.src.infra.utils.dsl_parser.ast_nodes import And, Or, Not, Comparison
 
 
 class ASTBuilder(Transformer):

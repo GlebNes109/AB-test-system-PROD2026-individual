@@ -1,19 +1,17 @@
-from typing import Optional
-
-from pydantic import BaseModel, Field, EmailStr
 
 from ab_test_platform.src.models.users import UserRole
+from pydantic import BaseModel, EmailStr, Field
 
 
 class UsersCreate(BaseModel):
   email: EmailStr = Field(max_length=254)
   password: str = Field(min_length=8, max_length=72)
-  role: Optional[UserRole]
+  role: UserRole | None
 
 class UsersUpdate(BaseModel):
-  email: Optional[EmailStr] = Field(default=None, max_length=254)
-  password: Optional[str] = Field(default=None, min_length=8, max_length=72)
-  role: Optional[UserRole] = Field(default=None)
+  email: EmailStr | None = Field(default=None, max_length=254)
+  password: str | None = Field(default=None, min_length=8, max_length=72)
+  role: UserRole | None = Field(default=None)
 
 class UsersLogin(BaseModel):
   email: EmailStr = Field(max_length=254)

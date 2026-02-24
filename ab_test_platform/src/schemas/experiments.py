@@ -1,13 +1,11 @@
 from datetime import datetime
-from enum import Enum
-from typing import Optional, List, Any
-
-from pydantic import BaseModel, field_validator, model_validator
+from typing import Any
 
 from ab_test_platform.src.domain.exceptions import UnsupportableContentError
-from ab_test_platform.src.models.experiments import ExperimentStatus, ExperimentResult
+from ab_test_platform.src.models.experiments import ExperimentResult, ExperimentStatus
 from ab_test_platform.src.models.metrics import MetricType
 from ab_test_platform.src.schemas.metrics import ExperimentMetricBind, ExperimentMetricResponse
+from pydantic import BaseModel, field_validator, model_validator
 
 
 class VariantCreate(BaseModel):
@@ -30,10 +28,10 @@ class VariantResponse(BaseModel):
 class ExperimentCreate(BaseModel):
     feature_flag_key: str
     name: str
-    targeting_rule: Optional[str] = None
+    targeting_rule: str | None = None
     audience_percentage: int
-    variants: List[VariantCreate]
-    metrics: List[ExperimentMetricBind]
+    variants: list[VariantCreate]
+    metrics: list[ExperimentMetricBind]
 
     @field_validator("audience_percentage")
     @classmethod
@@ -44,14 +42,14 @@ class ExperimentCreate(BaseModel):
 
     @field_validator("variants")
     @classmethod
-    def validate_variants_not_empty(cls, v: List[VariantCreate]) -> List[VariantCreate]:
+    def validate_variants_not_empty(cls, v: list[VariantCreate]) -> list[VariantCreate]:
         if not v:
             raise UnsupportableContentError("variants must not be empty")
         return v
 
     @field_validator("metrics")
     @classmethod
-    def validate_metrics_not_empty(cls, v: List[ExperimentMetricBind]) -> List[ExperimentMetricBind]:
+    def validate_metrics_not_empty(cls, v: list[ExperimentMetricBind]) -> list[ExperimentMetricBind]:
         if not v:
             raise UnsupportableContentError("metrics must not be empty")
         return v
@@ -79,15 +77,15 @@ class ExperimentCreate(BaseModel):
 
 
 class ExperimentUpdate(BaseModel):
-    name: Optional[str] = None
-    targeting_rule: Optional[str] = None
-    audience_percentage: Optional[int] = None
-    variants: Optional[List[VariantCreate]] = None
-    metrics: Optional[List[ExperimentMetricBind]] = None
+    name: str | None = None
+    targeting_rule: str | None = None
+    audience_percentage: int | None = None
+    variants: list[VariantCreate] | None = None
+    metrics: list[ExperimentMetricBind] | None = None
 
     @field_validator("audience_percentage")
     @classmethod
-    def validate_audience(cls, v: Optional[int]) -> Optional[int]:
+    def validate_audience(cls, v: int | None) -> int | None:
         if v is not None and not (1 <= v <= 100):
             raise UnsupportableContentError("audience_percentage must be between 1 and 100")
         return v
@@ -122,24 +120,24 @@ class ExperimentResponse(BaseModel):
     feature_flag_key: str
     created_by: str
     created_at: datetime
-    started_at: Optional[datetime] = None
+    started_at: datetime | None = None
     version: int
     # fields from current version
     name: str
-    targeting_rule: Optional[str]
+    targeting_rule: str | None
     status: ExperimentStatus
     audience_percentage: int
-    modified_by: Optional[str]
-    variants: List[VariantResponse]
-    metrics: List[ExperimentMetricResponse] = []
-    result: Optional[ExperimentResult] = None
-    result_description: Optional[str] = None
+    modified_by: str | None
+    variants: list[VariantResponse]
+    metrics: list[ExperimentMetricResponse] = []
+    result: ExperimentResult | None = None
+    result_description: str | None = None
 
     model_config = {"from_attributes": True}
 
 
 class PagedExperiments(BaseModel):
-    items: List[ExperimentResponse]
+    items: list[ExperimentResponse]
     total: int
     page: int
     size: int

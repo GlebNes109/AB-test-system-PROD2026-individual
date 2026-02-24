@@ -1,12 +1,10 @@
+from ab_test_platform.src.api.deps import get_user_service, require_roles
+from ab_test_platform.src.application.user_service import UsersService
+from ab_test_platform.src.models.users import Users
+from ab_test_platform.src.schemas.users import UsersCreate, UsersUpdate
 from fastapi import APIRouter, Depends
 from fastapi.params import Query
 from starlette import status
-
-from ab_test_platform.src.api.deps import get_user_service, require_roles
-
-from ab_test_platform.src.schemas.users import UsersCreate, UsersUpdate
-from ab_test_platform.src.application.user_service import UsersService
-from ab_test_platform.src.models.users import Users
 
 router = APIRouter()
 

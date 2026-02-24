@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import Protocol
 
+
 class DslParserInterface(Protocol):
     @abstractmethod
     def validate(self, dsl_expression: str) -> bool:
