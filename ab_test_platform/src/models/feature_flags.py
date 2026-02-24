@@ -28,7 +28,9 @@ def validate_value_for_flag_type(
         try:
             float(str_val)
         except (ValueError, TypeError):
-            raise UnsupportableContentError(f"{field_name}: expected a number, got '{value}'") from None
+            raise UnsupportableContentError(
+                f"{field_name}: expected a number, got '{value}'"
+            ) from None
 
     return str_val
 

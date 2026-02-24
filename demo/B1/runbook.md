@@ -41,32 +41,32 @@ python seed_demo_happypath.py
 
 Создайте и запустите сценарий в эмуляторе:
 
-```aiignore
-{{
-    "scenario_name": "demo button-color",
-    "subjects_count": 200,
-    "experiment": {{
-      "feature_flag_key": "button-color",
-      "time_delay_seconds": 0,
-      "time_variation": 0,
-      "variants": [
-        {{
-          "feature_flag_value": "white",
-          "events": [
-            {{"event_type": "exposure", "time_delay_seconds": 0, "time_variation": 0, "probability": 1}},
-            {{"event_type": "click",    "time_delay_seconds": 0, "time_variation": 0, "probability": 0.6}}
-          ]
-        }},
-        {{
-          "feature_flag_value": "black",
-          "events": [
-            {{"event_type": "exposure", "time_delay_seconds": 0, "time_variation": 0, "probability": 1}},
-            {{"event_type": "click",    "time_delay_seconds": 0, "time_variation": 0, "probability": 0.8}}
-          ]
-        }}
-      ]
-    }}
-  }}
+```
+{
+  "scenario_name": "demo button-color",
+  "subjects_count": 200,
+  "experiment": {
+    "feature_flag_key": "button-color",
+    "time_delay_seconds": 2,
+    "time_variation": 1,
+    "variants": [
+      {
+        "feature_flag_value": "white",
+        "events": [
+          {"event_type": "exposure", "time_delay_seconds": 0, "time_variation": 0, "probability": 1},
+          {"event_type": "click", "time_delay_seconds": 1, "time_variation": 0, "probability": 0.3}
+        ]
+      },
+      {
+        "feature_flag_value": "black",
+        "events": [
+          {"event_type": "exposure", "time_delay_seconds": 0, "time_variation": 0, "probability": 1},
+          {"event_type": "click", "time_delay_seconds": 1, "time_variation": 0, "probability": 0.8}
+        ]
+      }
+    ]
+  }
+}
 ```
 
 
