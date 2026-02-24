@@ -2,9 +2,19 @@
 
 # Система A/B тестирования
 
-### Проверка без участника
-Инструкция по запуску [здесь](/demo/B1/runbook.md)
-Данные для проверки критериев b1-b6 есть в директории [/demo](/demo) в соответствующих директориях - B1, B2 и тд. Генераторы данных также есть там. Проверка выполняется curl запросами из userscripts файлов (они уже готовы и там есть самая базовая проверка ответа апи) или в постмане/сваггере. Можно вместо curl запросов в userscripts делать запросы в сваггере, а тестовые данные так же генерировать скриптом.
+## Структура документации
+
+> Инструкция по запуску [здесь](/demo/B1/runbook.md)
+
+Пояснения и артефакты, соответствующие каждому критерию, лежат в директории [/demo](demo) в соответствующих директориях с B1 по B10
+
+Для проверки критериев B1 смотрите [/demo/B1](demo/B1)
+
+Для проверки критериев B2 смотрите [/demo/B2](demo/B2)
+
+И так далее
+
+Матрица соответствия и карта репозитория находятся здесь, в readme.
 
 ### Карта репозитория
 
@@ -31,7 +41,7 @@
 │     ├── main.py -- запуск проекта
 │     ├── models -- основные сущности сервиса, они же описание схемы базы данных для ORM sqlmodel
 │     ├── schemas -- схемы ответов/запросов в апи и взаимодействия с данными в application слое
-├── demo -- данные для демо и ручного тестирования
+├── demo -- данные для демо и ручного тестирования, а также документация продукта.
 ├── docker -- init данные докера
 ├── docker-compose.yml
 ├── external_system_emulator -- система-эмулятор (отдельный FastAPI сервис)
@@ -39,29 +49,17 @@
 └── tests -- тесты
 ```
 
-## Ключевые архитектурные решения
-
-### Оптимизация критичного пути batch events
-Про redis и кеширование
-
-### MV в постгресе
-
-### Раздача эксперимента и весов - как работает (хеши и тд)
-
-### Rollback rollout
-
-### Default-раздача 
-
-
-## Ограничения и упрощения
-### Redis сброс кэша
-### metabase ходит в постгрес
-### rollback
-### метрики в постгре хранимой процедурой
-
-
 
 ## Матрица соответствия
+
+| ID задания | ID критерия | Проблема/риск | Где реализовано | Как проверяется | Какие данные нужны | Статус |
+|------------|-------------|---------------|-----------------|-----------------|--------------------|---------|
+| `1.1` | `B1-1` | Жюри не может понять, как запустить систему — зависимости и переменные не описаны. | [demo/B1/runbook.md](demo/B1/runbook.md) — предусловия, переменные окружения, команды; [.env](.env) — переменные; [docker-compose.yml](docker-compose.yml) — все сервисы. | Открыть `demo/B1/runbook.md` — проверить наличие: предусловий (Docker, docker compose), переменных окружения (`.env`), команд запуска. | Файл `demo/B1/runbook.md`. | `реализовано` |
+| `1.1` | `B1-2` | Нет точных команд запуска, жюри приходится догадываться. | [demo/B1/runbook.md](demo/B1/runbook.md): `cp .env.example .env && docker compose up -d`. | Выполнить команды из runbook. Система поднимается без дополнительных шагов. | Файл `demo/B1/runbook.md`. | `реализовано` |
+| `1.1` | `B1-3` | Для запуска нужны скрытые ручные действия, не описанные в инструкции. | [docker-compose.yml](docker-compose.yml): все сервисы (postgres, redis, api, nginx, emulator, metabase) поднимаются одной командой `docker compose up -d`. Автоматический seed admin-пользователя: [init_data.py](ab_test_platform/src/core/init_data.py) `add_super_admin`. Авто-создание таблиц, MV и функций: `create_tables_and_mv`. | `docker compose up -d` → `curl http://localhost/ready` → `200 {"status": "ready"}`. Никаких дополнительных шагов не требуется. | Docker + docker compose установлены; `.env` скопирован. | `реализовано` |
+| `1.1` | `B1-4` | Сервисы не стартуют или падают при запуске. | [docker-compose.yml](docker-compose.yml): healthcheck для postgres (`pg_isready`), redis (`redis-cli ping`), api (`curl /ready`). Nginx зависит от `api: service_healthy`. [main.py](ab_test_platform/src/main.py) `lifespan`: создаёт таблицы, MV, seed admin, запускает background workers (guardrail + mv_refresh). | `docker compose up -d` → `docker compose ps` — все контейнеры `healthy`/`running`. `curl http://localhost/health` → `200`. `curl http://localhost/ready` → `200` с `checks: {postgres: "ok", redis: "ok"}`. | Docker + docker compose; `.env`. | `реализовано` |
+| `1.1` | `B1-5` | Сквозной happy-path не воспроизводится: нельзя пройти путь «выдача варианта → событие → результат». | [demo/B1/seed_demo_happypath.py](demo/B1/seed_demo_happypath.py): создаёт пользователей, типы событий, метрики, флаги, эксперимент → RUNNING. Далее сквозной путь: `POST /decision` → `POST /events/batch` → `GET /experiments/{id}/reports`. Демо-сценарии по блокам B2–B6 в `demo/B2..B6/userscripts.md`. | `python demo/B1/seed_demo_happypath.py` → скрипт проходит все шаги без ошибок. Или выполнить пакеты B2–B6 последовательно (каждый содержит свой seed + userscripts). | `docker compose up -d`; Python 3.11+ с `requests`. | `реализовано` |
+
 | ID задания | ID критерия | Проблема/риск | Где реализовано                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Как проверяется                                                                                                                                                                                                                                                   | Какие данные нужны                                                                                                                                                                                                                       | Статус |
 |------------|-------------|---------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------|
 | `3.4`      | `B2-1` | При отсутствии активного эксперимента система возвращает не `default`, из-за чего ломается контрольный сценарий и сравнение вариантов. | [decisions_service.py](ab_test_platform/src/application/decisions_service.py) метод `make_decision`: `get_active_experiment_for_flag` возвращает `None` → `_return_default_without_experiment`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | `POST /api/v1/decision` с `flags_keys` для флага без активного эксперимента; ожидается `value = <default_value флага>` и `id = null`.                                                                                                                             | Флаг с установленным `default_value`; ни одного эксперимента в статусе `RUNNING`/`PAUSED` на этом флаге; любой `subject_id`.                                                                                                             | `реализовано` |
@@ -104,14 +102,6 @@
 | `5.2` | `B6-3` | В отчёте отсутствуют часть метрик из конфигурации эксперимента. | [reports_service.py](ab_test_platform/src/application/reports_service.py) `get_summary_report`: итерирует по `bound_metrics` (все метрики эксперимента кроме GUARDRAIL) и вызывает `compute_metric_summary` для каждой. Каждая метрика попадает в `VariantMetricValue(metric_key, metric_name, value)` для каждого варианта. GUARDRAIL-метрики исключаются из отчёта (отдельный эндпоинт `guardrail-triggers`). | `GET /api/v1/experiments/{id}/reports` — для каждого варианта в массиве `metrics` проверить наличие всех PRIMARY и SECONDARY метрик, привязанных к эксперименту. Сравнить с `GET /api/v1/experiments/{id}` → `metrics[]`. | `RUNNING`-эксперимент с несколькими метриками (PRIMARY + SECONDARY); события по каждому типу; проверка что все метрики присутствуют в отчёте. | `реализовано` |
 | `5.3` | `B6-4` | Нельзя зафиксировать исход эксперимента, решение теряется. | [routes/experiments.py](ab_test_platform/src/api/routes/experiments.py) `POST /{experiment_id}/finish` принимает тело `ExperimentFinish` с полями `result` (enum: `ROLLOUT`, `ROLLBACK`, `NO_EFFECT`) и `result_description`. [experiment_service.py](ab_test_platform/src/application/experiment_service.py) `finish_experiment` передаёт `result` и `result_description` в `repository.transition_status`. Модель: [experiments.py](ab_test_platform/src/models/experiments.py) `ExperimentResult`. Поля `result`, `result_description` возвращаются в `ExperimentResponse`. | `POST /api/v1/experiments/{id}/finish` с `{"result": "ROLLOUT", "result_description": "..."}` → `GET /api/v1/experiments/{id}`: `status=FINISHED`, `result=ROLLOUT`, `result_description` совпадает. Повторить для `ROLLBACK` и `NO_EFFECT`. | `RUNNING` или `PAUSED`-эксперимент; тело с `result` и `result_description`. | `реализовано` |
 | `5.3` | `B6-5` | Решение сохраняется без обоснования, невозможно понять причину. | [schemas/experiments.py](ab_test_platform/src/schemas/experiments.py) `ExperimentFinish`: поле `result_description: str` — **обязательное** (не Optional). При вызове `POST /finish` без `result_description` — ошибка валидации `422`. При автоматическом ROLLBACK через guardrail: [guardrail_service.py](ab_test_platform/src/application/guardrail_service.py) заполняет `result_description` с деталями превышения порога. Поле возвращается в `ExperimentResponse.result_description`. | 1) `POST /api/v1/experiments/{id}/finish` с `result_description` → `GET` показывает обоснование. 2) `POST /finish` без `result_description` → `422`. 3) После guardrail ROLLBACK → `result_description` заполнено автоматически. | `RUNNING`-эксперимент; запрос на финиш с обоснованием и без. | `реализовано` |
-
-| ID задания | ID критерия | Проблема/риск | Где реализовано | Как проверяется | Какие данные нужны | Статус |
-|------------|-------------|---------------|-----------------|-----------------|--------------------|---------|
-| `1.1` | `B1-1` | Жюри не может понять, как запустить систему — зависимости и переменные не описаны. | [demo/B1/runbook.md](demo/B1/runbook.md) — предусловия, переменные окружения, команды; [.env](.env) — переменные; [docker-compose.yml](docker-compose.yml) — все сервисы. | Открыть `demo/B1/runbook.md` — проверить наличие: предусловий (Docker, docker compose), переменных окружения (`.env`), команд запуска. | Файл `demo/B1/runbook.md`. | `реализовано` |
-| `1.1` | `B1-2` | Нет точных команд запуска, жюри приходится догадываться. | [demo/B1/runbook.md](demo/B1/runbook.md): `cp .env.example .env && docker compose up -d`. | Выполнить команды из runbook. Система поднимается без дополнительных шагов. | Файл `demo/B1/runbook.md`. | `реализовано` |
-| `1.1` | `B1-3` | Для запуска нужны скрытые ручные действия, не описанные в инструкции. | [docker-compose.yml](docker-compose.yml): все сервисы (postgres, redis, api, nginx, emulator, metabase) поднимаются одной командой `docker compose up -d`. Автоматический seed admin-пользователя: [init_data.py](ab_test_platform/src/core/init_data.py) `add_super_admin`. Авто-создание таблиц, MV и функций: `create_tables_and_mv`. | `docker compose up -d` → `curl http://localhost/ready` → `200 {"status": "ready"}`. Никаких дополнительных шагов не требуется. | Docker + docker compose установлены; `.env` скопирован. | `реализовано` |
-| `1.1` | `B1-4` | Сервисы не стартуют или падают при запуске. | [docker-compose.yml](docker-compose.yml): healthcheck для postgres (`pg_isready`), redis (`redis-cli ping`), api (`curl /ready`). Nginx зависит от `api: service_healthy`. [main.py](ab_test_platform/src/main.py) `lifespan`: создаёт таблицы, MV, seed admin, запускает background workers (guardrail + mv_refresh). | `docker compose up -d` → `docker compose ps` — все контейнеры `healthy`/`running`. `curl http://localhost/health` → `200`. `curl http://localhost/ready` → `200` с `checks: {postgres: "ok", redis: "ok"}`. | Docker + docker compose; `.env`. | `реализовано` |
-| `1.1` | `B1-5` | Сквозной happy-path не воспроизводится: нельзя пройти путь «выдача варианта → событие → результат». | [demo/B1/seed_demo_happypath.py](demo/B1/seed_demo_happypath.py): создаёт пользователей, типы событий, метрики, флаги, эксперимент → RUNNING. Далее сквозной путь: `POST /decision` → `POST /events/batch` → `GET /experiments/{id}/reports`. Демо-сценарии по блокам B2–B6 в `demo/B2..B6/userscripts.md`. | `python demo/B1/seed_demo_happypath.py` → скрипт проходит все шаги без ошибок. Или выполнить пакеты B2–B6 последовательно (каждый содержит свой seed + userscripts). | `docker compose up -d`; Python 3.11+ с `requests`. | `реализовано` |
 
 | ID задания | ID критерия | Проблема/риск | Где реализовано | Как проверяется | Какие данные нужны | Статус |
 |------------|-------------|---------------|-----------------|-----------------|--------------------|---------|

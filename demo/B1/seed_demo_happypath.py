@@ -228,10 +228,10 @@ def main() -> None:
     exp2 = _ok("создан (DRAFT)", s.post(f"{base}/experiments", json={
         "name":                "Тест флоу оформления заказа",
         "feature_flag_key":    "checkout-flow",
-        "audience_percentage": 80,
+        "audience_percentage": 100,
         "variants": [
-            {"name": "стандартный", "value": "standard", "weight": 40, "is_control": True},
-            {"name": "экспресс",    "value": "express",  "weight": 40, "is_control": False},
+            {"name": "стандартный", "value": "standard", "weight": 50, "is_control": True},
+            {"name": "экспресс",    "value": "express",  "weight": 50, "is_control": False},
         ],
         "metrics": [
             {"metric_key": "click_conversion", "type": "PRIMARY"},

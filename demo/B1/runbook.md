@@ -20,3 +20,53 @@ docker compose up -d
 
 Для генерации тестовых данных используются python скрипты которые вызывают api, их надо запускать локально.
 
+## Happy-path
+Запустите скрипт генерации тестовых данных
+```bash
+python seed_demo_happypath
+```
+
+---
+Проверьте метрики и логи контейнера. Запросите фичу button-color вручную чтобы убедиться что выдача работает (POST api/v1/decision)
+
+Отправьте события вручную (POST api/v1/events/batch) чтобы убедиться что события принимаются (event type ставьте exposure или click - из тестовых данных seed_demo). Опционально вы можете сгенерировать большой объем данных в эмуляторе чтобы посмотреть что все точно работает.
+
+--- 
+
+Создайте и запустите сценарий в эмуляторе:
+
+```aiignore
+{{
+    "scenario_name": "demo button-color",
+    "subjects_count": 200,
+    "experiment": {{
+      "feature_flag_key": "button-color",
+      "time_delay_seconds": 0,
+      "time_variation": 0,
+      "variants": [
+        {{
+          "feature_flag_value": "white",
+          "events": [
+            {{"event_type": "exposure", "time_delay_seconds": 0, "time_variation": 0, "probability": 1}},
+            {{"event_type": "click",    "time_delay_seconds": 0, "time_variation": 0, "probability": 0.6}}
+          ]
+        }},
+        {{
+          "feature_flag_value": "black",
+          "events": [
+            {{"event_type": "exposure", "time_delay_seconds": 0, "time_variation": 0, "probability": 1}},
+            {{"event_type": "click",    "time_delay_seconds": 0, "time_variation": 0, "probability": 0.8}}
+          ]
+        }}
+      ]
+    }}
+  }}
+```
+
+
+
+Посмотрите метрики эксперимента в GET api/v1/experiments/{exp_id_из_вывода_seed_demo}/reports
+
+Чтобы посмотреть таймсерии задайте в эмуляторе time_delay_seconds (задержку по времени) и посмотрите с гранулярностью минута в GET api/v1/experiments/{exp_id_из_вывода_seed_demo}/reports/timeseries. В таком случае сценарий в эмуляторе не прогонится мгновенно (актуальный статус по сценарию эмулятора можно получить в /get/{id сценария} )
+
+
