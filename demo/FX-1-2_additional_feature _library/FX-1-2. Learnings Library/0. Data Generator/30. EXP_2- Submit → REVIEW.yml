@@ -1,0 +1,23 @@
+info:
+  name: "30. EXP_2: Submit → REVIEW"
+  type: http
+  seq: 30
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_2_ID}}/submit"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: test('Status 200', function() { expect(res.getStatus()).to.equal(200); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

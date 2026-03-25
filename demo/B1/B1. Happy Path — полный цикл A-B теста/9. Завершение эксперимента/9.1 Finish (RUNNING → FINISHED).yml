@@ -1,0 +1,44 @@
+info:
+  name: 9.1 Finish (RUNNING → FINISHED)
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXPERIMENT_ID}}/finish"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "result": "ROLLOUT",
+        "result_description": "Green button показала лучшую конверсию"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function () {
+            expect(res.getStatus()).to.equal(200);
+        });
+
+        var json = res.getBody();
+        test('Статус = finished', function () {
+            expect(json.status).to.eql('finished');
+        });
+
+        test('result = ROLLOUT', function () {
+            expect(json.result).to.eql('ROLLOUT');
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

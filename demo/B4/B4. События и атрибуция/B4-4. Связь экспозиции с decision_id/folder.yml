@@ -1,0 +1,11 @@
+info:
+  name: B4-4. Связь экспозиции с decision_id
+  type: folder
+  seq: 5
+
+request:
+  auth: inherit
+
+docs:
+  content: Impression привязывается к конкретному decision. Несуществующий decision_id отклоняется.
+  type: text/markdown

@@ -1,0 +1,47 @@
+info:
+  name: "70. EXP_8: Создать learning → LEARNING_8_ID"
+  type: http
+  seq: 70
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/learnings"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "experiment_id": "{{EXP_8_ID}}",
+        "hypothesis": "Размещение поля промокода на первом экране чекаута повысит конверсию за счёт удобства",
+        "primary_metric_key": "ll_avg_revenue",
+        "tags": ["checkout", "promo", "revenue", "conversion"],
+        "platform": "web",
+        "segment": "Все пользователи",
+        "notes": "Промокод на первом экране привёл к ПАДЕНИЮ среднего чека на 8%. Пользователи уходили искать промокоды в Google. Убрали поле обратно. Важный вывод: видимость промокода провоцирует coupon hunting."
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 201', function() { expect(res.getStatus()).to.equal(201); });
+        bru.setVar('LEARNING_8_ID', res.getBody().id);
+        console.log('══════════════════════════════════════════════════');
+        console.log('  FX-1-2 Data Generator завершён!');
+        console.log('══════════════════════════════════════════════════');
+        console.log('  EXP_1 (Редизайн чекаута):         ' + bru.getVar('EXP_1_ID'));
+        console.log('  EXP_3 (ML-ранжирование):          ' + bru.getVar('EXP_3_ID'));
+        console.log('  EXP_5 (Онбординг):                ' + bru.getVar('EXP_5_ID'));
+        console.log('  LEARNING_1_ID:                    ' + bru.getVar('LEARNING_1_ID'));
+        console.log('  Все переменные сохранены. Запускайте FX-1…FX-7.');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

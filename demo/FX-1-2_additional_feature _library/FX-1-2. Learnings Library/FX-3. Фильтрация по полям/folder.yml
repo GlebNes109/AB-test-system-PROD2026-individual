@@ -1,0 +1,7 @@
+info:
+  name: FX-3. Фильтрация по полям
+  type: folder
+  seq: 4
+
+request:
+  auth: inherit

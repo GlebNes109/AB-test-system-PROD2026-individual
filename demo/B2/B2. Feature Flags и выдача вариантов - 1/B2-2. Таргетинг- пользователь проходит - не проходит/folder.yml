@@ -1,0 +1,7 @@
+info:
+  name: "B2-2. Таргетинг: пользователь проходит / не проходит"
+  type: folder
+  seq: 3
+
+request:
+  auth: inherit

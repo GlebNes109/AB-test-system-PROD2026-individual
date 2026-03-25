@@ -1,0 +1,27 @@
+info:
+  name: "B3-4e: Проверка — статус остался draft"
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_BAD_TRANSITION}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function () { expect(res.getStatus()).to.equal(200); });
+        test('status = draft (ни один запрещённый переход не сработал)', function () {
+            expect(res.getBody().status).to.eql('draft');
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

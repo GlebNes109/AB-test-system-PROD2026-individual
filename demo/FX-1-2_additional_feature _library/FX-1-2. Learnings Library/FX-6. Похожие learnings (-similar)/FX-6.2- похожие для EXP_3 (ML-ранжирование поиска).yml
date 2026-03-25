@@ -1,0 +1,32 @@
+info:
+  name: "FX-6.2: похожие для EXP_3 (ML-ранжирование поиска)"
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/api/v1/learnings/similar/{{EXP_3_ID}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function() { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        test('Есть похожие learnings', function() { expect(json).to.be.an('array').with.length.above(0); });
+        test('EXP_4 в результатах (same_primary_metric ll_clicks + common_tags: search)', function() {
+            var hasMetric = json.some(function(r) {
+                return r.similarity_reason && r.similarity_reason.includes('same_primary_metric');
+            });
+            expect(hasMetric).to.be.true;
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

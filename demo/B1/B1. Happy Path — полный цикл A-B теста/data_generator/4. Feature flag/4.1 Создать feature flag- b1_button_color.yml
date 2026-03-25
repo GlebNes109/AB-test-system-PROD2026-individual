@@ -1,0 +1,38 @@
+info:
+  name: "4.1 Создать feature flag: b1_button_color"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/feature-flags"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "key": "b1_button_color_anotherone",
+        "type": "string",
+        "default_value": "whi444te",
+        "description": "Цвет кнопки 44оформления заказа"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        var code = res.getStatus();
+        test('Status 201 или 409', function () {
+            expect([201, 409]).to.include(code);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

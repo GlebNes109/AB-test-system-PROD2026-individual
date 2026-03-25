@@ -1,0 +1,42 @@
+info:
+  name: "12. EXP b2_targeting: Создать (DRAFT)"
+  type: http
+  seq: 12
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{ADMIN_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "name": "B2-2: таргетинг country",
+        "feature_flag_key": "b2_targeting",
+        "targeting_rule": "country == \"RU\"",
+        "audience_percentage": 100,
+        "variants": [
+          {"name": "control",   "value": "default_color_variant", "weight": 50, "is_control": true},
+          {"name": "treatment", "value": "red_variant",           "weight": 50, "is_control": false}
+        ],
+        "metrics": [{"metric_key": "exposure_count", "type": "PRIMARY"}]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 201', function() { expect(res.getStatus()).to.equal(201); });
+        bru.setVar('EXP_TARGETING_ID', res.getBody().id);
+        console.log('EXP_TARGETING_ID:', res.getBody().id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

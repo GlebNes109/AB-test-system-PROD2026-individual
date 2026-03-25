@@ -1,0 +1,32 @@
+info:
+  name: "27. EXP_1: Finish → FINISHED (ROLLOUT)"
+  type: http
+  seq: 27
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_1_ID}}/finish"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "result": "ROLLOUT",
+        "result_description": "Конверсия выросла на 12% (p<0.01). Одностраничная форма значительно упростила процесс."
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: test('Status 200', function() { expect(res.getStatus()).to.equal(200); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

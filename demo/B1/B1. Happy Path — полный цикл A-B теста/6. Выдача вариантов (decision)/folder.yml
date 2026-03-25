@@ -1,0 +1,7 @@
+info:
+  name: 6. Выдача вариантов (decision)
+  type: folder
+  seq: 1
+
+request:
+  auth: inherit

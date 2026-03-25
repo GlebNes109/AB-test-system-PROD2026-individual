@@ -1,0 +1,39 @@
+info:
+  name: "64. EXP_7: Создать learning → LEARNING_7_ID"
+  type: http
+  seq: 64
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/learnings"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "experiment_id": "{{EXP_7_ID}}",
+        "hypothesis": "Персональные рекомендации на основе истории покупок покажут более высокий CTR, чем коллаборативная фильтрация",
+        "primary_metric_key": "ll_clicks",
+        "tags": ["recommendations", "ml", "personalization", "conversion"],
+        "segment": "Пользователи с >= 3 покупками",
+        "notes": "Персональный алгоритм дал +22% CTR в сегменте 3+ покупок. Для новых пользователей (без истории) разницы нет — оставляем коллаборативную фильтрацию как fallback.",
+        "dashboard_link": "http://localhost/metabase/dashboard/2"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 201', function() { expect(res.getStatus()).to.equal(201); });
+        bru.setVar('LEARNING_7_ID', res.getBody().id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

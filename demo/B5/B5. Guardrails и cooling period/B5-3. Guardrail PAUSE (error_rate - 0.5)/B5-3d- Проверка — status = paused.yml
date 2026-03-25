@@ -1,0 +1,29 @@
+info:
+  name: "B5-3d: Проверка — status = paused"
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_PAUSE_ID}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200', function () { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        test('status = paused (guardrail сработал)', function () {
+            expect(json.status).to.eql('paused');
+        });
+        console.log('B5-3: status=' + json.status + ' result=' + json.result);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

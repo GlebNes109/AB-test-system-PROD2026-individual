@@ -1,0 +1,23 @@
+info:
+  name: "19. EXP b2_variant: Start → RUNNING"
+  type: http
+  seq: 19
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_VARIANT_ID}}/start"
+  headers:
+    - name: Authorization
+      value: Bearer {{ADMIN_TOKEN}}
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: test('Status 200', function() { expect(res.getStatus()).to.equal(200); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

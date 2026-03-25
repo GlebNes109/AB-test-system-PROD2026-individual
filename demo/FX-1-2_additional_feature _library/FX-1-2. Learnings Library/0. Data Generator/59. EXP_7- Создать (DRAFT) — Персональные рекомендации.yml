@@ -1,0 +1,40 @@
+info:
+  name: "59. EXP_7: Создать (DRAFT) — Персональные рекомендации"
+  type: http
+  seq: 59
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Рекомендации: персональные vs коллаборативная фильтрация",
+        "feature_flag_key": "ll_rec_algorithm",
+        "audience_percentage": 100,
+        "variants": [
+          {"name": "control",   "value": "collaborative", "weight": 50, "is_control": true},
+          {"name": "treatment", "value": "personal_v2",   "weight": 50, "is_control": false}
+        ],
+        "metrics": [{"metric_key": "ll_clicks", "type": "PRIMARY"}]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 201', function() { expect(res.getStatus()).to.equal(201); });
+        bru.setVar('EXP_7_ID', res.getBody().id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

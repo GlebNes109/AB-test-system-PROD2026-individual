@@ -1,0 +1,51 @@
+opencollection: 1.0.0
+
+info:
+  name: B6. Отчёты и фиксация решений
+
+request:
+  variables:
+    - name: BASE_URL
+      value: http://localhost
+    - name: ADMIN_TOKEN
+      value: ""
+    - name: EXPERIMENTER_TOKEN
+      value: ""
+    - name: APPROVER_TOKEN
+      value: ""
+    - name: EXPERIMENTER_ID
+      value: ""
+    - name: APPROVER_ID
+      value: ""
+    - name: EXP_REPORTS_ID
+      value: ""
+    - name: EXP_FINISH_ID
+      value: ""
+    - name: D1
+      value: ""
+    - name: D2
+      value: ""
+    - name: D3
+      value: ""
+    - name: D4
+      value: ""
+    - name: D5
+      value: ""
+
+docs:
+  content: |-
+    Коллекция для проверки критериев B6 (отчёты по вариантам, фильтр по периоду, фиксация исхода).
+
+    Порядок работы:
+    1. Запустить папку «0. Data Generator» через Collection Runner (ПКМ → Run folder)
+    2. Подождать ~5 секунд (обновление MV отчётов)
+    3. Выполнять запросы B6-1 … B6-5 вручную сверху вниз
+
+    Подготовка: docker compose up -d
+  type: text/markdown
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

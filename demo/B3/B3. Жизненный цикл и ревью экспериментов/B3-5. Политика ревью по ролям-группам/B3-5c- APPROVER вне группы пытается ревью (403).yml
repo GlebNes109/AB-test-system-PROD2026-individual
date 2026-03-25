@@ -1,0 +1,36 @@
+info:
+  name: "B3-5c: APPROVER вне группы пытается ревью (403)"
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_ROLE_POLICY}}/review"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{APPROVER_OUTSIDER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "decision": "ACCEPT",
+        "comment": "Попытка от аппрувера вне группы"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 403 — APPROVER вне группы не может ревьюить', function () {
+            expect(res.getStatus()).to.equal(403);
+        });
+        console.log('B3-5c: Outsider отклонён — OK');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

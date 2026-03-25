@@ -1,0 +1,35 @@
+info:
+  name: "B3-4c: DRAFT → FINISHED (запрещено)"
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_BAD_TRANSITION}}/finish"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "result": "ROLLOUT",
+        "result_description": "test"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Ошибка 409 — DRAFT → FINISHED запрещено', function () {
+            expect(res.getStatus()).to.equal(409);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

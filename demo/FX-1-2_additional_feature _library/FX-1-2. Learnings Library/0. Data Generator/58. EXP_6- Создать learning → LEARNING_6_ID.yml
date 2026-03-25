@@ -1,0 +1,39 @@
+info:
+  name: "58. EXP_6: Создать learning → LEARNING_6_ID"
+  type: http
+  seq: 58
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/learnings"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "experiment_id": "{{EXP_6_ID}}",
+        "hypothesis": "Снижение частоты push-уведомлений уменьшит число отписок без потери вовлечённости",
+        "primary_metric_key": "ll_views",
+        "tags": ["push", "notifications", "retention", "engagement"],
+        "platform": "android",
+        "segment": "Пользователи с включёнными push-уведомлениями",
+        "notes": "Снижение частоты push с ежедневных до 2 раз в неделю сократило отписки на 30%. DAU не изменился. Вывод: пользователи не открывали каждый push, но отписывались от раздражения."
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 201', function() { expect(res.getStatus()).to.equal(201); });
+        bru.setVar('LEARNING_6_ID', res.getBody().id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

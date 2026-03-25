@@ -1,0 +1,36 @@
+info:
+  name: "B5-3c: Event: error (error_rate = 1/1 = 1.0 > 0.5)"
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/events/batch"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "events": [{
+          "event_type": "b5_error",
+          "decision_id": "{{DECISION_PAUSE}}",
+          "payload": {"error_code": 500}
+        }]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('207', function () { expect(res.getStatus()).to.equal(207); });
+        test('201', function () { expect(res.getBody().results[0].status_code).to.eql(201); });
+        console.log('B5-3: error_rate = 1.0 > 0.5. Подождите ~10 сек и выполните следующий запрос.');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

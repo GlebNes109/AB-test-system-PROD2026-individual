@@ -1,0 +1,46 @@
+info:
+  name: 0.15 Create experiment (DRAFT)
+  type: http
+  seq: 15
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "name": "B4: эксперимент checkout flow",
+        "feature_flag_key": "b4_checkout_flow",
+        "audience_percentage": 100,
+        "variants": [
+          { "name": "control", "value": "old_checkout", "weight": 50, "is_control": true },
+          { "name": "treatment", "value": "new_checkout", "weight": 50, "is_control": false }
+        ],
+        "metrics": [
+          { "metric_key": "b4_click_count", "type": "PRIMARY" },
+          { "metric_key": "b4_impression_count", "type": "SECONDARY" },
+          { "metric_key": "b4_purchase_count", "type": "SECONDARY" }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('201', function () { expect(res.getStatus()).to.equal(201); });
+        var json = res.getBody();
+        bru.setVar('EXP_ID', json.id);
+        console.log('[gen] EXP_ID=' + json.id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,41 @@
+info:
+  name: "3.4 Создать метрику: click_conversion (ratio)"
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/metrics"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "key": "b1_click_conversion",
+        "name": "Конверсия в клик",
+        "description": "Доля кликнувших после показа",
+        "event_type": "b1_click",
+        "aggregation": "COUNT",
+        "denominator_event_type": "b1_exposure",
+        "denominator_aggregation": "COUNT"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        var code = res.getStatus();
+        test('Status 201 или 409', function () {
+            expect([201, 409]).to.include(code);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

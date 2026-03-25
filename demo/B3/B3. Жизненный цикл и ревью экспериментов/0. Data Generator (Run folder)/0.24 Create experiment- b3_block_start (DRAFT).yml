@@ -1,0 +1,42 @@
+info:
+  name: "0.24 Create experiment: b3_block_start (DRAFT)"
+  type: http
+  seq: 24
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "name": "B3-3: блокировка запуска без одобрений",
+        "feature_flag_key": "b3_block_start",
+        "audience_percentage": 100,
+        "variants": [
+          { "name": "control", "value": "block_ctrl", "weight": 50, "is_control": true },
+          { "name": "treatment", "value": "block_treat", "weight": 50, "is_control": false }
+        ],
+        "metrics": [{ "metric_key": "b3_page_view_count", "type": "PRIMARY" }]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 201', function () { expect(res.getStatus()).to.equal(201); });
+        var json = res.getBody();
+        bru.setVar('EXP_BLOCK_START', json.id);
+        console.log('[gen] EXP_BLOCK_START=' + json.id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

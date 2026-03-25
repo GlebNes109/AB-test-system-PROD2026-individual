@@ -1,0 +1,39 @@
+info:
+  name: "34. EXP_2: Создать learning → LEARNING_2_ID"
+  type: http
+  seq: 34
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/learnings"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "experiment_id": "{{EXP_2_ID}}",
+        "hypothesis": "Автозаполнение адреса через DaData ускорит заполнение формы и повысит конверсию чекаута",
+        "primary_metric_key": "ll_conversion",
+        "tags": ["checkout", "conversion", "autofill", "address"],
+        "platform": "web",
+        "segment": "Все пользователи",
+        "notes": "Автозаполнение не повлияло на конверсию. Вероятно, большинство пользователей уже сохраняют адрес в профиле. Не рекомендуется тратить ресурсы на интеграцию."
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 201', function() { expect(res.getStatus()).to.equal(201); });
+        bru.setVar('LEARNING_2_ID', res.getBody().id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

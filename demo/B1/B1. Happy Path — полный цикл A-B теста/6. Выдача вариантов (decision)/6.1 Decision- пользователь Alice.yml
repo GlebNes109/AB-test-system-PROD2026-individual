@@ -1,0 +1,54 @@
+info:
+  name: "6.1 Decision: пользователь Alice"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/decision"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id": "alice-001",
+        "subject_attr": {},
+        "flags_keys": ["b1_button_color"]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function () {
+            expect(res.getStatus()).to.equal(200);
+        });
+
+        var json = res.getBody();
+        test('Получен 1 результат', function () {
+            expect(json).to.be.an('array').with.lengthOf(1);
+        });
+
+        test('id != null — попала в эксперимент', function () {
+            expect(json[0].id).to.not.be.null;
+        });
+
+        var allowed = ['white', 'green'];
+        test('value = white или green', function () {
+            expect(allowed).to.include(json[0].value);
+        });
+
+        // Сохраняем decision_id для отправки событий
+        bru.setVar('DECISION_ID_ALICE', json[0].id);
+        bru.setVar('VARIANT_ALICE', json[0].value);
+
+        console.log('Alice получила вариант: ' + json[0].value);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

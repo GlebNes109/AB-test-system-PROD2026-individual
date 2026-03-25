@@ -1,0 +1,28 @@
+info:
+  name: 0.25 Submit b3_block_start → REVIEW
+  type: http
+  seq: 25
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_BLOCK_START}}/submit"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: text
+    data: ""
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function () { expect(res.getStatus()).to.equal(200); });
+        test('status = review', function () { expect(res.getBody().status).to.eql('review'); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

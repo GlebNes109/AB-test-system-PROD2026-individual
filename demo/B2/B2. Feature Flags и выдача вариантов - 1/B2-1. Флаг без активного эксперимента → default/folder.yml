@@ -1,0 +1,7 @@
+info:
+  name: B2-1. Флаг без активного эксперимента → default
+  type: folder
+  seq: 2
+
+request:
+  auth: inherit

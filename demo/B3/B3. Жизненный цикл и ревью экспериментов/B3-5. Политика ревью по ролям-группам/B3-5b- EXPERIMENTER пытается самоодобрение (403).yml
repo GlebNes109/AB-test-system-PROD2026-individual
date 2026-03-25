@@ -1,0 +1,36 @@
+info:
+  name: "B3-5b: EXPERIMENTER пытается самоодобрение (403)"
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_ROLE_POLICY}}/review"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "decision": "ACCEPT",
+        "comment": "Попытка самоодобрения"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 403 — автор не может одобрить свой эксперимент', function () {
+            expect(res.getStatus()).to.equal(403);
+        });
+        console.log('B3-5b: Самоодобрение отклонено — OK');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

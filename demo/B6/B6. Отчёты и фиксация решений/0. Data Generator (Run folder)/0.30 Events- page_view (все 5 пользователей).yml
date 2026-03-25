@@ -1,0 +1,40 @@
+info:
+  name: "0.30 Events: page_view (все 5 пользователей)"
+  type: http
+  seq: 30
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/events/batch"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "events": [
+          { "event_type": "b6_page_view", "decision_id": "{{D1}}" },
+          { "event_type": "b6_page_view", "decision_id": "{{D2}}" },
+          { "event_type": "b6_page_view", "decision_id": "{{D3}}" },
+          { "event_type": "b6_page_view", "decision_id": "{{D4}}" },
+          { "event_type": "b6_page_view", "decision_id": "{{D5}}" }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('207', function () { expect(res.getStatus()).to.equal(207); });
+        var results = res.getBody().results;
+        test('Все 5 page_view приняты', function () {
+            results.forEach(function(r) { expect(r.status_code).to.eql(201); });
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

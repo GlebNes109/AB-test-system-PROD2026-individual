@@ -1,0 +1,40 @@
+info:
+  name: "65. EXP_8: Создать (DRAFT) — Промокод на чекауте"
+  type: http
+  seq: 65
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Чекаут: промокод на первой странице",
+        "feature_flag_key": "ll_checkout_flow",
+        "audience_percentage": 100,
+        "variants": [
+          {"name": "control",   "value": "classic",   "weight": 50, "is_control": true},
+          {"name": "treatment", "value": "promo_top", "weight": 50, "is_control": false}
+        ],
+        "metrics": [{"metric_key": "ll_avg_revenue", "type": "PRIMARY"}]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 201', function() { expect(res.getStatus()).to.equal(201); });
+        bru.setVar('EXP_8_ID', res.getBody().id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

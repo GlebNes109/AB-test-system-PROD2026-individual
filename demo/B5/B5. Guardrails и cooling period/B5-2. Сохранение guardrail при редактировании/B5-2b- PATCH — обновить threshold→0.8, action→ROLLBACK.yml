@@ -1,0 +1,41 @@
+info:
+  name: "B5-2b: PATCH — обновить threshold→0.8, action→ROLLBACK"
+  type: http
+  seq: 2
+
+http:
+  method: PATCH
+  url: "{{BASE_URL}}/api/v1/experiments/{{NEW_EXP_DRAFT_ID}}"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "metrics": [
+          { "metric_key": "b5_page_view_count", "type": "PRIMARY" },
+          { "metric_key": "b5_error_rate", "type": "GUARDRAIL", "threshold": 0.8, "window_minutes": 120, "action": "ROLLBACK" }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200', function () { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        var g = json.metrics.find(function(m){return m.type==='GUARDRAIL';});
+        test('threshold обновлён до 0.8', function () { expect(g.threshold).to.eql(0.8); });
+        test('window_minutes обновлён до 120', function () { expect(g.window_minutes).to.eql(120); });
+        test('action обновлён до ROLLBACK', function () { expect(g.action).to.eql('ROLLBACK'); });
+        console.log('B5-2: threshold 0.3→0.8, window 30→120, action PAUSE→ROLLBACK');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

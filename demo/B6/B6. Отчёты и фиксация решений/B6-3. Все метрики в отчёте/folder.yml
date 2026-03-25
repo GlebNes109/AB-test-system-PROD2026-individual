@@ -1,0 +1,11 @@
+info:
+  name: B6-3. Все метрики в отчёте
+  type: folder
+  seq: 4
+
+request:
+  auth: inherit
+
+docs:
+  content: Проверяем что все 4 метрики (PRIMARY + SECONDARY) из конфигурации присутствуют в отчёте.
+  type: text/markdown

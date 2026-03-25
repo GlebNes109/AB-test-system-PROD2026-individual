@@ -1,0 +1,40 @@
+info:
+  name: "23. EXP_1: Создать (DRAFT) — Редизайн чекаута"
+  type: http
+  seq: 23
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Редизайн чекаута: одностраничная форма",
+        "feature_flag_key": "ll_checkout_flow",
+        "audience_percentage": 100,
+        "variants": [
+          {"name": "control",   "value": "classic",  "weight": 50, "is_control": true},
+          {"name": "treatment", "value": "one_page", "weight": 50, "is_control": false}
+        ],
+        "metrics": [{"metric_key": "ll_conversion", "type": "PRIMARY"}]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 201', function() { expect(res.getStatus()).to.equal(201); });
+        bru.setVar('EXP_1_ID', res.getBody().id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

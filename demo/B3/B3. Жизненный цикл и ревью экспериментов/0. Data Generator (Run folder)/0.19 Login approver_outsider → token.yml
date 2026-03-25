@@ -1,0 +1,33 @@
+info:
+  name: 0.19 Login approver_outsider → token
+  type: http
+  seq: 19
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/auth/login"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "b3_approver_outsider@demo.com",
+        "password": "Demo1234!x"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function () { expect(res.getStatus()).to.equal(200); });
+        bru.setVar('APPROVER_OUTSIDER_TOKEN', res.getBody().accessToken);
+        console.log('[gen] Approver Outsider token saved');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

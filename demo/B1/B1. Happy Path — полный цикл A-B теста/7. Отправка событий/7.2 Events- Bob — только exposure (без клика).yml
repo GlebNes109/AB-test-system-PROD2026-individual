@@ -1,0 +1,45 @@
+info:
+  name: "7.2 Events: Bob — только exposure (без клика)"
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/events/batch"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "events": [
+          {
+            "event_type": "b1_exposure",
+            "decision_id": "{{DECISION_ID_BOB}}",
+            "payload": null
+          }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 207', function () {
+            expect(res.getStatus()).to.equal(207);
+        });
+
+        var json = res.getBody();
+        test('Событие принято', function () {
+            expect(json.results[0].status_code).to.eql(201);
+        });
+
+        console.log('Bob: только exposure (без клика)');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

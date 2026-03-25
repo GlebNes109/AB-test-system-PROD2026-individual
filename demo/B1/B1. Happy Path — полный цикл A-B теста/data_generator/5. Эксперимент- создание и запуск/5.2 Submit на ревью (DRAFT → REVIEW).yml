@@ -1,0 +1,33 @@
+info:
+  name: 5.2 Submit на ревью (DRAFT → REVIEW)
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXPERIMENT_ID}}/submit"
+  headers:
+    - name: Authorization
+      value: Bearer {{TOKEN}}
+  body:
+    type: text
+    data: ""
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function () {
+            expect(res.getStatus()).to.equal(200);
+        });
+
+        test('Статус = review', function () {
+            expect(res.getBody().status).to.eql('review');
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

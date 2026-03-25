@@ -1,0 +1,36 @@
+info:
+  name: 0.04 GET users → find IDs
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/api/v1/users?size=100"
+  headers:
+    - name: Authorization
+      value: Bearer {{ADMIN_TOKEN}}
+  params:
+    - name: size
+      value: "100"
+      type: query
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200', function () { expect(res.getStatus()).to.equal(200); });
+        var users = res.getBody().items;
+        function findId(email) { var u = users.find(function(x){return x.email===email;}); return u ? u.id : null; }
+        var expId = findId('b4_experimenter@demo.com');
+        var aprId = findId('b4_approver@demo.com');
+        if (expId) bru.setVar('EXPERIMENTER_ID', expId);
+        if (aprId) bru.setVar('APPROVER_ID', aprId);
+        test('Found experimenter', function () { expect(expId).to.not.be.null; });
+        test('Found approver', function () { expect(aprId).to.not.be.null; });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,35 @@
+info:
+  name: "0.10 Create metric: b4_impression_count"
+  type: http
+  seq: 10
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/metrics"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{ADMIN_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "key": "b4_impression_count",
+        "name": "Число показов",
+        "description": "COUNT b4_impression",
+        "event_type": "b4_impression",
+        "aggregation": "COUNT"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: test('201 or 409', function () { expect([201,409]).to.include(res.getStatus()); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

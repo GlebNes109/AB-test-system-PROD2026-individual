@@ -1,0 +1,40 @@
+info:
+  name: "B5-6b: Decision в b5_cooling_second (должен получить default)"
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/decision"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id": "b5-user-cooling-test",
+        "subject_attr": {},
+        "flags_keys": ["b5_cooling_second"]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200', function () { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        test('id = null — cooling period, не попал в эксперимент', function () {
+            expect(json[0].id).to.be.null;
+        });
+        test('value = fallback (default флага)', function () {
+            expect(json[0].value).to.eql('fallback');
+        });
+        console.log('B5-6b: b5_cooling_second value=' + json[0].value + ' id=' + json[0].id + ' (cooling!)');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

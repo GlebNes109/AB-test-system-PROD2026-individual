@@ -1,0 +1,43 @@
+info:
+  name: "0.24 Create+run EXP_ROLLBACK: create"
+  type: http
+  seq: 24
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "name": "B5: guardrail ROLLBACK (avg_latency > 500ms)",
+        "feature_flag_key": "b5_guardrail_rollback",
+        "audience_percentage": 100,
+        "variants": [
+          { "name": "control", "value": "old_layout", "weight": 50, "is_control": true },
+          { "name": "treatment", "value": "new_layout", "weight": 50, "is_control": false }
+        ],
+        "metrics": [
+          { "metric_key": "b5_click_count", "type": "PRIMARY" },
+          { "metric_key": "b5_avg_latency", "type": "GUARDRAIL", "threshold": 500.0, "window_minutes": 60, "action": "ROLLBACK" }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('201', function () { expect(res.getStatus()).to.equal(201); });
+        bru.setVar('EXP_ROLLBACK_ID', res.getBody().id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

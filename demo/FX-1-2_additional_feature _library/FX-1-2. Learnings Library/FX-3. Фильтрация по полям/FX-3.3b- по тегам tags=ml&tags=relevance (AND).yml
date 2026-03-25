@@ -1,0 +1,33 @@
+info:
+  name: "FX-3.3b: по тегам tags=ml&tags=relevance (AND)"
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/api/v1/learnings?tags=ml&tags=relevance"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  params:
+    - name: tags
+      value: ml
+      type: query
+    - name: tags
+      value: relevance
+      type: query
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function() { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        test('Только 1 learning — EXP_3 (ml+relevance одновременно)', function() { expect(json.total).to.eql(1); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

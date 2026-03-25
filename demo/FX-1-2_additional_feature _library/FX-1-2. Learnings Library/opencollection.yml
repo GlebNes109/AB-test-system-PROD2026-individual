@@ -1,0 +1,90 @@
+opencollection: 1.0.0
+
+info:
+  name: FX-1-2. Learnings Library
+
+request:
+  variables:
+    - name: BASE_URL
+      value: http://localhost
+    - name: ADMIN_TOKEN
+      value: ""
+    - name: EXPERIMENTER_TOKEN
+      value: ""
+    - name: APPROVER_TOKEN
+      value: ""
+    - name: EXPERIMENTER_ID
+      value: ""
+    - name: APPROVER_ID
+      value: ""
+    - name: EXP_1_ID
+      value: ""
+    - name: EXP_2_ID
+      value: ""
+    - name: EXP_3_ID
+      value: ""
+    - name: EXP_4_ID
+      value: ""
+    - name: EXP_5_ID
+      value: ""
+    - name: EXP_6_ID
+      value: ""
+    - name: EXP_7_ID
+      value: ""
+    - name: EXP_8_ID
+      value: ""
+    - name: LEARNING_1_ID
+      value: ""
+    - name: LEARNING_2_ID
+      value: ""
+    - name: LEARNING_3_ID
+      value: ""
+    - name: LEARNING_4_ID
+      value: ""
+    - name: LEARNING_5_ID
+      value: ""
+    - name: LEARNING_6_ID
+      value: ""
+    - name: LEARNING_7_ID
+      value: ""
+    - name: LEARNING_8_ID
+      value: ""
+
+docs:
+  content: |-
+    Коллекция для проверки Learnings Library (FX-1-2).
+
+    Подготовка:
+    1. docker compose up -d
+    2. Запустить «0. Data Generator» через Collection Runner (ПКМ → Run folder → Run)
+    3. После генерации запросы FX-1…FX-7 используют переменные коллекции автоматически
+
+    ---
+    ## Карта тестовых данных
+
+    | # | Эксперимент | Flag | Результат | Метрика | Теги | Платформа |
+    |---|-------------|------|-----------|---------|------|-----------|
+    | EXP_1 | Редизайн чекаута | ll_checkout_flow | ROLLOUT | ll_conversion | checkout, conversion, redesign, mobile | web |
+    | EXP_2 | Автозаполнение адреса | ll_checkout_flow_v2 | NO_EFFECT | ll_conversion | checkout, conversion, autofill, address | web |
+    | EXP_3 | ML-ранжирование поиска | ll_search_ranking | ROLLOUT | ll_clicks | search, ranking, ml, relevance | — |
+    | EXP_4 | Подсказки в поиске | ll_search_suggest | ROLLOUT | ll_clicks | search, suggest, ux, conversion | — |
+    | EXP_5 | Онбординг интерактивный | ll_onboarding | ROLLBACK | ll_views | onboarding, retention, ux, mobile | ios |
+    | EXP_6 | Push 2 раза в неделю | ll_push_frequency | ROLLOUT | ll_views | push, notifications, retention, engagement | android |
+    | EXP_7 | Персональные рекомендации | ll_rec_algorithm | ROLLOUT | ll_clicks | recommendations, ml, personalization, conversion | — |
+    | EXP_8 | Промокод на чекауте | ll_checkout_flow | ROLLBACK | ll_avg_revenue | checkout, promo, revenue, conversion | web |
+
+    ---
+    ## Ключи для проверки похожих (similar)
+    - checkout: EXP_1, EXP_2, EXP_8 (EXP_1 и EXP_8 — один флаг ll_checkout_flow)
+    - search: EXP_3, EXP_4
+    - ml: EXP_3, EXP_7
+    - ll_clicks (метрика): EXP_3, EXP_4, EXP_7
+    - ll_views (метрика): EXP_5, EXP_6
+    - retention: EXP_5, EXP_6
+  type: text/markdown
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

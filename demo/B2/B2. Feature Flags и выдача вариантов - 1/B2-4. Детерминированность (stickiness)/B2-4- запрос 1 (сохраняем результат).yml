@@ -1,0 +1,43 @@
+info:
+  name: "B2-4: запрос 1 (сохраняем результат)"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/decision"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id": "user-sticky-001",
+        "subject_attr": {},
+        "flags_keys": ["b2_variant"]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function () {
+            expect(res.getStatus()).to.equal(200);
+        });
+
+        var json = res.getBody();
+        test('id != null', function () {
+            expect(json[0].id).to.not.be.null;
+        });
+
+        // Сохраняем результат первого запроса для сравнения
+        bru.setVar('sticky_id', json[0].id);
+        bru.setVar('sticky_value', json[0].value);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

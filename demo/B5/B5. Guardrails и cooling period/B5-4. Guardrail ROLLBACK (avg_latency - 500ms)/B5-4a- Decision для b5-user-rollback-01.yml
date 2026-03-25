@@ -1,0 +1,35 @@
+info:
+  name: "B5-4a: Decision для b5-user-rollback-01"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/decision"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id": "b5-user-rollback-07",
+        "subject_attr": {},
+        "flags_keys": ["b5_guardrail_rollback"]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200', function () { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        bru.setVar('DECISION_ROLLBACK', json[0].id);
+        console.log('B5-4: DECISION_ROLLBACK=' + json[0].id + ' value=' + json[0].value);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

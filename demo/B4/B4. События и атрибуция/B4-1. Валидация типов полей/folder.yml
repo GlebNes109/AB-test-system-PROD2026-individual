@@ -1,0 +1,11 @@
+info:
+  name: B4-1. Валидация типов полей
+  type: folder
+  seq: 2
+
+request:
+  auth: inherit
+
+docs:
+  content: "b4_click имеет payload_schema: {button_id: string}. Отправляем число вместо строки."
+  type: text/markdown

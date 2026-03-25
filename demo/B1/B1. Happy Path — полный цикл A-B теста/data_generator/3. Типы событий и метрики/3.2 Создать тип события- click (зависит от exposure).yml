@@ -1,0 +1,37 @@
+info:
+  name: "3.2 Создать тип события: click (зависит от exposure)"
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/events/types"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "type": "b1_click",
+        "description": "Клик по кнопке",
+        "requires_event_type": "b1_exposure"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        var code = res.getStatus();
+        test('Status 201 или 409', function () {
+            expect([201, 409]).to.include(code);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,13 @@
+info:
+  name: FX-4. Learning по ID
+  type: folder
+  seq: 5
+
+request:
+  auth: inherit
+
+docs:
+  content: |-
+    Получить learning по ID, сохранённому генератором в LEARNING_1_ID.
+    Ожидаемый результат: полный объект с experiment_name и feature_flag_key.
+  type: text/markdown

@@ -1,0 +1,11 @@
+info:
+  name: B3-1. DRAFT → REVIEW (submit)
+  type: folder
+  seq: 2
+
+request:
+  auth: inherit
+
+docs:
+  content: Эксперимент b3_lifecycle в статусе DRAFT. Проверяем переход в REVIEW.
+  type: text/markdown

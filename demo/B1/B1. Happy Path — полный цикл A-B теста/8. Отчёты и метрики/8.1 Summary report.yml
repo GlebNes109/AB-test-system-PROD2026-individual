@@ -1,0 +1,47 @@
+info:
+  name: 8.1 Summary report
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXPERIMENT_ID}}/reports"
+  headers:
+    - name: Authorization
+      value: Bearer {{TOKEN}}
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function () {
+            expect(res.getStatus()).to.equal(200);
+        });
+
+        var json = res.getBody();
+
+        test('Есть варианты в отчёте', function () {
+            expect(json.variants).to.be.an('array');
+            expect(json.variants.length).to.be.above(0);
+        });
+
+        test('total_subjects > 0 — есть участники', function () {
+            expect(json.total_subjects).to.be.above(0);
+        });
+
+        // Выводим результаты в консоль для наглядности
+        console.log('=== SUMMARY REPORT ===');
+        console.log('Всего участников: ' + json.total_subjects);
+        json.variants.forEach(function(v) {
+            console.log(v.variant_name + ' (' + v.variant_value + '): ' + v.subject_count + ' чел.');
+            v.metrics.forEach(function(m) {
+                console.log('  ' + m.metric_name + ': ' + m.value);
+            });
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

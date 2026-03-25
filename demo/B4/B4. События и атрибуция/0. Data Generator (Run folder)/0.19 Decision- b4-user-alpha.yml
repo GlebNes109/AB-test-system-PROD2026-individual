@@ -1,0 +1,47 @@
+info:
+  name: "0.19 Decision: b4-user-alpha"
+  type: http
+  seq: 19
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/decision"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id": "b4-user-alpha",
+        "subject_attr": {},
+        "flags_keys": ["b4_checkout_flow"]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200', function () { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        test('id != null', function () { expect(json[0].id).to.not.be.null; });
+        bru.setVar('DECISION_ID', json[0].id);
+        bru.setVar('DECISION_ALPHA_VALUE', json[0].value);
+
+        console.log('');
+        console.log('══════════════════════════════════════════════');
+        console.log('  DATA GENERATOR COMPLETE');
+        console.log('──────────────────────────────────────────────');
+        console.log('  EXP_ID      = ' + bru.getVar('EXP_ID'));
+        console.log('  DECISION_ID = ' + json[0].id + '  (b4-user-alpha)');
+        console.log('  value       = ' + json[0].value);
+        console.log('──────────────────────────────────────────────');
+        console.log('  Можно выполнять B4-1..B4-5');
+        console.log('══════════════════════════════════════════════');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

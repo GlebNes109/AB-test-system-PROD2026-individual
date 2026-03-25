@@ -1,0 +1,11 @@
+info:
+  name: B3-5. Политика ревью по ролям/группам
+  type: folder
+  seq: 6
+
+request:
+  auth: inherit
+
+docs:
+  content: Эксперимент b3_role_policy в REVIEW. Проверяем кто может/не может оставить ревью.
+  type: text/markdown

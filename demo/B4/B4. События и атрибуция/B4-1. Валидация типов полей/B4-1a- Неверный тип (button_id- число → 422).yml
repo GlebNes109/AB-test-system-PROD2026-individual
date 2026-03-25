@@ -1,0 +1,47 @@
+info:
+  name: "B4-1a: Неверный тип (button_id: число → 422)"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/events/batch"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "events": [
+          {
+            "event_type": "b4_click",
+            "decision_id": "{{DECISION_ID}}",
+            "payload": {"button_id": 12345}
+          }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 207', function () { expect(res.getStatus()).to.equal(207); });
+        var r = res.getBody().results[0];
+        test('status_code = 422 — невалидный payload', function () {
+            expect(r.status_code).to.eql(422);
+        });
+        test('event_status = REJECTED', function () {
+            expect(r.event_status).to.eql('REJECTED');
+        });
+        test('error содержит описание ошибки типа', function () {
+            expect(r.error).to.be.a('string').and.not.empty;
+        });
+        console.log('B4-1a: Отклонено — ' + r.error);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

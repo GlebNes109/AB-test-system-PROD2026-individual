@@ -1,0 +1,11 @@
+info:
+  name: B4-2. Валидация обязательных полей
+  type: folder
+  seq: 3
+
+request:
+  auth: inherit
+
+docs:
+  content: "b4_purchase имеет payload_schema: {amount: number, currency: string}. Отправляем без currency."
+  type: text/markdown

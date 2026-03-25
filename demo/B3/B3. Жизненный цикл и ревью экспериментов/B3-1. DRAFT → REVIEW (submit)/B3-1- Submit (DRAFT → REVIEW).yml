@@ -1,0 +1,30 @@
+info:
+  name: "B3-1: Submit (DRAFT → REVIEW)"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_LIFECYCLE}}/submit"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: text
+    data: ""
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function () { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        test('status = review', function () { expect(json.status).to.eql('review'); });
+        console.log('B3-1: DRAFT → REVIEW OK, exp_id=' + json.id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

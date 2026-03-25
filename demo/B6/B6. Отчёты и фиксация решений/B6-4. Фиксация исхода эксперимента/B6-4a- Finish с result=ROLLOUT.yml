@@ -1,0 +1,40 @@
+info:
+  name: "B6-4a: Finish с result=ROLLOUT"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_FINISH_ID}}/finish"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "result": "ROLLOUT",
+        "result_description": "Тестовый вариант показал рост конверсии на 15%, раскатываем на всех."
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200', function () { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        test('status = finished', function () { expect(json.status).to.eql('finished'); });
+        test('result = ROLLOUT', function () { expect(json.result).to.eql('ROLLOUT'); });
+        test('result_description не пустой', function () {
+            expect(json.result_description).to.be.a('string').and.not.empty;
+        });
+        console.log('B6-4a: status=' + json.status + ' result=' + json.result);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

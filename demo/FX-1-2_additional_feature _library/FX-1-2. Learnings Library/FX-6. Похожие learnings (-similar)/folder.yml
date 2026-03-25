@@ -1,0 +1,19 @@
+info:
+  name: FX-6. Похожие learnings (/similar)
+  type: folder
+  seq: 7
+
+request:
+  auth: inherit
+
+docs:
+  content: |-
+    Критерии сходства (similarity_reason):
+    - same_feature_flag — тот же feature flag (вес 3)
+    - same_primary_metric — та же основная метрика (вес 2)
+    - common_tags:... — общие теги (вес 1)
+
+    EXP_1 → EXP_8 (same_feature_flag), EXP_2 (same_primary_metric ll_conversion)
+    EXP_3 → EXP_4 (same_primary_metric ll_clicks, common_tags: search)
+    EXP_5 → EXP_6 (same_primary_metric ll_views, common_tags: retention)
+  type: text/markdown

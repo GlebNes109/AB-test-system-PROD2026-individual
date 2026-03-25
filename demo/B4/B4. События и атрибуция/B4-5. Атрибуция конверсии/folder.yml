@@ -1,0 +1,11 @@
+info:
+  name: B4-5. Атрибуция конверсии
+  type: folder
+  seq: 6
+
+request:
+  auth: inherit
+
+docs:
+  content: b4_purchase requires b4_click. Без предшествующего клика — PENDING. После клика — промотируется в RECEIVED.
+  type: text/markdown

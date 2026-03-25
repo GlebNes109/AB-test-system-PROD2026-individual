@@ -1,0 +1,14 @@
+info:
+  name: 0. Data Generator (Run folder)
+  type: folder
+  seq: 1
+
+request:
+  auth: inherit
+
+docs:
+  content: |-
+    ПКМ → Run folder → Run.
+    Создаёт пользователей, типы событий (с payload_schema и зависимостями), метрики, флаг, эксперимент (RUNNING) и decision.
+    Все ID и токены сохраняются в переменные коллекции.
+  type: text/markdown

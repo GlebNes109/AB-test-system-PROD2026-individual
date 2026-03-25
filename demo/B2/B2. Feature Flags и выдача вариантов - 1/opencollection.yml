@@ -1,0 +1,37 @@
+opencollection: 1.0.0
+
+info:
+  name: B2. Feature Flags и выдача вариантов - 1
+
+request:
+  variables:
+    - name: BASE_URL
+      value: http://localhost
+    - name: ADMIN_TOKEN
+      value: ""
+    - name: EXPERIMENTER_ID
+      value: ""
+    - name: APPROVER_ID
+      value: ""
+    - name: EXP_TARGETING_ID
+      value: ""
+    - name: EXP_VARIANT_ID
+      value: ""
+    - name: EXP_WEIGHTS_ID
+      value: ""
+
+docs:
+  content: |-
+    Коллекция для проверки критериев B2 (Feature Flags и выдача вариантов).
+
+    Подготовка:
+    1. docker compose up -d
+    2. Запустить папку «0. Data Generator» через Collection Runner (ПКМ → Run folder → Run)
+    3. Базовая переменная BASE_URL задана по умолчанию: http://localhost
+  type: text/markdown
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

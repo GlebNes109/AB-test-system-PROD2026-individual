@@ -1,0 +1,7 @@
+info:
+  name: B2-3. Активный эксперимент → вариант
+  type: folder
+  seq: 3
+
+request:
+  auth: inherit

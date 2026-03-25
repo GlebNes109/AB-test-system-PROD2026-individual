@@ -1,0 +1,632 @@
+{
+  "info": {
+    "name": "B4. События и атрибуция",
+    "description": "Коллекция для проверки критериев B4 (валидация событий, дедупликация, атрибуция конверсий).\n\nПорядок работы:\n1. Запустить папку «0. Data Generator» через Collection Runner (ПКМ → Run folder) — создаст эксперимент, decision и сохранит все ID/токены\n2. Выполнять запросы B4-1 … B4-5 вручную по одному сверху вниз\n\nПодготовка: docker compose up -d",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "BASE_URL", "value": "http://localhost", "type": "string" },
+    { "key": "ADMIN_TOKEN", "value": "", "type": "string" },
+    { "key": "EXPERIMENTER_TOKEN", "value": "", "type": "string" },
+    { "key": "APPROVER_TOKEN", "value": "", "type": "string" },
+    { "key": "EXPERIMENTER_ID", "value": "", "type": "string" },
+    { "key": "APPROVER_ID", "value": "", "type": "string" },
+    { "key": "EXP_ID", "value": "", "type": "string" },
+    { "key": "DECISION_ID", "value": "", "type": "string" },
+    { "key": "DECISION_ALPHA_VALUE", "value": "", "type": "string" },
+    { "key": "DECISION_BETA", "value": "", "type": "string" },
+    { "key": "DECISION_GAMMA", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "0. Data Generator (Run folder)",
+      "description": "ПКМ → Run folder → Run.\nСоздаёт пользователей, типы событий (с payload_schema и зависимостями), метрики, флаг, эксперимент (RUNNING) и decision.\nВсе ID и токены сохраняются в переменные коллекции.",
+      "item": [
+        {
+          "name": "0.01 Login admin",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('ADMIN_TOKEN', pm.response.json().accessToken);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@mail.ru\",\n  \"password\": \"123123123aA!\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/auth/login", "host": ["{{BASE_URL}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "0.02 Create user: experimenter",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b4_experimenter@demo.com\",\n  \"password\": \"Demo1234!x\",\n  \"role\": \"EXPERIMENTER\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/users", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"] }
+          }
+        },
+        {
+          "name": "0.03 Create user: approver",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b4_approver@demo.com\",\n  \"password\": \"Demo1234!x\",\n  \"role\": \"APPROVER\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/users", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"] }
+          }
+        },
+        {
+          "name": "0.04 GET users → find IDs",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var users = pm.response.json().items;",
+            "function findId(email) { var u = users.find(function(x){return x.email===email;}); return u ? u.id : null; }",
+            "var expId = findId('b4_experimenter@demo.com');",
+            "var aprId = findId('b4_approver@demo.com');",
+            "if (expId) pm.collectionVariables.set('EXPERIMENTER_ID', expId);",
+            "if (aprId) pm.collectionVariables.set('APPROVER_ID', aprId);",
+            "pm.test('Found experimenter', function () { pm.expect(expId).to.not.be.null; });",
+            "pm.test('Found approver', function () { pm.expect(aprId).to.not.be.null; });"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/users?size=100", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"], "query": [{"key":"size","value":"100"}] }
+          }
+        },
+        {
+          "name": "0.05 Set approver group",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });"
+          ]}}],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"approver_ids\": [\"{{APPROVER_ID}}\"],\n  \"min_approvals\": 1\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/users/{{EXPERIMENTER_ID}}/approvers", "host": ["{{BASE_URL}}"], "path": ["api","v1","users","{{EXPERIMENTER_ID}}","approvers"] }
+          }
+        },
+        {
+          "name": "0.06 Create event type: b4_click (payload: button_id:string)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"b4_click\",\n  \"description\": \"Клик по элементу UI\",\n  \"payload_schema\": {\"button_id\": \"string\"}\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/types", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","types"] }
+          }
+        },
+        {
+          "name": "0.07 Create event type: b4_impression (no payload)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"b4_impression\",\n  \"description\": \"Показ элемента (экспозиция)\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/types", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","types"] }
+          }
+        },
+        {
+          "name": "0.08 Create event type: b4_purchase (requires b4_click)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"b4_purchase\",\n  \"description\": \"Покупка (требует предшествующий клик)\",\n  \"requires_event_type\": \"b4_click\",\n  \"payload_schema\": {\"amount\": \"number\", \"currency\": \"string\"}\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/types", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","types"] }
+          }
+        },
+        {
+          "name": "0.09 Create metric: b4_click_count",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b4_click_count\",\n  \"name\": \"Число кликов\",\n  \"description\": \"COUNT b4_click\",\n  \"event_type\": \"b4_click\",\n  \"aggregation\": \"COUNT\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/metrics", "host": ["{{BASE_URL}}"], "path": ["api","v1","metrics"] }
+          }
+        },
+        {
+          "name": "0.10 Create metric: b4_impression_count",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b4_impression_count\",\n  \"name\": \"Число показов\",\n  \"description\": \"COUNT b4_impression\",\n  \"event_type\": \"b4_impression\",\n  \"aggregation\": \"COUNT\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/metrics", "host": ["{{BASE_URL}}"], "path": ["api","v1","metrics"] }
+          }
+        },
+        {
+          "name": "0.11 Create metric: b4_purchase_count",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b4_purchase_count\",\n  \"name\": \"Число покупок\",\n  \"description\": \"COUNT b4_purchase\",\n  \"event_type\": \"b4_purchase\",\n  \"aggregation\": \"COUNT\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/metrics", "host": ["{{BASE_URL}}"], "path": ["api","v1","metrics"] }
+          }
+        },
+        {
+          "name": "0.12 Create flag: b4_checkout_flow",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b4_checkout_flow\",\n  \"type\": \"string\",\n  \"default_value\": \"legacy_checkout\",\n  \"description\": \"B4: флаг для эксперимента с чекаутом\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"] }
+          }
+        },
+        {
+          "name": "0.13 Login experimenter",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('EXPERIMENTER_TOKEN', pm.response.json().accessToken);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b4_experimenter@demo.com\",\n  \"password\": \"Demo1234!x\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/auth/login", "host": ["{{BASE_URL}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "0.14 Login approver",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('APPROVER_TOKEN', pm.response.json().accessToken);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b4_approver@demo.com\",\n  \"password\": \"Demo1234!x\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/auth/login", "host": ["{{BASE_URL}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "0.15 Create experiment (DRAFT)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201', function () { pm.response.to.have.status(201); });",
+            "var json = pm.response.json();",
+            "pm.collectionVariables.set('EXP_ID', json.id);",
+            "console.log('[gen] EXP_ID=' + json.id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"B4: эксперимент checkout flow\",\n  \"feature_flag_key\": \"b4_checkout_flow\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    { \"name\": \"control\", \"value\": \"old_checkout\", \"weight\": 50, \"is_control\": true },\n    { \"name\": \"treatment\", \"value\": \"new_checkout\", \"weight\": 50, \"is_control\": false }\n  ],\n  \"metrics\": [\n    { \"metric_key\": \"b4_click_count\", \"type\": \"PRIMARY\" },\n    { \"metric_key\": \"b4_impression_count\", \"type\": \"SECONDARY\" },\n    { \"metric_key\": \"b4_purchase_count\", \"type\": \"SECONDARY\" }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"] }
+          }
+        },
+        {
+          "name": "0.16 Submit → REVIEW",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_ID}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_ID}}","submit"] }
+          }
+        },
+        {
+          "name": "0.17 Approve → APPROVED",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{APPROVER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"decision\": \"ACCEPT\",\n  \"comment\": \"Seed B4\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_ID}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_ID}}","review"] }
+          }
+        },
+        {
+          "name": "0.18 Start → RUNNING",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "pm.test('status = running', function () { pm.expect(pm.response.json().status).to.eql('running'); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_ID}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_ID}}","start"] }
+          }
+        },
+        {
+          "name": "0.19 Decision: b4-user-alpha",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('id != null', function () { pm.expect(json[0].id).to.not.be.null; });",
+            "pm.collectionVariables.set('DECISION_ID', json[0].id);",
+            "pm.collectionVariables.set('DECISION_ALPHA_VALUE', json[0].value);",
+            "",
+            "console.log('');",
+            "console.log('══════════════════════════════════════════════');",
+            "console.log('  DATA GENERATOR COMPLETE');",
+            "console.log('──────────────────────────────────────────────');",
+            "console.log('  EXP_ID      = ' + pm.collectionVariables.get('EXP_ID'));",
+            "console.log('  DECISION_ID = ' + json[0].id + '  (b4-user-alpha)');",
+            "console.log('  value       = ' + json[0].value);",
+            "console.log('──────────────────────────────────────────────');",
+            "console.log('  Можно выполнять B4-1..B4-5');",
+            "console.log('══════════════════════════════════════════════');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"b4-user-alpha\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b4_checkout_flow\"]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/decision", "host": ["{{BASE_URL}}"], "path": ["api","v1","decision"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B4-1. Валидация типов полей",
+      "description": "b4_click имеет payload_schema: {button_id: string}. Отправляем число вместо строки.",
+      "item": [
+        {
+          "name": "B4-1a: Неверный тип (button_id: число → 422)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 207', function () { pm.response.to.have.status(207); });",
+            "var r = pm.response.json().results[0];",
+            "pm.test('status_code = 422 — невалидный payload', function () {",
+            "    pm.expect(r.status_code).to.eql(422);",
+            "});",
+            "pm.test('event_status = REJECTED', function () {",
+            "    pm.expect(r.event_status).to.eql('REJECTED');",
+            "});",
+            "pm.test('error содержит описание ошибки типа', function () {",
+            "    pm.expect(r.error).to.be.a('string').and.not.empty;",
+            "});",
+            "console.log('B4-1a: Отклонено — ' + r.error);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"events\": [\n    {\n      \"event_type\": \"b4_click\",\n      \"decision_id\": \"{{DECISION_ID}}\",\n      \"payload\": {\"button_id\": 12345}\n    }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/batch", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","batch"] }
+          }
+        },
+        {
+          "name": "B4-1b: Валидный payload (button_id: строка → 201)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 207', function () { pm.response.to.have.status(207); });",
+            "var r = pm.response.json().results[0];",
+            "pm.test('status_code = 201 — принято', function () {",
+            "    pm.expect(r.status_code).to.eql(201);",
+            "});",
+            "pm.test('event_status = RECEIVED', function () {",
+            "    pm.expect(r.event_status).to.eql('RECEIVED');",
+            "});",
+            "console.log('B4-1b: Валидный click принят, event_id=' + r.event_id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"events\": [\n    {\n      \"event_type\": \"b4_click\",\n      \"decision_id\": \"{{DECISION_ID}}\",\n      \"payload\": {\"button_id\": \"buy-button-01\"}\n    }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/batch", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","batch"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B4-2. Валидация обязательных полей",
+      "description": "b4_purchase имеет payload_schema: {amount: number, currency: string}. Отправляем без currency.",
+      "item": [
+        {
+          "name": "B4-2a: Decision для b4-user-beta",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.collectionVariables.set('DECISION_BETA', json[0].id);",
+            "console.log('B4-2: DECISION_BETA=' + json[0].id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"b4-user-beta\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b4_checkout_flow\"]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/decision", "host": ["{{BASE_URL}}"], "path": ["api","v1","decision"] }
+          }
+        },
+        {
+          "name": "B4-2b: Отсутствует поле currency (→ 422)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 207', function () { pm.response.to.have.status(207); });",
+            "var r = pm.response.json().results[0];",
+            "pm.test('status_code = 422 — пропущено обязательное поле', function () {",
+            "    pm.expect(r.status_code).to.eql(422);",
+            "});",
+            "pm.test('event_status = REJECTED', function () {",
+            "    pm.expect(r.event_status).to.eql('REJECTED');",
+            "});",
+            "pm.test('error упоминает currency', function () {",
+            "    pm.expect(r.error.toLowerCase()).to.include('currency');",
+            "});",
+            "console.log('B4-2b: Отклонено — ' + r.error);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"events\": [\n    {\n      \"event_type\": \"b4_purchase\",\n      \"decision_id\": \"{{DECISION_BETA}}\",\n      \"payload\": {\"amount\": 99.90}\n    }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/batch", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","batch"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B4-3. Дедупликация событий",
+      "description": "Повторный b4_click с тем же decision_id отклоняется как дубликат.",
+      "item": [
+        {
+          "name": "B4-3a: Повторный click (дубликат → 409)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 207', function () { pm.response.to.have.status(207); });",
+            "var r = pm.response.json().results[0];",
+            "pm.test('status_code = 409 — дубликат', function () {",
+            "    pm.expect(r.status_code).to.eql(409);",
+            "});",
+            "pm.test('event_status = REJECTED', function () {",
+            "    pm.expect(r.event_status).to.eql('REJECTED');",
+            "});",
+            "console.log('B4-3a: Дубликат отклонён — ' + r.error);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"events\": [\n    {\n      \"event_type\": \"b4_click\",\n      \"decision_id\": \"{{DECISION_ID}}\",\n      \"payload\": {\"button_id\": \"buy-button-01\"}\n    }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/batch", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","batch"] }
+          }
+        },
+        {
+          "name": "B4-3b: Отчёт — click_count всё ещё 1",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "console.log('=== REPORT after dedup ===');",
+            "json.variants.forEach(function(v) {",
+            "    v.metrics.forEach(function(m) {",
+            "        if (m.metric_key === 'b4_click_count') {",
+            "            console.log(v.variant_name + ': b4_click_count = ' + m.value);",
+            "        }",
+            "    });",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_ID}}/reports", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_ID}}","reports"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B4-4. Связь экспозиции с decision_id",
+      "description": "Impression привязывается к конкретному decision. Несуществующий decision_id отклоняется.",
+      "item": [
+        {
+          "name": "B4-4a: Impression с валидным decision_id (→ 201)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 207', function () { pm.response.to.have.status(207); });",
+            "var r = pm.response.json().results[0];",
+            "pm.test('status_code = 201 — принято', function () {",
+            "    pm.expect(r.status_code).to.eql(201);",
+            "});",
+            "pm.test('event_id не null', function () {",
+            "    pm.expect(r.event_id).to.not.be.null;",
+            "});",
+            "console.log('B4-4a: Impression принят, event_id=' + r.event_id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"events\": [\n    {\n      \"event_type\": \"b4_impression\",\n      \"decision_id\": \"{{DECISION_ID}}\"\n    }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/batch", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","batch"] }
+          }
+        },
+        {
+          "name": "B4-4b: Impression с несуществующим decision_id (→ 404)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 207', function () { pm.response.to.have.status(207); });",
+            "var r = pm.response.json().results[0];",
+            "pm.test('status_code = 404 — decision не найден', function () {",
+            "    pm.expect(r.status_code).to.eql(404);",
+            "});",
+            "pm.test('event_status = REJECTED', function () {",
+            "    pm.expect(r.event_status).to.eql('REJECTED');",
+            "});",
+            "console.log('B4-4b: Несуществующий decision отклонён — OK');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"events\": [\n    {\n      \"event_type\": \"b4_impression\",\n      \"decision_id\": \"00000000-0000-0000-0000-000000000000\"\n    }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/batch", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","batch"] }
+          }
+        },
+        {
+          "name": "B4-4c: Отчёт — impression_count = 1",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "console.log('=== REPORT after impression ===');",
+            "json.variants.forEach(function(v) {",
+            "    v.metrics.forEach(function(m) {",
+            "        if (m.metric_key === 'b4_impression_count') {",
+            "            console.log(v.variant_name + ': b4_impression_count = ' + m.value);",
+            "        }",
+            "    });",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_ID}}/reports", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_ID}}","reports"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B4-5. Атрибуция конверсии",
+      "description": "b4_purchase requires b4_click. Без предшествующего клика — PENDING. После клика — промотируется в RECEIVED.",
+      "item": [
+        {
+          "name": "B4-5a: Decision для b4-user-gamma (новый субъект)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.collectionVariables.set('DECISION_GAMMA', json[0].id);",
+            "console.log('B4-5: DECISION_GAMMA=' + json[0].id + ' (value=' + json[0].value + ')');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"b4-user-gamma\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b4_checkout_flow\"]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/decision", "host": ["{{BASE_URL}}"], "path": ["api","v1","decision"] }
+          }
+        },
+        {
+          "name": "B4-5b: Purchase БЕЗ клика (→ 202 PENDING)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 207', function () { pm.response.to.have.status(207); });",
+            "var r = pm.response.json().results[0];",
+            "pm.test('status_code = 202 — принято в PENDING', function () {",
+            "    pm.expect(r.status_code).to.eql(202);",
+            "});",
+            "pm.test('event_status = PENDING', function () {",
+            "    pm.expect(r.event_status).to.eql('PENDING');",
+            "});",
+            "console.log('B4-5b: Purchase в PENDING (ждёт click)');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"events\": [\n    {\n      \"event_type\": \"b4_purchase\",\n      \"decision_id\": \"{{DECISION_GAMMA}}\",\n      \"payload\": {\"amount\": 49.99, \"currency\": \"RUB\"}\n    }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/batch", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","batch"] }
+          }
+        },
+        {
+          "name": "B4-5c: Отчёт — purchase_count = 0 (PENDING не считается)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "console.log('=== REPORT (purchase should be 0 for gamma variant) ===');",
+            "json.variants.forEach(function(v) {",
+            "    v.metrics.forEach(function(m) {",
+            "        if (m.metric_key === 'b4_purchase_count') {",
+            "            console.log(v.variant_name + ': b4_purchase_count = ' + m.value);",
+            "        }",
+            "    });",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_ID}}/reports", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_ID}}","reports"] }
+          }
+        },
+        {
+          "name": "B4-5d: Отправляем click для gamma (→ 201)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 207', function () { pm.response.to.have.status(207); });",
+            "var r = pm.response.json().results[0];",
+            "pm.test('status_code = 201', function () { pm.expect(r.status_code).to.eql(201); });",
+            "pm.test('event_status = RECEIVED', function () { pm.expect(r.event_status).to.eql('RECEIVED'); });",
+            "console.log('B4-5d: Click для gamma принят — purchase должен промотироваться');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"events\": [\n    {\n      \"event_type\": \"b4_click\",\n      \"decision_id\": \"{{DECISION_GAMMA}}\",\n      \"payload\": {\"button_id\": \"checkout-btn\"}\n    }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/batch", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","batch"] }
+          }
+        },
+        {
+          "name": "B4-5e: Отчёт — purchase промотирован (count > 0)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "console.log('=== REPORT after click (purchase should be promoted) ===');",
+            "json.variants.forEach(function(v) {",
+            "    console.log('--- ' + v.variant_name + ' ---');",
+            "    v.metrics.forEach(function(m) {",
+            "        if (['b4_click_count','b4_purchase_count'].indexOf(m.metric_key) >= 0) {",
+            "            console.log('  ' + m.metric_key + ' = ' + m.value);",
+            "        }",
+            "    });",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_ID}}/reports", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_ID}}","reports"] }
+          }
+        },
+        {
+          "name": "B4-5f: Purchase С предшествующим click (alpha → 201 RECEIVED)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 207', function () { pm.response.to.have.status(207); });",
+            "var r = pm.response.json().results[0];",
+            "pm.test('status_code = 201 — сразу RECEIVED (click уже был)', function () {",
+            "    pm.expect(r.status_code).to.eql(201);",
+            "});",
+            "pm.test('event_status = RECEIVED', function () {",
+            "    pm.expect(r.event_status).to.eql('RECEIVED');",
+            "});",
+            "console.log('B4-5f: Purchase для alpha сразу RECEIVED (click из B4-1b)');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"events\": [\n    {\n      \"event_type\": \"b4_purchase\",\n      \"decision_id\": \"{{DECISION_ID}}\",\n      \"payload\": {\"amount\": 199.90, \"currency\": \"USD\"}\n    }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/batch", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","batch"] }
+          }
+        },
+        {
+          "name": "B4-5g: Финальный отчёт (все метрики)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "console.log('');",
+            "console.log('══════════════════════════════════════');",
+            "console.log('  ФИНАЛЬНЫЙ ОТЧЁТ B4');",
+            "console.log('──────────────────────────────────────');",
+            "console.log('  total_subjects: ' + json.total_subjects);",
+            "json.variants.forEach(function(v) {",
+            "    console.log('  --- ' + v.variant_name + ' (' + v.variant_value + ') : ' + v.subject_count + ' чел. ---');",
+            "    v.metrics.forEach(function(m) {",
+            "        console.log('    ' + m.metric_key + ' = ' + m.value);",
+            "    });",
+            "});",
+            "console.log('══════════════════════════════════════');"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_ID}}/reports", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_ID}}","reports"] }
+          }
+        }
+      ]
+    }
+  ]
+}

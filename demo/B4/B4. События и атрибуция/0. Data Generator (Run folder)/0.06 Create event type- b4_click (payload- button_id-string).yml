@@ -1,0 +1,33 @@
+info:
+  name: "0.06 Create event type: b4_click (payload: button_id:string)"
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/events/types"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{ADMIN_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "type": "b4_click",
+        "description": "Клик по элементу UI",
+        "payload_schema": {"button_id": "string"}
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: test('201 or 409', function () { expect([201,409]).to.include(res.getStatus()); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

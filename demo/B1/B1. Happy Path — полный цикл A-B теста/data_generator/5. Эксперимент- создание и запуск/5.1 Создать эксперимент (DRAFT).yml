@@ -1,0 +1,65 @@
+info:
+  name: 5.1 Создать эксперимент (DRAFT)
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "name": "B1 Happy Path: цвет кнопки",
+        "feature_flag_key": "b1_button_color",
+        "audience_percentage": 100,
+        "variants": [
+          {
+            "name": "white (control)",
+            "value": "white",
+            "weight": 50,
+            "is_control": true
+          },
+          {
+            "name": "green (treatment)",
+            "value": "green",
+            "weight": 50,
+            "is_control": false
+          }
+        ],
+        "metrics": [
+          { "metric_key": "b1_exposure_count", "type": "PRIMARY" },
+          { "metric_key": "b1_click_conversion", "type": "SECONDARY" }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 201', function () {
+            expect(res.getStatus()).to.equal(201);
+        });
+
+        var json = res.getBody();
+        bru.setVar('EXPERIMENT_ID', json.id);
+
+        test('Статус = draft', function () {
+            expect(json.status).to.eql('draft');
+        });
+
+        test('2 варианта создано', function () {
+            expect(json.variants).to.have.lengthOf(2);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

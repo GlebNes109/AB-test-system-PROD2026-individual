@@ -1,0 +1,44 @@
+info:
+  name: "B4-3a: Повторный click (дубликат → 409)"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/events/batch"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "events": [
+          {
+            "event_type": "b4_click",
+            "decision_id": "{{DECISION_ID}}",
+            "payload": {"button_id": "buy-button-01"}
+          }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 207', function () { expect(res.getStatus()).to.equal(207); });
+        var r = res.getBody().results[0];
+        test('status_code = 409 — дубликат', function () {
+            expect(r.status_code).to.eql(409);
+        });
+        test('event_status = REJECTED', function () {
+            expect(r.event_status).to.eql('REJECTED');
+        });
+        console.log('B4-3a: Дубликат отклонён — ' + r.error);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

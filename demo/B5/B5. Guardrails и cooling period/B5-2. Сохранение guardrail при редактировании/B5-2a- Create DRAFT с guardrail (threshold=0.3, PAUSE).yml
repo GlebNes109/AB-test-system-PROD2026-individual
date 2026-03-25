@@ -1,0 +1,47 @@
+info:
+  name: "B5-2a: Create DRAFT с guardrail (threshold=0.3, PAUSE)"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "name": "B5-2: проверка обновления guardrail",
+        "feature_flag_key": "b5_guardrail_pause",
+        "audience_percentage": 100,
+        "variants": [
+          { "name": "control", "value": "old_page", "weight": 50, "is_control": true },
+          { "name": "treatment", "value": "new_page", "weight": 50, "is_control": false }
+        ],
+        "metrics": [
+          { "metric_key": "b5_page_view_count", "type": "PRIMARY" },
+          { "metric_key": "b5_error_rate", "type": "GUARDRAIL", "threshold": 0.3, "window_minutes": 30, "action": "PAUSE" }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('201', function () { expect(res.getStatus()).to.equal(201); });
+        var json = res.getBody();
+        bru.setVar('NEW_EXP_DRAFT_ID', json.id);
+        var g = json.metrics.find(function(m){return m.type==='GUARDRAIL';});
+        test('threshold = 0.3', function () { expect(g.threshold).to.eql(0.3); });
+        test('action = PAUSE', function () { expect(g.action).to.eql('PAUSE'); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

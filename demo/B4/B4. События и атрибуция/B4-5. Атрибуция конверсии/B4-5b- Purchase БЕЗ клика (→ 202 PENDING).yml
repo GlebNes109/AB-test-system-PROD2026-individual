@@ -1,0 +1,44 @@
+info:
+  name: "B4-5b: Purchase БЕЗ клика (→ 202 PENDING)"
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/events/batch"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "events": [
+          {
+            "event_type": "b4_purchase",
+            "decision_id": "{{DECISION_GAMMA}}",
+            "payload": {"amount": 49.99, "currency": "RUB"}
+          }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 207', function () { expect(res.getStatus()).to.equal(207); });
+        var r = res.getBody().results[0];
+        test('status_code = 202 — принято в PENDING', function () {
+            expect(r.status_code).to.eql(202);
+        });
+        test('event_status = PENDING', function () {
+            expect(r.event_status).to.eql('PENDING');
+        });
+        console.log('B4-5b: Purchase в PENDING (ждёт click)');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

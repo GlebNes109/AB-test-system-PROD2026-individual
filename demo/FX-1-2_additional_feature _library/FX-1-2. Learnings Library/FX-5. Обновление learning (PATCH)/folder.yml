@@ -1,0 +1,13 @@
+info:
+  name: FX-5. Обновление learning (PATCH)
+  type: folder
+  seq: 6
+
+request:
+  auth: inherit
+
+docs:
+  content: |-
+    Обновить notes и tags у LEARNING_1_ID.
+    Ожидаемый результат: updated_at изменился, notes и tags обновились.
+  type: text/markdown

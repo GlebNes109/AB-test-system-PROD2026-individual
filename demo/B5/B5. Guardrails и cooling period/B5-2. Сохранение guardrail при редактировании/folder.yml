@@ -1,0 +1,11 @@
+info:
+  name: B5-2. Сохранение guardrail при редактировании
+  type: folder
+  seq: 3
+
+request:
+  auth: inherit
+
+docs:
+  content: Создаём DRAFT эксперимент с guardrail, обновляем threshold/action, проверяем.
+  type: text/markdown

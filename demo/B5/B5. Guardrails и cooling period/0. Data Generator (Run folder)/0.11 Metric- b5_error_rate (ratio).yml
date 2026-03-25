@@ -1,0 +1,37 @@
+info:
+  name: "0.11 Metric: b5_error_rate (ratio)"
+  type: http
+  seq: 11
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/metrics"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{ADMIN_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "key": "b5_error_rate",
+        "name": "Доля ошибок",
+        "description": "COUNT b5_error / COUNT b5_page_view",
+        "event_type": "b5_error",
+        "aggregation": "COUNT",
+        "denominator_event_type": "b5_page_view",
+        "denominator_aggregation": "COUNT"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: test('201 or 409', function () { expect([201,409]).to.include(res.getStatus()); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

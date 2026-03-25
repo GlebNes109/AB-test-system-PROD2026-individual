@@ -1,0 +1,47 @@
+info:
+  name: "B4-2b: Отсутствует поле currency (→ 422)"
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/events/batch"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "events": [
+          {
+            "event_type": "b4_purchase",
+            "decision_id": "{{DECISION_BETA}}",
+            "payload": {"amount": 99.90}
+          }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 207', function () { expect(res.getStatus()).to.equal(207); });
+        var r = res.getBody().results[0];
+        test('status_code = 422 — пропущено обязательное поле', function () {
+            expect(r.status_code).to.eql(422);
+        });
+        test('event_status = REJECTED', function () {
+            expect(r.event_status).to.eql('REJECTED');
+        });
+        test('error упоминает currency', function () {
+            expect(r.error.toLowerCase()).to.include('currency');
+        });
+        console.log('B4-2b: Отклонено — ' + r.error);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

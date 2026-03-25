@@ -1,0 +1,40 @@
+info:
+  name: "52. EXP_5: Создать learning → LEARNING_5_ID"
+  type: http
+  seq: 52
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/learnings"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "experiment_id": "{{EXP_5_ID}}",
+        "hypothesis": "Интерактивный онбординг-тур повысит retention новых пользователей за счёт лучшего понимания продукта",
+        "primary_metric_key": "ll_views",
+        "tags": ["onboarding", "retention", "ux", "mobile"],
+        "platform": "ios",
+        "segment": "Новые пользователи (регистрация < 7 дней)",
+        "notes": "Интерактивный тур УХУДШИЛ retention на 5%. Пользователи закрывали тур, не дочитав. Многие жаловались в отзывах. Возврат к статичным подсказкам.",
+        "ticket_link": "https://jira.example.com/ONBOARD-567"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 201', function() { expect(res.getStatus()).to.equal(201); });
+        bru.setVar('LEARNING_5_ID', res.getBody().id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

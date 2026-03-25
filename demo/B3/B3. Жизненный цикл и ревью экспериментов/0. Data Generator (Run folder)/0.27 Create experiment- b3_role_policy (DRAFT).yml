@@ -1,0 +1,42 @@
+info:
+  name: "0.27 Create experiment: b3_role_policy (DRAFT)"
+  type: http
+  seq: 27
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "name": "B3-5: политика ревью по ролям",
+        "feature_flag_key": "b3_role_policy",
+        "audience_percentage": 100,
+        "variants": [
+          { "name": "control", "value": "role_ctrl", "weight": 50, "is_control": true },
+          { "name": "treatment", "value": "role_treat", "weight": 50, "is_control": false }
+        ],
+        "metrics": [{ "metric_key": "b3_page_view_count", "type": "PRIMARY" }]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 201', function () { expect(res.getStatus()).to.equal(201); });
+        var json = res.getBody();
+        bru.setVar('EXP_ROLE_POLICY', json.id);
+        console.log('[gen] EXP_ROLE_POLICY=' + json.id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,48 @@
+info:
+  name: "0.32 Events: purchase (2 из кликнувших)"
+  type: http
+  seq: 32
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/events/batch"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "events": [
+          { "event_type": "b6_purchase", "decision_id": "{{D1}}", "payload": {"amount": 79.90} },
+          { "event_type": "b6_purchase", "decision_id": "{{D2}}", "payload": {"amount": 129.90} }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('207', function () { expect(res.getStatus()).to.equal(207); });
+        var results = res.getBody().results;
+        test('Обе покупки приняты', function () {
+            results.forEach(function(r) { expect(r.status_code).to.eql(201); });
+        });
+
+        console.log('');
+        console.log('══════════════════════════════════════════════');
+        console.log('  DATA GENERATOR COMPLETE');
+        console.log('──────────────────────────────────────────────');
+        console.log('  EXP_REPORTS_ID = ' + bru.getVar('EXP_REPORTS_ID'));
+        console.log('  EXP_FINISH_ID  = ' + bru.getVar('EXP_FINISH_ID'));
+        console.log('──────────────────────────────────────────────');
+        console.log('  Events sent: 5x page_view, 3x click, 2x purchase');
+        console.log('  Подождите ~5 сек, затем выполняйте B6-1..B6-5');
+        console.log('══════════════════════════════════════════════');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

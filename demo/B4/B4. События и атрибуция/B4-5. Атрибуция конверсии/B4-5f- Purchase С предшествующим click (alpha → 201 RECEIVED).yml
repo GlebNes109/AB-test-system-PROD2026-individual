@@ -1,0 +1,44 @@
+info:
+  name: "B4-5f: Purchase С предшествующим click (alpha → 201 RECEIVED)"
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/events/batch"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "events": [
+          {
+            "event_type": "b4_purchase",
+            "decision_id": "{{DECISION_ID}}",
+            "payload": {"amount": 199.90, "currency": "USD"}
+          }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 207', function () { expect(res.getStatus()).to.equal(207); });
+        var r = res.getBody().results[0];
+        test('status_code = 201 — сразу RECEIVED (click уже был)', function () {
+            expect(r.status_code).to.eql(201);
+        });
+        test('event_status = RECEIVED', function () {
+            expect(r.event_status).to.eql('RECEIVED');
+        });
+        console.log('B4-5f: Purchase для alpha сразу RECEIVED (click из B4-1b)');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

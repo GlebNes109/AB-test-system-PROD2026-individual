@@ -1,0 +1,33 @@
+info:
+  name: "FX-1c: GET /learnings?page=1&size=3 (вторая страница)"
+  type: http
+  seq: 3
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/api/v1/learnings?page=1&size=3"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  params:
+    - name: page
+      value: "1"
+      type: query
+    - name: size
+      value: "3"
+      type: query
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function() { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        test('items = 3 (вторая страница из 3)', function() { expect(json.items).to.have.lengthOf(3); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

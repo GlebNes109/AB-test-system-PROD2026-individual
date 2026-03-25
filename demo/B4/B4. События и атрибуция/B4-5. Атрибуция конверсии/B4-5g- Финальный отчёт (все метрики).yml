@@ -1,0 +1,37 @@
+info:
+  name: "B4-5g: Финальный отчёт (все метрики)"
+  type: http
+  seq: 7
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_ID}}/reports"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200', function () { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        console.log('');
+        console.log('══════════════════════════════════════');
+        console.log('  ФИНАЛЬНЫЙ ОТЧЁТ B4');
+        console.log('──────────────────────────────────────');
+        console.log('  total_subjects: ' + json.total_subjects);
+        json.variants.forEach(function(v) {
+            console.log('  --- ' + v.variant_name + ' (' + v.variant_value + ') : ' + v.subject_count + ' чел. ---');
+            v.metrics.forEach(function(m) {
+                console.log('    ' + m.metric_key + ' = ' + m.value);
+            });
+        });
+        console.log('══════════════════════════════════════');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

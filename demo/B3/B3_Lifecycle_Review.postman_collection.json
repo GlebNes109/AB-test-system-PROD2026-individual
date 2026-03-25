@@ -1,0 +1,710 @@
+{
+  "info": {
+    "name": "B3. Жизненный цикл и ревью экспериментов",
+    "description": "Коллекция для проверки критериев B3.\n\nПорядок работы:\n1. Запустить папку «0. Data Generator» через Collection Runner (ПКМ → Run folder) — создаст все сущности и сохранит ID/токены в переменные\n2. Выполнять запросы B3-1 … B3-5 вручную по одному\n\nПодготовка: docker compose up -d",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "BASE_URL", "value": "http://localhost", "type": "string" },
+    { "key": "ADMIN_TOKEN", "value": "", "type": "string" },
+    { "key": "EXPERIMENTER_TOKEN", "value": "", "type": "string" },
+    { "key": "APPROVER_ALPHA_TOKEN", "value": "", "type": "string" },
+    { "key": "APPROVER_BETA_TOKEN", "value": "", "type": "string" },
+    { "key": "APPROVER_OUTSIDER_TOKEN", "value": "", "type": "string" },
+    { "key": "VIEWER_TOKEN", "value": "", "type": "string" },
+    { "key": "EXPERIMENTER_ID", "value": "", "type": "string" },
+    { "key": "APPROVER_ALPHA_ID", "value": "", "type": "string" },
+    { "key": "APPROVER_BETA_ID", "value": "", "type": "string" },
+    { "key": "EXP_LIFECYCLE", "value": "", "type": "string" },
+    { "key": "EXP_APPROVAL", "value": "", "type": "string" },
+    { "key": "EXP_BLOCK_START", "value": "", "type": "string" },
+    { "key": "EXP_BAD_TRANSITION", "value": "", "type": "string" },
+    { "key": "EXP_ROLE_POLICY", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "0. Data Generator (Run folder)",
+      "description": "Запустите эту папку через Collection Runner (ПКМ → Run folder → Run).\nСоздаёт всех пользователей, флаги, эксперименты и сохраняет ID/токены в переменные коллекции.\n\nПосле прогона все переменные (EXP_LIFECYCLE, EXPERIMENTER_TOKEN и т.д.) будут заполнены автоматически.",
+      "item": [
+        {
+          "name": "0.01 Login admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('ADMIN_TOKEN', json.accessToken);",
+                  "console.log('[gen] Admin logged in');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@mail.ru\",\n  \"password\": \"123123123aA!\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/auth/login", "host": ["{{BASE_URL}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "0.02 Create user: experimenter",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b3_experimenter@demo.com\",\n  \"password\": \"Demo1234!x\",\n  \"role\": \"EXPERIMENTER\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/users", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"] }
+          }
+        },
+        {
+          "name": "0.03 Create user: approver_alpha",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b3_approver_alpha@demo.com\",\n  \"password\": \"Demo1234!x\",\n  \"role\": \"APPROVER\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/users", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"] }
+          }
+        },
+        {
+          "name": "0.04 Create user: approver_beta",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b3_approver_beta@demo.com\",\n  \"password\": \"Demo1234!x\",\n  \"role\": \"APPROVER\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/users", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"] }
+          }
+        },
+        {
+          "name": "0.05 Create user: approver_outsider",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b3_approver_outsider@demo.com\",\n  \"password\": \"Demo1234!x\",\n  \"role\": \"APPROVER\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/users", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"] }
+          }
+        },
+        {
+          "name": "0.06 Create user: viewer",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b3_viewer@demo.com\",\n  \"password\": \"Demo1234!x\",\n  \"role\": \"VIEWER\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/users", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"] }
+          }
+        },
+        {
+          "name": "0.07 GET users → find IDs",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "var users = pm.response.json().items;",
+            "function findId(email) { var u = users.find(function(x){return x.email===email;}); return u ? u.id : null; }",
+            "",
+            "var expId = findId('b3_experimenter@demo.com');",
+            "var alphaId = findId('b3_approver_alpha@demo.com');",
+            "var betaId = findId('b3_approver_beta@demo.com');",
+            "",
+            "if (expId) pm.collectionVariables.set('EXPERIMENTER_ID', expId);",
+            "if (alphaId) pm.collectionVariables.set('APPROVER_ALPHA_ID', alphaId);",
+            "if (betaId) pm.collectionVariables.set('APPROVER_BETA_ID', betaId);",
+            "",
+            "pm.test('Found experimenter', function () { pm.expect(expId).to.not.be.null; });",
+            "pm.test('Found approver_alpha', function () { pm.expect(alphaId).to.not.be.null; });",
+            "pm.test('Found approver_beta', function () { pm.expect(betaId).to.not.be.null; });",
+            "",
+            "console.log('[gen] EXPERIMENTER_ID=' + expId);",
+            "console.log('[gen] APPROVER_ALPHA_ID=' + alphaId);",
+            "console.log('[gen] APPROVER_BETA_ID=' + betaId);"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/users?size=100", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"], "query": [{"key":"size","value":"100"}] }
+          }
+        },
+        {
+          "name": "0.08 Set approver group (min_approvals=2)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "console.log('[gen] Approver group set: alpha + beta, min_approvals=2');"
+          ]}}],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"approver_ids\": [\"{{APPROVER_ALPHA_ID}}\", \"{{APPROVER_BETA_ID}}\"],\n  \"min_approvals\": 2\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/users/{{EXPERIMENTER_ID}}/approvers", "host": ["{{BASE_URL}}"], "path": ["api","v1","users","{{EXPERIMENTER_ID}}","approvers"] }
+          }
+        },
+        {
+          "name": "0.09 Create event type: page_view",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"b3_page_view\",\n  \"description\": \"Просмотр страницы\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/types", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","types"] }
+          }
+        },
+        {
+          "name": "0.10 Create metric: page_view_count",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b3_page_view_count\",\n  \"name\": \"Число просмотров\",\n  \"description\": \"COUNT page_view\",\n  \"event_type\": \"b3_page_view\",\n  \"aggregation\": \"COUNT\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/metrics", "host": ["{{BASE_URL}}"], "path": ["api","v1","metrics"] }
+          }
+        },
+        {
+          "name": "0.11 Create flag: b3_lifecycle",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b3_lifecycle\",\n  \"type\": \"string\",\n  \"default_value\": \"lifecycle_default\",\n  \"description\": \"B3-1: DRAFT → REVIEW\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"] }
+          }
+        },
+        {
+          "name": "0.12 Create flag: b3_approval",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b3_approval\",\n  \"type\": \"string\",\n  \"default_value\": \"approval_default\",\n  \"description\": \"B3-2: REVIEW → APPROVED (min_approvals=2)\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"] }
+          }
+        },
+        {
+          "name": "0.13 Create flag: b3_block_start",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b3_block_start\",\n  \"type\": \"string\",\n  \"default_value\": \"block_start_default\",\n  \"description\": \"B3-3: блокировка запуска\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"] }
+          }
+        },
+        {
+          "name": "0.14 Create flag: b3_bad_transition",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b3_bad_transition\",\n  \"type\": \"string\",\n  \"default_value\": \"bad_transition_default\",\n  \"description\": \"B3-4: запрещённые переходы\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"] }
+          }
+        },
+        {
+          "name": "0.15 Create flag: b3_role_policy",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b3_role_policy\",\n  \"type\": \"string\",\n  \"default_value\": \"role_policy_default\",\n  \"description\": \"B3-5: политика ревью по ролям\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"] }
+          }
+        },
+        {
+          "name": "0.16 Login experimenter → token",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('EXPERIMENTER_TOKEN', pm.response.json().accessToken);",
+            "console.log('[gen] Experimenter token saved');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b3_experimenter@demo.com\",\n  \"password\": \"Demo1234!x\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/auth/login", "host": ["{{BASE_URL}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "0.17 Login approver_alpha → token",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('APPROVER_ALPHA_TOKEN', pm.response.json().accessToken);",
+            "console.log('[gen] Approver Alpha token saved');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b3_approver_alpha@demo.com\",\n  \"password\": \"Demo1234!x\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/auth/login", "host": ["{{BASE_URL}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "0.18 Login approver_beta → token",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('APPROVER_BETA_TOKEN', pm.response.json().accessToken);",
+            "console.log('[gen] Approver Beta token saved');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b3_approver_beta@demo.com\",\n  \"password\": \"Demo1234!x\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/auth/login", "host": ["{{BASE_URL}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "0.19 Login approver_outsider → token",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('APPROVER_OUTSIDER_TOKEN', pm.response.json().accessToken);",
+            "console.log('[gen] Approver Outsider token saved');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b3_approver_outsider@demo.com\",\n  \"password\": \"Demo1234!x\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/auth/login", "host": ["{{BASE_URL}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "0.20 Login viewer → token",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('VIEWER_TOKEN', pm.response.json().accessToken);",
+            "console.log('[gen] Viewer token saved');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b3_viewer@demo.com\",\n  \"password\": \"Demo1234!x\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/auth/login", "host": ["{{BASE_URL}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "0.21 Create experiment: b3_lifecycle (DRAFT)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+            "var json = pm.response.json();",
+            "pm.collectionVariables.set('EXP_LIFECYCLE', json.id);",
+            "pm.test('status = draft', function () { pm.expect(json.status).to.eql('draft'); });",
+            "console.log('[gen] EXP_LIFECYCLE=' + json.id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"B3-1: жизненный цикл DRAFT→REVIEW\",\n  \"feature_flag_key\": \"b3_lifecycle\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    { \"name\": \"control\", \"value\": \"lifecycle_ctrl\", \"weight\": 50, \"is_control\": true },\n    { \"name\": \"treatment\", \"value\": \"lifecycle_treat\", \"weight\": 50, \"is_control\": false }\n  ],\n  \"metrics\": [{ \"metric_key\": \"b3_page_view_count\", \"type\": \"PRIMARY\" }]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"] }
+          }
+        },
+        {
+          "name": "0.22 Create experiment: b3_approval (DRAFT)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+            "var json = pm.response.json();",
+            "pm.collectionVariables.set('EXP_APPROVAL', json.id);",
+            "console.log('[gen] EXP_APPROVAL=' + json.id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"B3-2: одобрение двумя аппруверами\",\n  \"feature_flag_key\": \"b3_approval\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    { \"name\": \"control\", \"value\": \"approval_ctrl\", \"weight\": 50, \"is_control\": true },\n    { \"name\": \"treatment\", \"value\": \"approval_treat\", \"weight\": 50, \"is_control\": false }\n  ],\n  \"metrics\": [{ \"metric_key\": \"b3_page_view_count\", \"type\": \"PRIMARY\" }]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"] }
+          }
+        },
+        {
+          "name": "0.23 Submit b3_approval → REVIEW",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('status = review', function () { pm.expect(pm.response.json().status).to.eql('review'); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_APPROVAL}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_APPROVAL}}","submit"] }
+          }
+        },
+        {
+          "name": "0.24 Create experiment: b3_block_start (DRAFT)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+            "var json = pm.response.json();",
+            "pm.collectionVariables.set('EXP_BLOCK_START', json.id);",
+            "console.log('[gen] EXP_BLOCK_START=' + json.id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"B3-3: блокировка запуска без одобрений\",\n  \"feature_flag_key\": \"b3_block_start\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    { \"name\": \"control\", \"value\": \"block_ctrl\", \"weight\": 50, \"is_control\": true },\n    { \"name\": \"treatment\", \"value\": \"block_treat\", \"weight\": 50, \"is_control\": false }\n  ],\n  \"metrics\": [{ \"metric_key\": \"b3_page_view_count\", \"type\": \"PRIMARY\" }]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"] }
+          }
+        },
+        {
+          "name": "0.25 Submit b3_block_start → REVIEW",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('status = review', function () { pm.expect(pm.response.json().status).to.eql('review'); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_BLOCK_START}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_BLOCK_START}}","submit"] }
+          }
+        },
+        {
+          "name": "0.26 Create experiment: b3_bad_transition (DRAFT)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+            "var json = pm.response.json();",
+            "pm.collectionVariables.set('EXP_BAD_TRANSITION', json.id);",
+            "console.log('[gen] EXP_BAD_TRANSITION=' + json.id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"B3-4: запрещённые переходы\",\n  \"feature_flag_key\": \"b3_bad_transition\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    { \"name\": \"control\", \"value\": \"bad_trans_ctrl\", \"weight\": 50, \"is_control\": true },\n    { \"name\": \"treatment\", \"value\": \"bad_trans_treat\", \"weight\": 50, \"is_control\": false }\n  ],\n  \"metrics\": [{ \"metric_key\": \"b3_page_view_count\", \"type\": \"PRIMARY\" }]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"] }
+          }
+        },
+        {
+          "name": "0.27 Create experiment: b3_role_policy (DRAFT)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+            "var json = pm.response.json();",
+            "pm.collectionVariables.set('EXP_ROLE_POLICY', json.id);",
+            "console.log('[gen] EXP_ROLE_POLICY=' + json.id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"B3-5: политика ревью по ролям\",\n  \"feature_flag_key\": \"b3_role_policy\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    { \"name\": \"control\", \"value\": \"role_ctrl\", \"weight\": 50, \"is_control\": true },\n    { \"name\": \"treatment\", \"value\": \"role_treat\", \"weight\": 50, \"is_control\": false }\n  ],\n  \"metrics\": [{ \"metric_key\": \"b3_page_view_count\", \"type\": \"PRIMARY\" }]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"] }
+          }
+        },
+        {
+          "name": "0.28 Submit b3_role_policy → REVIEW",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('status = review', function () { pm.expect(pm.response.json().status).to.eql('review'); });",
+            "",
+            "console.log('');",
+            "console.log('══════════════════════════════════════════════');",
+            "console.log('  DATA GENERATOR COMPLETE');",
+            "console.log('──────────────────────────────────────────────');",
+            "console.log('  EXP_LIFECYCLE      = ' + pm.collectionVariables.get('EXP_LIFECYCLE') + '  (DRAFT)');",
+            "console.log('  EXP_APPROVAL       = ' + pm.collectionVariables.get('EXP_APPROVAL') + '  (REVIEW)');",
+            "console.log('  EXP_BLOCK_START    = ' + pm.collectionVariables.get('EXP_BLOCK_START') + '  (REVIEW)');",
+            "console.log('  EXP_BAD_TRANSITION = ' + pm.collectionVariables.get('EXP_BAD_TRANSITION') + '  (DRAFT)');",
+            "console.log('  EXP_ROLE_POLICY    = ' + pm.collectionVariables.get('EXP_ROLE_POLICY') + '  (REVIEW)');",
+            "console.log('──────────────────────────────────────────────');",
+            "console.log('  Tokens: EXPERIMENTER, APPROVER_ALPHA/BETA/OUTSIDER, VIEWER');",
+            "console.log('  Все переменные сохранены — можно выполнять B3-1..B3-5');",
+            "console.log('══════════════════════════════════════════════');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_ROLE_POLICY}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_ROLE_POLICY}}","submit"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B3-1. DRAFT → REVIEW (submit)",
+      "description": "Эксперимент b3_lifecycle в статусе DRAFT. Проверяем переход в REVIEW.",
+      "item": [
+        {
+          "name": "B3-1: Submit (DRAFT → REVIEW)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('status = review', function () { pm.expect(json.status).to.eql('review'); });",
+            "console.log('B3-1: DRAFT → REVIEW OK, exp_id=' + json.id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_LIFECYCLE}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_LIFECYCLE}}","submit"] }
+          }
+        },
+        {
+          "name": "B3-1: Проверка — GET эксперимент",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('status = review', function () { pm.expect(pm.response.json().status).to.eql('review'); });"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_LIFECYCLE}}", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_LIFECYCLE}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B3-2. REVIEW → APPROVED (min_approvals=2)",
+      "description": "Эксперимент b3_approval в REVIEW. Нужно 2 одобрения (alpha + beta).",
+      "item": [
+        {
+          "name": "B3-2a: Первое одобрение (approver_alpha)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "console.log('B3-2: Первое одобрение от Alpha принято');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{APPROVER_ALPHA_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"decision\": \"ACCEPT\",\n  \"comment\": \"Одобряю — Alpha\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_APPROVAL}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_APPROVAL}}","review"] }
+          }
+        },
+        {
+          "name": "B3-2b: Проверка — ещё review (1 из 2)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('status ещё review (не хватает 1 одобрения)', function () {",
+            "    pm.expect(pm.response.json().status).to.eql('review');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_APPROVAL}}", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_APPROVAL}}"] }
+          }
+        },
+        {
+          "name": "B3-2c: Второе одобрение (approver_beta)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "console.log('B3-2: Второе одобрение от Beta принято');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{APPROVER_BETA_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"decision\": \"ACCEPT\",\n  \"comment\": \"Подтверждаю — Beta\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_APPROVAL}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_APPROVAL}}","review"] }
+          }
+        },
+        {
+          "name": "B3-2d: Проверка — теперь approved",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('status = approved (оба одобрения получены)', function () {",
+            "    pm.expect(pm.response.json().status).to.eql('approved');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_APPROVAL}}", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_APPROVAL}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B3-3. Блокировка запуска без одобрений",
+      "description": "Эксперимент b3_block_start в REVIEW, ни одного одобрения. Попытка /start должна быть отклонена.",
+      "item": [
+        {
+          "name": "B3-3: Попытка start (должна быть отклонена)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 409 — запуск заблокирован', function () {",
+            "    pm.response.to.have.status(409);",
+            "});",
+            "console.log('B3-3: Start отклонён — ' + pm.response.json().message);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_BLOCK_START}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_BLOCK_START}}","start"] }
+          }
+        },
+        {
+          "name": "B3-3: Проверка — статус не изменился (review)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('status = review (запуск заблокирован)', function () {",
+            "    pm.expect(pm.response.json().status).to.eql('review');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_BLOCK_START}}", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_BLOCK_START}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B3-4. Запрещённые переходы статусов",
+      "description": "Эксперимент b3_bad_transition в DRAFT. Все недопустимые переходы должны быть отклонены.",
+      "item": [
+        {
+          "name": "B3-4a: DRAFT → RUNNING (запрещено)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Ошибка 409 — DRAFT → RUNNING запрещено', function () {",
+            "    pm.response.to.have.status(409);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_BAD_TRANSITION}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_BAD_TRANSITION}}","start"] }
+          }
+        },
+        {
+          "name": "B3-4b: DRAFT → PAUSED (запрещено)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Ошибка 409 — DRAFT → PAUSED запрещено', function () {",
+            "    pm.response.to.have.status(409);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_BAD_TRANSITION}}/pause", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_BAD_TRANSITION}}","pause"] }
+          }
+        },
+        {
+          "name": "B3-4c: DRAFT → FINISHED (запрещено)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Ошибка 409 — DRAFT → FINISHED запрещено', function () {",
+            "    pm.response.to.have.status(409);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"result\": \"ROLLOUT\",\n  \"result_description\": \"test\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_BAD_TRANSITION}}/finish", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_BAD_TRANSITION}}","finish"] }
+          }
+        },
+        {
+          "name": "B3-4d: DRAFT → ARCHIVED (запрещено)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Ошибка 409 — DRAFT → ARCHIVED запрещено', function () {",
+            "    pm.response.to.have.status(409);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_BAD_TRANSITION}}/archive", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_BAD_TRANSITION}}","archive"] }
+          }
+        },
+        {
+          "name": "B3-4e: Проверка — статус остался draft",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('status = draft (ни один запрещённый переход не сработал)', function () {",
+            "    pm.expect(pm.response.json().status).to.eql('draft');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_BAD_TRANSITION}}", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_BAD_TRANSITION}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B3-5. Политика ревью по ролям/группам",
+      "description": "Эксперимент b3_role_policy в REVIEW. Проверяем кто может/не может оставить ревью.",
+      "item": [
+        {
+          "name": "B3-5a: VIEWER пытается ревью (403)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 403 — VIEWER не может ревьюить', function () {",
+            "    pm.response.to.have.status(403);",
+            "});",
+            "console.log('B3-5a: VIEWER отклонён — OK');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{VIEWER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"decision\": \"ACCEPT\",\n  \"comment\": \"Попытка от VIEWER\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_ROLE_POLICY}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_ROLE_POLICY}}","review"] }
+          }
+        },
+        {
+          "name": "B3-5b: EXPERIMENTER пытается самоодобрение (403)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 403 — автор не может одобрить свой эксперимент', function () {",
+            "    pm.response.to.have.status(403);",
+            "});",
+            "console.log('B3-5b: Самоодобрение отклонено — OK');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"decision\": \"ACCEPT\",\n  \"comment\": \"Попытка самоодобрения\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_ROLE_POLICY}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_ROLE_POLICY}}","review"] }
+          }
+        },
+        {
+          "name": "B3-5c: APPROVER вне группы пытается ревью (403)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 403 — APPROVER вне группы не может ревьюить', function () {",
+            "    pm.response.to.have.status(403);",
+            "});",
+            "console.log('B3-5c: Outsider отклонён — OK');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{APPROVER_OUTSIDER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"decision\": \"ACCEPT\",\n  \"comment\": \"Попытка от аппрувера вне группы\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_ROLE_POLICY}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_ROLE_POLICY}}","review"] }
+          }
+        },
+        {
+          "name": "B3-5d: APPROVER из группы (Alpha) — РАЗРЕШЕНО",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200 — назначенный аппрувер может ревьюить', function () {",
+            "    pm.response.to.have.status(200);",
+            "});",
+            "console.log('B3-5d: Alpha из группы одобрил — OK');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{APPROVER_ALPHA_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"decision\": \"ACCEPT\",\n  \"comment\": \"Одобрено назначенным аппрувером Alpha\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_ROLE_POLICY}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_ROLE_POLICY}}","review"] }
+          }
+        }
+      ]
+    }
+  ]
+}

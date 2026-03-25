@@ -1,0 +1,11 @@
+info:
+  name: B6-1. Фильтр отчёта по периоду
+  type: folder
+  seq: 2
+
+request:
+  auth: inherit
+
+docs:
+  content: Отчёт принимает date_from/date_to. Разные периоды — разные результаты.
+  type: text/markdown

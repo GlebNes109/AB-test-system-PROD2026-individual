@@ -1,0 +1,52 @@
+info:
+  name: "7.3 Events: Carol — exposure + click (конверсия)"
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/events/batch"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "events": [
+          {
+            "event_type": "b1_exposure",
+            "decision_id": "{{DECISION_ID_CAROL}}",
+            "payload": null
+          },
+          {
+            "event_type": "b1_click",
+            "decision_id": "{{DECISION_ID_CAROL}}",
+            "payload": null
+          }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 207', function () {
+            expect(res.getStatus()).to.equal(207);
+        });
+
+        var json = res.getBody();
+        test('Оба события приняты', function () {
+            json.results.forEach(function(r) {
+                expect(r.status_code).to.eql(201);
+            });
+        });
+
+        console.log('Carol: exposure + click отправлены');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

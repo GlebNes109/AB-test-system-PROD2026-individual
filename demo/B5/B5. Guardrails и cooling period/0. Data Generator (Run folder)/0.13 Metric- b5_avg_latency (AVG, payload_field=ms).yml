@@ -1,0 +1,36 @@
+info:
+  name: "0.13 Metric: b5_avg_latency (AVG, payload_field=ms)"
+  type: http
+  seq: 13
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/metrics"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{ADMIN_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "key": "b5_avg_latency",
+        "name": "Средняя латентность (ms)",
+        "description": "AVG b5_latency.ms",
+        "event_type": "b5_latency",
+        "aggregation": "AVG",
+        "payload_field": "ms"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: test('201 or 409', function () { expect([201,409]).to.include(res.getStatus()); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

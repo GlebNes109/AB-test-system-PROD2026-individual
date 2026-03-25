@@ -1,0 +1,13 @@
+info:
+  name: B5-3. Guardrail PAUSE (error_rate > 0.5)
+  type: folder
+  seq: 4
+
+request:
+  auth: inherit
+
+docs:
+  content: |-
+    Отправляем events чтобы error_rate превысил 0.5 → эксперимент автоматически ставится на PAUSE.
+    После отправки событий подождите ~10 секунд перед проверкой статуса.
+  type: text/markdown

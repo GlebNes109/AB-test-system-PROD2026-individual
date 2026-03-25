@@ -1,0 +1,7 @@
+info:
+  name: "5. Эксперимент: создание и запуск"
+  type: folder
+  seq: 5
+
+request:
+  auth: inherit

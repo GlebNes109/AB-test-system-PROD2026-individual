@@ -1,0 +1,36 @@
+info:
+  name: 12. Create metric ll_avg_revenue
+  type: http
+  seq: 12
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/metrics"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{ADMIN_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "key": "ll_avg_revenue",
+        "name": "Средний чек",
+        "description": "AVG ll_purchase.amount",
+        "event_type": "ll_purchase",
+        "aggregation": "AVG",
+        "payload_field": "amount"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: test('Создан или существует', function() { expect([201, 409]).to.include(res.getStatus()); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

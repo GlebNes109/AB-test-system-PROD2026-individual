@@ -1,0 +1,32 @@
+info:
+  name: "43. EXP_4: Review → APPROVED"
+  type: http
+  seq: 43
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_4_ID}}/review"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{APPROVER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "decision": "ACCEPT",
+        "comment": "Seed FX-1-2."
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: test('Status 200', function() { expect(res.getStatus()).to.equal(200); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

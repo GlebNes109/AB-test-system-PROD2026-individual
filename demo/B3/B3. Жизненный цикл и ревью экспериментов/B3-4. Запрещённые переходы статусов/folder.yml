@@ -1,0 +1,11 @@
+info:
+  name: B3-4. Запрещённые переходы статусов
+  type: folder
+  seq: 5
+
+request:
+  auth: inherit
+
+docs:
+  content: Эксперимент b3_bad_transition в DRAFT. Все недопустимые переходы должны быть отклонены.
+  type: text/markdown

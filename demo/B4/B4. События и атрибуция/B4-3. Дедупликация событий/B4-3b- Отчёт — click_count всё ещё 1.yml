@@ -1,0 +1,33 @@
+info:
+  name: "B4-3b: Отчёт — click_count всё ещё 1"
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_ID}}/reports"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200', function () { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        console.log('=== REPORT after dedup ===');
+        json.variants.forEach(function(v) {
+            v.metrics.forEach(function(m) {
+                if (m.metric_key === 'b4_click_count') {
+                    console.log(v.variant_name + ': b4_click_count = ' + m.value);
+                }
+            });
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

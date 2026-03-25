@@ -1,0 +1,35 @@
+info:
+  name: "0.09 Metric: b6_views_count"
+  type: http
+  seq: 9
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/metrics"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{ADMIN_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "key": "b6_views_count",
+        "name": "Число просмотров",
+        "description": "COUNT b6_page_view",
+        "event_type": "b6_page_view",
+        "aggregation": "COUNT"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: test('201 or 409', function () { expect([201,409]).to.include(res.getStatus()); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

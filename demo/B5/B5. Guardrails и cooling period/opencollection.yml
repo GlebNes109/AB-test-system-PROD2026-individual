@@ -1,0 +1,61 @@
+opencollection: 1.0.0
+
+info:
+  name: B5. Guardrails и cooling period
+config:
+  proxy:
+    inherit: true
+    config:
+      protocol: http
+      hostname: ""
+      port: ""
+      auth:
+        username: ""
+        password: ""
+      bypassProxy: ""
+
+request:
+  variables:
+    - name: BASE_URL
+      value: http://localhost
+    - name: ADMIN_TOKEN
+      value: ""
+    - name: EXPERIMENTER_TOKEN
+      value: ""
+    - name: APPROVER_TOKEN
+      value: ""
+    - name: EXPERIMENTER_ID
+      value: ""
+    - name: APPROVER_ID
+      value: ""
+    - name: EXP_PAUSE_ID
+      value: ""
+    - name: EXP_ROLLBACK_ID
+      value: ""
+    - name: EXP_COOLING_ID
+      value: ""
+    - name: EXP_COOLING2_ID
+      value: ""
+    - name: DECISION_PAUSE
+      value: ""
+    - name: DECISION_ROLLBACK
+      value: ""
+    - name: NEW_EXP_DRAFT_ID
+      value: ""
+
+docs:
+  content: |-
+    Коллекция для проверки критериев B5 (guardrail-метрики, PAUSE/ROLLBACK, cooling period).
+
+    Порядок работы:
+    1. Запустить папку «0. Data Generator» через Collection Runner (ПКМ → Run folder)
+    2. Выполнять запросы B5-1 … B5-6 вручную сверху вниз
+
+    Подготовка: docker compose up -d
+  type: text/markdown
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

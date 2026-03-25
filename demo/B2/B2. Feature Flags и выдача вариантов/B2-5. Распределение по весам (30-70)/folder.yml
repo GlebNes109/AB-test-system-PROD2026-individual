@@ -1,0 +1,20 @@
+info:
+  name: B2-5. Распределение по весам (30/70)
+  type: folder
+  seq: 5
+
+request:
+  auth: inherit
+
+docs:
+  content: |-
+    Для проверки распределения запустите ТОЛЬКО эту папку через Collection Runner с 100 итерациями.
+
+    В Postman: ПКМ на папке → Run folder → Iterations: 100 → Run.
+
+    Где смотреть результаты:
+    1. Test Results (вкладка после прогона) — тесты на последней итерации покажут точные числа и проценты
+    2. Postman Console (View → Show Postman Console / Ctrl+Alt+C) — подробная таблица
+
+    Ожидаемый результат: control_val ~30%, treatment_val ~70% (допуск ±10%).
+  type: text/markdown

@@ -1,0 +1,41 @@
+info:
+  name: "20. EXP b2_weights: Создать (DRAFT)"
+  type: http
+  seq: 20
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{ADMIN_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "name": "B2-5: проверка весов 30/70",
+        "feature_flag_key": "b2_weights",
+        "audience_percentage": 100,
+        "variants": [
+          {"name": "control",   "value": "control_val",   "weight": 30, "is_control": true},
+          {"name": "treatment", "value": "treatment_val", "weight": 70, "is_control": false}
+        ],
+        "metrics": [{"metric_key": "exposure_count", "type": "PRIMARY"}]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 201', function() { expect(res.getStatus()).to.equal(201); });
+        bru.setVar('EXP_WEIGHTS_ID', res.getBody().id);
+        console.log('EXP_WEIGHTS_ID:', res.getBody().id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

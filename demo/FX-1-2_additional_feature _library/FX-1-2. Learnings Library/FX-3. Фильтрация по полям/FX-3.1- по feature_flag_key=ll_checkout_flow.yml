@@ -1,0 +1,30 @@
+info:
+  name: "FX-3.1: по feature_flag_key=ll_checkout_flow"
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/api/v1/learnings?feature_flag_key=ll_checkout_flow"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  params:
+    - name: feature_flag_key
+      value: ll_checkout_flow
+      type: query
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function() { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        test('Ровно 2 learning (EXP_1 и EXP_8 — один флаг ll_checkout_flow)', function() { expect(json.total).to.eql(2); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

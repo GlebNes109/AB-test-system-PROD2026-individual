@@ -1,0 +1,31 @@
+info:
+  name: "B5-1b: GET EXP_ROLLBACK — guardrail ROLLBACK"
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_ROLLBACK_ID}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200', function () { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        var g = json.metrics.find(function(m){return m.type==='GUARDRAIL';});
+        test('Есть GUARDRAIL метрика', function () { expect(g).to.not.be.undefined; });
+        test('metric_key = b5_avg_latency', function () { expect(g.metric_key).to.eql('b5_avg_latency'); });
+        test('threshold = 500', function () { expect(g.threshold).to.eql(500); });
+        test('action = ROLLBACK', function () { expect(g.action).to.eql('ROLLBACK'); });
+        console.log('B5-1b: GUARDRAIL b5_avg_latency > 500 → ROLLBACK, window=60min');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

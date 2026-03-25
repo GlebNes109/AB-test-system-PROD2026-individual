@@ -1,0 +1,45 @@
+info:
+  name: "B2-2b: таргетинг НЕ пройден (country=US)"
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/decision"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id": "user-us-001",
+        "subject_attr": {"country": "US"},
+        "flags_keys": ["b2_targeting"]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function () {
+            expect(res.getStatus()).to.equal(200);
+        });
+
+        test('id = null — пользователь НЕ попал в эксперимент', function () {
+            var json = res.getBody();
+            expect(json).to.be.an('array').with.lengthOf(1);
+            expect(json[0].id).to.be.null;
+        });
+
+        test('value = default_color_defaultvalue (дефолт флага)', function () {
+            var json = res.getBody();
+            expect(json[0].value).to.eql('default_color_defaultvalue');
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

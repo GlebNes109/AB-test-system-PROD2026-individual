@@ -1,0 +1,15 @@
+info:
+  name: FX-2. Полнотекстовый поиск
+  type: folder
+  seq: 3
+
+request:
+  auth: inherit
+
+docs:
+  content: |-
+    Результаты ранжируются по релевантности (ts_rank).
+    - q=конверсия → несколько learnings (в notes/hypothesis упоминается конверсия)
+    - q=push → EXP_6 (push-уведомления)
+    - q=чекаут → EXP_1, EXP_2, EXP_8
+  type: text/markdown

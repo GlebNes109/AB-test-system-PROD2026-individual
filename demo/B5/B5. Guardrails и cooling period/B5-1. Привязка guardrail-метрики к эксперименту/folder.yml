@@ -1,0 +1,11 @@
+info:
+  name: B5-1. Привязка guardrail-метрики к эксперименту
+  type: folder
+  seq: 2
+
+request:
+  auth: inherit
+
+docs:
+  content: Проверяем что guardrail-параметры (threshold, window_minutes, action) сохранились при создании.
+  type: text/markdown

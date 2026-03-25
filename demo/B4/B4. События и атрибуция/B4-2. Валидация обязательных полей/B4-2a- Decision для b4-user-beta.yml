@@ -1,0 +1,35 @@
+info:
+  name: "B4-2a: Decision для b4-user-beta"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/decision"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id": "b4-user-beta",
+        "subject_attr": {},
+        "flags_keys": ["b4_checkout_flow"]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200', function () { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        bru.setVar('DECISION_BETA', json[0].id);
+        console.log('B4-2: DECISION_BETA=' + json[0].id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

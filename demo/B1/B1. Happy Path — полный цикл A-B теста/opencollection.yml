@@ -1,0 +1,26 @@
+opencollection: 1.0.0
+
+info:
+  name: B1. Happy Path — полный цикл A/B теста
+
+request:
+  variables:
+    - name: BASE_URL
+      value: http://localhost
+
+docs:
+  content: |-
+    Пошаговый сценарий: логин → создание сущностей → запуск эксперимента → выдача вариантов → отправка событий → просмотр метрик.
+
+    Запросы выполняются **строго по порядку сверху вниз** (каждый следующий использует данные из предыдущего).
+
+    Подготовка:
+    1. docker compose up -d
+    2. Задать переменную BASE_URL если отличается от http://localhost
+  type: text/markdown
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

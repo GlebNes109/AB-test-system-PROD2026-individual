@@ -1,0 +1,32 @@
+info:
+  name: 21. Login experimenter → EXPERIMENTER_TOKEN
+  type: http
+  seq: 21
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/auth/login"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "ll_experimenter@demo.com",
+        "password": "Demo1234!x"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function() { expect(res.getStatus()).to.equal(200); });
+        bru.setVar('EXPERIMENTER_TOKEN', res.getBody().accessToken);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

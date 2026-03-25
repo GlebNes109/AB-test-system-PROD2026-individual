@@ -1,0 +1,753 @@
+{
+  "info": {
+    "name": "B2. Feature Flags и выдача вариантов",
+    "description": "Коллекция для проверки критериев B2 (Feature Flags и выдача вариантов).\n\nПодготовка:\n1. docker compose up -d\n2. Запустить папку «0. Data Generator» через Collection Runner (ПКМ → Run folder → Run)\n3. Базовая переменная BASE_URL задана по умолчанию: http://localhost",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "BASE_URL", "value": "http://localhost", "type": "string"},
+    {"key": "ADMIN_TOKEN", "value": "", "type": "string"},
+    {"key": "EXPERIMENTER_ID", "value": "", "type": "string"},
+    {"key": "APPROVER_ID", "value": "", "type": "string"},
+    {"key": "EXP_TARGETING_ID", "value": "", "type": "string"},
+    {"key": "EXP_VARIANT_ID", "value": "", "type": "string"},
+    {"key": "EXP_WEIGHTS_ID", "value": "", "type": "string"}
+  ],
+  "item": [
+    {
+      "name": "0. Data Generator",
+      "description": "Запустить через Collection Runner: ПКМ на папке → Run folder → Run.\nСоздаёт: 2 пользователя, approver group, event type, metric, 4 feature flags, 3 эксперимента (RUNNING).\nВсе переменные коллекции заполняются автоматически.",
+      "item": [
+        {
+          "name": "1. Login (admin)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('ADMIN_TOKEN', pm.response.json().accessToken);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"email\": \"admin@mail.ru\",\n  \"password\": \"123123123aA!\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/auth/login", "host": ["{{BASE_URL}}"], "path": ["api","v1","auth","login"]}
+          }
+        },
+        {
+          "name": "2. Создать experimenter",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"email\": \"b2_experimenter@demo.com\",\n  \"password\": \"Demo1234!x\",\n  \"role\": \"EXPERIMENTER\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/users", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"]}
+          }
+        },
+        {
+          "name": "3. Создать approver",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"email\": \"b2_approver@demo.com\",\n  \"password\": \"Demo1234!x\",\n  \"role\": \"APPROVER\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/users", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"]}
+          }
+        },
+        {
+          "name": "4. GET users → save IDs",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var users = pm.response.json().items || [];",
+            "var exp = users.find(function(u) { return u.email === 'b2_experimenter@demo.com'; });",
+            "var app = users.find(function(u) { return u.email === 'b2_approver@demo.com'; });",
+            "if (exp) { pm.collectionVariables.set('EXPERIMENTER_ID', exp.id); console.log('EXPERIMENTER_ID:', exp.id); }",
+            "if (app) { pm.collectionVariables.set('APPROVER_ID', app.id); console.log('APPROVER_ID:', app.id); }"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/users?size=100", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"], "query": [{"key": "size", "value": "100"}]}
+          }
+        },
+        {
+          "name": "5. SET approver group",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });"
+          ]}}],
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"approver_ids\": [\"{{APPROVER_ID}}\"],\n  \"min_approvals\": 1\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/users/{{EXPERIMENTER_ID}}/approvers", "host": ["{{BASE_URL}}"], "path": ["api","v1","users","{{EXPERIMENTER_ID}}","approvers"]}
+          }
+        },
+        {
+          "name": "6. Create event type (exposure)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"type\": \"exposure\",\n  \"description\": \"Показ элемента\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/events/types", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","types"]}
+          }
+        },
+        {
+          "name": "7. Create metric (exposure_count)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"key\": \"exposure_count\",\n  \"name\": \"Число показов\",\n  \"description\": \"COUNT exposure\",\n  \"event_type\": \"exposure\",\n  \"aggregation\": \"COUNT\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/metrics", "host": ["{{BASE_URL}}"], "path": ["api","v1","metrics"]}
+          }
+        },
+        {
+          "name": "8. Create flag b2_no_experiment",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"key\": \"b2_no_experiment\",\n  \"type\": \"string\",\n  \"default_value\": \"fallback_value\",\n  \"description\": \"B2-1: флаг без активного эксперимента\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"]}
+          }
+        },
+        {
+          "name": "9. Create flag b2_targeting",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"key\": \"b2_targeting\",\n  \"type\": \"string\",\n  \"default_value\": \"default_color_defaultvalue\",\n  \"description\": \"B2-2: флаг с таргетингом country == RU\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"]}
+          }
+        },
+        {
+          "name": "10. Create flag b2_variant",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"key\": \"b2_variant\",\n  \"type\": \"string\",\n  \"default_value\": \"old_design_defaultvalue\",\n  \"description\": \"B2-3/B2-4: флаг с экспериментом без таргетинга\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"]}
+          }
+        },
+        {
+          "name": "11. Create flag b2_weights",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"key\": \"b2_weights\",\n  \"type\": \"string\",\n  \"default_value\": \"control_val\",\n  \"description\": \"B2-5: флаг для проверки распределения весов\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"]}
+          }
+        },
+        {
+          "name": "12. EXP b2_targeting: Создать (DRAFT)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('EXP_TARGETING_ID', pm.response.json().id);",
+            "console.log('EXP_TARGETING_ID:', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"B2-2: таргетинг country\",\n  \"feature_flag_key\": \"b2_targeting\",\n  \"targeting_rule\": \"country == \\\"RU\\\"\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    {\"name\": \"control\",   \"value\": \"default_color_variant\", \"weight\": 50, \"is_control\": true},\n    {\"name\": \"treatment\", \"value\": \"red_variant\",           \"weight\": 50, \"is_control\": false}\n  ],\n  \"metrics\": [{\"metric_key\": \"exposure_count\", \"type\": \"PRIMARY\"}]\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"]}
+          }
+        },
+        {
+          "name": "13. EXP b2_targeting: Submit → REVIEW",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_TARGETING_ID}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_TARGETING_ID}}","submit"]}
+          }
+        },
+        {
+          "name": "14. EXP b2_targeting: Review → APPROVED",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"decision\": \"ACCEPT\",\n  \"comment\": \"Seed B2.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_TARGETING_ID}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_TARGETING_ID}}","review"]}
+          }
+        },
+        {
+          "name": "15. EXP b2_targeting: Start → RUNNING",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_TARGETING_ID}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_TARGETING_ID}}","start"]}
+          }
+        },
+        {
+          "name": "16. EXP b2_variant: Создать (DRAFT)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('EXP_VARIANT_ID', pm.response.json().id);",
+            "console.log('EXP_VARIANT_ID:', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"B2-3: вариант без таргетинга\",\n  \"feature_flag_key\": \"b2_variant\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    {\"name\": \"control\",    \"value\": \"old_design_variant\", \"weight\": 50, \"is_control\": true},\n    {\"name\": \"new_design\", \"value\": \"new_design_variant\", \"weight\": 50, \"is_control\": false}\n  ],\n  \"metrics\": [{\"metric_key\": \"exposure_count\", \"type\": \"PRIMARY\"}]\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"]}
+          }
+        },
+        {
+          "name": "17. EXP b2_variant: Submit → REVIEW",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_VARIANT_ID}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_VARIANT_ID}}","submit"]}
+          }
+        },
+        {
+          "name": "18. EXP b2_variant: Review → APPROVED",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"decision\": \"ACCEPT\",\n  \"comment\": \"Seed B2.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_VARIANT_ID}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_VARIANT_ID}}","review"]}
+          }
+        },
+        {
+          "name": "19. EXP b2_variant: Start → RUNNING",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_VARIANT_ID}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_VARIANT_ID}}","start"]}
+          }
+        },
+        {
+          "name": "20. EXP b2_weights: Создать (DRAFT)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('EXP_WEIGHTS_ID', pm.response.json().id);",
+            "console.log('EXP_WEIGHTS_ID:', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"B2-5: проверка весов 30/70\",\n  \"feature_flag_key\": \"b2_weights\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    {\"name\": \"control\",   \"value\": \"control_val\",   \"weight\": 30, \"is_control\": true},\n    {\"name\": \"treatment\", \"value\": \"treatment_val\", \"weight\": 70, \"is_control\": false}\n  ],\n  \"metrics\": [{\"metric_key\": \"exposure_count\", \"type\": \"PRIMARY\"}]\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"]}
+          }
+        },
+        {
+          "name": "21. EXP b2_weights: Submit → REVIEW",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_WEIGHTS_ID}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_WEIGHTS_ID}}","submit"]}
+          }
+        },
+        {
+          "name": "22. EXP b2_weights: Review → APPROVED",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"decision\": \"ACCEPT\",\n  \"comment\": \"Seed B2.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_WEIGHTS_ID}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_WEIGHTS_ID}}","review"]}
+          }
+        },
+        {
+          "name": "23. EXP b2_weights: Start → RUNNING",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "console.log('✓ B2 Data Generator завершён.');",
+            "console.log('  b2_no_experiment  — без эксперимента, default = fallback_value');",
+            "console.log('  b2_targeting      — таргетинг country == RU, 50/50');",
+            "console.log('  b2_variant        — без таргетинга, 50/50');",
+            "console.log('  b2_weights        — веса 30/70 (control/treatment)');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_WEIGHTS_ID}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_WEIGHTS_ID}}","start"]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "B2-1. Флаг без активного эксперимента → default",
+      "item": [
+        {
+          "name": "B2-1: decision (b2_no_experiment)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('value = fallback_value (default флага)', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('array').with.lengthOf(1);",
+                  "    pm.expect(json[0].value).to.eql('fallback_value');",
+                  "});",
+                  "",
+                  "pm.test('id = null (решение по эксперименту не создавалось)', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json[0].id).to.be.null;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"user-001\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b2_no_experiment\"]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/decision",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "decision"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B2-2. Таргетинг: пользователь проходит / не проходит",
+      "item": [
+        {
+          "name": "B2-2a: таргетинг пройден (country=RU)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('id != null — пользователь попал в эксперимент', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('array').with.lengthOf(1);",
+                  "    pm.expect(json[0].id).to.not.be.null;",
+                  "});",
+                  "",
+                  "pm.test('value — один из вариантов эксперимента (не default)', function () {",
+                  "    var json = pm.response.json();",
+                  "    var allowed = ['default_color_variant', 'red_variant'];",
+                  "    pm.expect(allowed).to.include(json[0].value);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"user-ru-001\",\n  \"subject_attr\": {\"country\": \"RU\"},\n  \"flags_keys\": [\"b2_targeting\"]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/decision",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "decision"]
+            }
+          }
+        },
+        {
+          "name": "B2-2b: таргетинг НЕ пройден (country=US)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('id = null — пользователь НЕ попал в эксперимент', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('array').with.lengthOf(1);",
+                  "    pm.expect(json[0].id).to.be.null;",
+                  "});",
+                  "",
+                  "pm.test('value = default_color_defaultvalue (дефолт флага)', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json[0].value).to.eql('default_color_defaultvalue');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"user-us-001\",\n  \"subject_attr\": {\"country\": \"US\"},\n  \"flags_keys\": [\"b2_targeting\"]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/decision",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "decision"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B2-3. Активный эксперимент → вариант",
+      "item": [
+        {
+          "name": "B2-3: decision (b2_variant)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('id != null — создано решение (decision)', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('array').with.lengthOf(1);",
+                  "    pm.expect(json[0].id).to.not.be.null;",
+                  "});",
+                  "",
+                  "pm.test('value — один из вариантов эксперимента', function () {",
+                  "    var json = pm.response.json();",
+                  "    var allowed = ['old_design_variant', 'new_design_variant'];",
+                  "    pm.expect(allowed).to.include(json[0].value);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"user-exp-001\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b2_variant\"]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/decision",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "decision"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B2-4. Детерминированность (stickiness)",
+      "item": [
+        {
+          "name": "B2-4: запрос 1 (сохраняем результат)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "pm.test('id != null', function () {",
+                  "    pm.expect(json[0].id).to.not.be.null;",
+                  "});",
+                  "",
+                  "// Сохраняем результат первого запроса для сравнения",
+                  "pm.collectionVariables.set('sticky_id', json[0].id);",
+                  "pm.collectionVariables.set('sticky_value', json[0].value);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"user-sticky-001\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b2_variant\"]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/decision",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "decision"]
+            }
+          }
+        },
+        {
+          "name": "B2-4: запрос 2 (проверяем совпадение)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "var expectedId = pm.collectionVariables.get('sticky_id');",
+                  "var expectedValue = pm.collectionVariables.get('sticky_value');",
+                  "",
+                  "pm.test('id совпадает с первым запросом', function () {",
+                  "    pm.expect(json[0].id).to.eql(expectedId);",
+                  "});",
+                  "",
+                  "pm.test('value совпадает с первым запросом', function () {",
+                  "    pm.expect(json[0].value).to.eql(expectedValue);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"user-sticky-001\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b2_variant\"]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/decision",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "decision"]
+            }
+          }
+        },
+        {
+          "name": "B2-4: запрос 3 (проверяем совпадение)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "var expectedId = pm.collectionVariables.get('sticky_id');",
+                  "var expectedValue = pm.collectionVariables.get('sticky_value');",
+                  "",
+                  "pm.test('id совпадает с первым запросом', function () {",
+                  "    pm.expect(json[0].id).to.eql(expectedId);",
+                  "});",
+                  "",
+                  "pm.test('value совпадает с первым запросом', function () {",
+                  "    pm.expect(json[0].value).to.eql(expectedValue);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"user-sticky-001\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b2_variant\"]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/decision",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "decision"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B2-5. Распределение по весам (30/70)",
+      "description": "Для проверки распределения запустите ТОЛЬКО эту папку через Collection Runner с 100 итерациями.\n\nВ Postman: ПКМ на папке → Run folder → Iterations: 100 → Run.\n\nГде смотреть результаты:\n1. Test Results (вкладка после прогона) — тесты на последней итерации покажут точные числа и проценты\n2. Postman Console (View → Show Postman Console / Ctrl+Alt+C) — подробная таблица\n\nОжидаемый результат: control_val ~30%, treatment_val ~70% (допуск ±10%).",
+      "item": [
+        {
+          "name": "B2-5: серия запросов (100 субъектов)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// pm.info.iteration — 0-based индекс текущей итерации в Collection Runner",
+                  "var i = pm.info.iteration;",
+                  "",
+                  "// Устанавливаем номер для подстановки в тело запроса (1-based)",
+                  "pm.variables.set('subjectIndex', i + 1);",
+                  "",
+                  "// Сброс счётчиков на первой итерации",
+                  "if (i === 0) {",
+                  "    pm.globals.set('b2_control', 0);",
+                  "    pm.globals.set('b2_treatment', 0);",
+                  "    pm.globals.set('b2_other', 0);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "var val = json[0].value;",
+                  "",
+                  "// Обновляем счётчики в globals (они сохраняются между итерациями)",
+                  "if (val === 'control_val') {",
+                  "    pm.globals.set('b2_control', parseInt(pm.globals.get('b2_control') || '0') + 1);",
+                  "} else if (val === 'treatment_val') {",
+                  "    pm.globals.set('b2_treatment', parseInt(pm.globals.get('b2_treatment') || '0') + 1);",
+                  "} else {",
+                  "    pm.globals.set('b2_other', parseInt(pm.globals.get('b2_other') || '0') + 1);",
+                  "}",
+                  "",
+                  "// На последней итерации — проверяем распределение и выводим результат",
+                  "var isLast = pm.info.iteration === pm.info.iterationCount - 1;",
+                  "if (isLast) {",
+                  "    var control   = parseInt(pm.globals.get('b2_control'));",
+                  "    var treatment = parseInt(pm.globals.get('b2_treatment'));",
+                  "    var other     = parseInt(pm.globals.get('b2_other'));",
+                  "    var total     = control + treatment;",
+                  "    var controlPct   = total > 0 ? (control / total) * 100 : 0;",
+                  "    var treatmentPct = total > 0 ? (treatment / total) * 100 : 0;",
+                  "",
+                  "    // Результат виден в Console (View → Show Postman Console)",
+                  "    console.log('══════════════════════════════════════');",
+                  "    console.log('  РЕЗУЛЬТАТ B2-5: Распределение по весам');",
+                  "    console.log('──────────────────────────────────────');",
+                  "    console.log('  control_val   (вес 30): ' + control + '  (' + controlPct.toFixed(1) + '%)');",
+                  "    console.log('  treatment_val (вес 70): ' + treatment + '  (' + treatmentPct.toFixed(1) + '%)');",
+                  "    if (other > 0) console.log('  other (default/cooldown): ' + other);",
+                  "    console.log('══════════════════════════════════════');",
+                  "",
+                  "    // Результат виден в Test Results (зелёные/красные тесты)",
+                  "    pm.test('control_val: ' + control + ' из ' + total + ' (' + controlPct.toFixed(1) + '%) — ожидание 20-40%', function () {",
+                  "        pm.expect(controlPct).to.be.within(20, 40);",
+                  "    });",
+                  "",
+                  "    pm.test('treatment_val: ' + treatment + ' из ' + total + ' (' + treatmentPct.toFixed(1) + '%) — ожидание 60-80%', function () {",
+                  "        pm.expect(treatmentPct).to.be.within(60, 80);",
+                  "    });",
+                  "",
+                  "    // Очистка временных globals",
+                  "    pm.globals.unset('b2_control');",
+                  "    pm.globals.unset('b2_treatment');",
+                  "    pm.globals.unset('b2_other');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"weight-test-{{subjectIndex}}\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b2_weights\"]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/decision",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "decision"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

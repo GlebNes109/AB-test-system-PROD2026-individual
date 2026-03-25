@@ -1,0 +1,42 @@
+info:
+  name: 0.28 Submit b3_role_policy → REVIEW
+  type: http
+  seq: 28
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_ROLE_POLICY}}/submit"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: text
+    data: ""
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function () { expect(res.getStatus()).to.equal(200); });
+        test('status = review', function () { expect(res.getBody().status).to.eql('review'); });
+
+        console.log('');
+        console.log('══════════════════════════════════════════════');
+        console.log('  DATA GENERATOR COMPLETE');
+        console.log('──────────────────────────────────────────────');
+        console.log('  EXP_LIFECYCLE      = ' + bru.getVar('EXP_LIFECYCLE') + '  (DRAFT)');
+        console.log('  EXP_APPROVAL       = ' + bru.getVar('EXP_APPROVAL') + '  (REVIEW)');
+        console.log('  EXP_BLOCK_START    = ' + bru.getVar('EXP_BLOCK_START') + '  (REVIEW)');
+        console.log('  EXP_BAD_TRANSITION = ' + bru.getVar('EXP_BAD_TRANSITION') + '  (DRAFT)');
+        console.log('  EXP_ROLE_POLICY    = ' + bru.getVar('EXP_ROLE_POLICY') + '  (REVIEW)');
+        console.log('──────────────────────────────────────────────');
+        console.log('  Tokens: EXPERIMENTER, APPROVER_ALPHA/BETA/OUTSIDER, VIEWER');
+        console.log('  Все переменные сохранены — можно выполнять B3-1..B3-5');
+        console.log('══════════════════════════════════════════════');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

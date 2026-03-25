@@ -1,0 +1,38 @@
+info:
+  name: "46. EXP_4: Создать learning → LEARNING_4_ID"
+  type: http
+  seq: 46
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/learnings"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "experiment_id": "{{EXP_4_ID}}",
+        "hypothesis": "Подсказки в поиске ускорят нахождение товара и повысят конверсию поиска",
+        "primary_metric_key": "ll_clicks",
+        "tags": ["search", "suggest", "ux", "conversion"],
+        "segment": "Все пользователи",
+        "notes": "Подсказки дали +15% конверсии поиска и -22% отказов. Сильный позитивный эффект. Раскатано на 100%."
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 201', function() { expect(res.getStatus()).to.equal(201); });
+        bru.setVar('LEARNING_4_ID', res.getBody().id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

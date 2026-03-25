@@ -1,0 +1,14 @@
+info:
+  name: FX-7. Проверка ошибок
+  type: folder
+  seq: 8
+
+request:
+  auth: inherit
+
+docs:
+  content: |-
+    7.1 Невалидный result → 400
+    7.2 Несуществующий experiment_id → 404
+    7.3 Пустая hypothesis → 422
+  type: text/markdown

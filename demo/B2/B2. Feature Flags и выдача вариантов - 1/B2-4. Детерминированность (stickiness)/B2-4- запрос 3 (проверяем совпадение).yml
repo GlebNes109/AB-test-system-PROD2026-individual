@@ -1,0 +1,46 @@
+info:
+  name: "B2-4: запрос 3 (проверяем совпадение)"
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/decision"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id": "user-sticky-001",
+        "subject_attr": {},
+        "flags_keys": ["b2_variant"]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function () {
+            expect(res.getStatus()).to.equal(200);
+        });
+
+        var json = res.getBody();
+        var expectedId = bru.getVar('sticky_id');
+        var expectedValue = bru.getVar('sticky_value');
+
+        test('id совпадает с первым запросом', function () {
+            expect(json[0].id).to.eql(expectedId);
+        });
+
+        test('value совпадает с первым запросом', function () {
+            expect(json[0].value).to.eql(expectedValue);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

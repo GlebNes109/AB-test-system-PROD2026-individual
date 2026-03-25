@@ -1,0 +1,28 @@
+info:
+  name: "0.34 EXP_COOLING_2: approve"
+  type: http
+  seq: 34
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_COOLING2_ID}}/review"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{APPROVER_TOKEN}}
+  body:
+    type: json
+    data: '{"decision": "ACCEPT", "comment": "Seed B5"}'
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: test('200', function () { expect(res.getStatus()).to.equal(200); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

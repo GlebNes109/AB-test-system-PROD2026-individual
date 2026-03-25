@@ -1,0 +1,11 @@
+info:
+  name: FX-1. Список и пагинация
+  type: folder
+  seq: 2
+
+request:
+  auth: inherit
+
+docs:
+  content: "Ожидаемый результат: total = 8, 8 learnings отсортированы по created_at DESC."
+  type: text/markdown

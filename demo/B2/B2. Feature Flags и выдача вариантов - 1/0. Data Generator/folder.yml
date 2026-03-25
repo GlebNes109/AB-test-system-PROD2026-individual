@@ -1,0 +1,14 @@
+info:
+  name: 0. Data Generator
+  type: folder
+  seq: 1
+
+request:
+  auth: inherit
+
+docs:
+  content: |-
+    Запустить через Collection Runner: ПКМ на папке → Run folder → Run.
+    Создаёт: 2 пользователя, approver group, event type, metric, 4 feature flags, 3 эксперимента (RUNNING).
+    Все переменные коллекции заполняются автоматически.
+  type: text/markdown

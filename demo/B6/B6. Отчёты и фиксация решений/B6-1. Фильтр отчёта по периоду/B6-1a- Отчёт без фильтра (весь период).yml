@@ -1,0 +1,31 @@
+info:
+  name: "B6-1a: Отчёт без фильтра (весь период)"
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_REPORTS_ID}}/reports"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200', function () { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        test('date_from присутствует', function () { expect(json.date_from).to.be.a('string'); });
+        test('date_to присутствует', function () { expect(json.date_to).to.be.a('string'); });
+        test('total_subjects > 0 — есть данные', function () { expect(json.total_subjects).to.be.above(0); });
+        test('Есть варианты', function () { expect(json.variants).to.be.an('array').with.lengthOf(2); });
+        console.log('B6-1a: period ' + json.date_from + ' — ' + json.date_to);
+        console.log('B6-1a: total_subjects=' + json.total_subjects);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

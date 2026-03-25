@@ -1,0 +1,32 @@
+info:
+  name: "B5-1a: GET EXP_PAUSE — guardrail PAUSE"
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_PAUSE_ID}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200', function () { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        var g = json.metrics.find(function(m){return m.type==='GUARDRAIL';});
+        test('Есть GUARDRAIL метрика', function () { expect(g).to.not.be.undefined; });
+        test('metric_key = b5_error_rate', function () { expect(g.metric_key).to.eql('b5_error_rate'); });
+        test('threshold = 0.5', function () { expect(g.threshold).to.eql(0.5); });
+        test('window_minutes = 60', function () { expect(g.window_minutes).to.eql(60); });
+        test('action = PAUSE', function () { expect(g.action).to.eql('PAUSE'); });
+        console.log('B5-1a: GUARDRAIL b5_error_rate > 0.5 → PAUSE, window=60min');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

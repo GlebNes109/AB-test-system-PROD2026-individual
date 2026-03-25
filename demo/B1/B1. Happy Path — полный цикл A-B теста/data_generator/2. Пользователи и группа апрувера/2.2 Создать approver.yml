@@ -1,0 +1,42 @@
+info:
+  name: 2.2 Создать approver
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/users"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "email": "b1_approver@demo.com",
+        "password": "Demo1234!x",
+        "role": "APPROVER"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        var code = res.getStatus();
+        test('Status 201 или 409 (уже существует)', function () {
+            expect([201, 409]).to.include(code);
+        });
+
+        if (code === 201) {
+            var json = res.getBody();
+            bru.setVar('APPROVER_ID', json.id);
+        }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

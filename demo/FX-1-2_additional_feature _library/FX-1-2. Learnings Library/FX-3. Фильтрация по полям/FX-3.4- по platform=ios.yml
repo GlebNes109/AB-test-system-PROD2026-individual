@@ -1,0 +1,30 @@
+info:
+  name: "FX-3.4: по platform=ios"
+  type: http
+  seq: 6
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/api/v1/learnings?platform=ios"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  params:
+    - name: platform
+      value: ios
+      type: query
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function() { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        test('Только 1 learning с platform=ios (EXP_5 онбординг)', function() { expect(json.total).to.eql(1); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

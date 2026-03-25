@@ -1,0 +1,36 @@
+info:
+  name: "B3-5a: VIEWER пытается ревью (403)"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_ROLE_POLICY}}/review"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{VIEWER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "decision": "ACCEPT",
+        "comment": "Попытка от VIEWER"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 403 — VIEWER не может ревьюить', function () {
+            expect(res.getStatus()).to.equal(403);
+        });
+        console.log('B3-5a: VIEWER отклонён — OK');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

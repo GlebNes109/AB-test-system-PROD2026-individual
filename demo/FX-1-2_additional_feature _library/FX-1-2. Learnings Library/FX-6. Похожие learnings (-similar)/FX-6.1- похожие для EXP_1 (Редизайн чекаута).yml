@@ -1,0 +1,32 @@
+info:
+  name: "FX-6.1: похожие для EXP_1 (Редизайн чекаута)"
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/api/v1/learnings/similar/{{EXP_1_ID}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function() { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        test('Есть похожие learnings', function() { expect(json).to.be.an('array').with.length.above(0); });
+        test('EXP_8 в результатах (same_feature_flag ll_checkout_flow)', function() {
+            var exp8 = json.find(function(r) {
+                return r.similarity_reason && r.similarity_reason.includes('same_feature_flag');
+            });
+            expect(exp8).to.not.be.undefined;
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

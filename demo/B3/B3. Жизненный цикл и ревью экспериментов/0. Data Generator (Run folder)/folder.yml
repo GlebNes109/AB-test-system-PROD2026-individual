@@ -1,0 +1,15 @@
+info:
+  name: 0. Data Generator (Run folder)
+  type: folder
+  seq: 1
+
+request:
+  auth: inherit
+
+docs:
+  content: |-
+    Запустите эту папку через Collection Runner (ПКМ → Run folder → Run).
+    Создаёт всех пользователей, флаги, эксперименты и сохраняет ID/токены в переменные коллекции.
+
+    После прогона все переменные (EXP_LIFECYCLE, EXPERIMENTER_TOKEN и т.д.) будут заполнены автоматически.
+  type: text/markdown

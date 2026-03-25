@@ -1,0 +1,11 @@
+info:
+  name: B5-6. Cooling period
+  type: folder
+  seq: 7
+
+request:
+  auth: inherit
+
+docs:
+  content: Субъект попадает в EXP_COOLING, затем при запросе к EXP_COOLING_2 получает default (cooling period не прошёл).
+  type: text/markdown

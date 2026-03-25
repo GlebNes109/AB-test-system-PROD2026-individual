@@ -1,0 +1,34 @@
+info:
+  name: "FX-7.3: POST /learnings — пустая hypothesis → 422"
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/learnings"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "experiment_id": "{{EXP_1_ID}}",
+        "hypothesis": "   ",
+        "primary_metric_key": "ll_views",
+        "notes": "test"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: test('Status 422 — hypothesis не должна быть пустой', function() { expect(res.getStatus()).to.equal(422); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

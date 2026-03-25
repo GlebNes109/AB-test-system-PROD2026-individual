@@ -1,0 +1,42 @@
+info:
+  name: "B6-5b: Finish С result_description (→ 200)"
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_REPORTS_ID}}/finish"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "result": "NO_EFFECT",
+        "result_description": "Разница между вариантами не достигла статистической значимости (p > 0.05). Рекомендуем продлить тест или увеличить выборку."
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200 — с обоснованием принято', function () {
+            expect(res.getStatus()).to.equal(200);
+        });
+        var json = res.getBody();
+        test('status = finished', function () { expect(json.status).to.eql('finished'); });
+        test('result = NO_EFFECT', function () { expect(json.result).to.eql('NO_EFFECT'); });
+        test('result_description сохранён', function () {
+            expect(json.result_description).to.include('статистической значимости');
+        });
+        console.log('B6-5b: status=' + json.status + ' result=' + json.result);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

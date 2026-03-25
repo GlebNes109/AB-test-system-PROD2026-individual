@@ -1,0 +1,39 @@
+info:
+  name: "B6-1b: Отчёт с периодом в далёком прошлом (данных нет)"
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_REPORTS_ID}}/reports?date_from=2020-01-01T00:00:00Z&date_to=2020-01-02T00:00:00Z"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  params:
+    - name: date_from
+      value: 2020-01-01T00:00:00Z
+      type: query
+    - name: date_to
+      value: 2020-01-02T00:00:00Z
+      type: query
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200', function () { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        test('date_from = 2020-01-01 (запрошенный)', function () {
+            expect(json.date_from).to.include('2020-01-01');
+        });
+        test('total_subjects = 0 (нет данных за этот период)', function () {
+            expect(json.total_subjects).to.eql(0);
+        });
+        console.log('B6-1b: total_subjects=' + json.total_subjects + ' (ожидали 0)');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

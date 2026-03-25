@@ -1,0 +1,36 @@
+info:
+  name: "3.1 Создать тип события: exposure"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/events/types"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "type": "b1_exposure",
+        "description": "Показ элемента пользователю"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        var code = res.getStatus();
+        test('Status 201 или 409', function () {
+            expect([201, 409]).to.include(code);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

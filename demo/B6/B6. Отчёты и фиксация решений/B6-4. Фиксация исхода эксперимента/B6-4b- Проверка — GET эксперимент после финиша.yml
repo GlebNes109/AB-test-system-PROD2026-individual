@@ -1,0 +1,28 @@
+info:
+  name: "B6-4b: Проверка — GET эксперимент после финиша"
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_FINISH_ID}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200', function () { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        test('status = finished', function () { expect(json.status).to.eql('finished'); });
+        test('result = ROLLOUT', function () { expect(json.result).to.eql('ROLLOUT'); });
+        console.log('B6-4b: result_description = ' + json.result_description);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

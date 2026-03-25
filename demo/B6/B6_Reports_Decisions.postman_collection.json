@@ -1,0 +1,628 @@
+{
+  "info": {
+    "name": "B6. Отчёты и фиксация решений",
+    "description": "Коллекция для проверки критериев B6 (отчёты по вариантам, фильтр по периоду, фиксация исхода).\n\nПорядок работы:\n1. Запустить папку «0. Data Generator» через Collection Runner (ПКМ → Run folder)\n2. Подождать ~5 секунд (обновление MV отчётов)\n3. Выполнять запросы B6-1 … B6-5 вручную сверху вниз\n\nПодготовка: docker compose up -d",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "BASE_URL", "value": "http://localhost", "type": "string" },
+    { "key": "ADMIN_TOKEN", "value": "", "type": "string" },
+    { "key": "EXPERIMENTER_TOKEN", "value": "", "type": "string" },
+    { "key": "APPROVER_TOKEN", "value": "", "type": "string" },
+    { "key": "EXPERIMENTER_ID", "value": "", "type": "string" },
+    { "key": "APPROVER_ID", "value": "", "type": "string" },
+    { "key": "EXP_REPORTS_ID", "value": "", "type": "string" },
+    { "key": "EXP_FINISH_ID", "value": "", "type": "string" },
+    { "key": "D1", "value": "", "type": "string" },
+    { "key": "D2", "value": "", "type": "string" },
+    { "key": "D3", "value": "", "type": "string" },
+    { "key": "D4", "value": "", "type": "string" },
+    { "key": "D5", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "0. Data Generator (Run folder)",
+      "description": "ПКМ → Run folder → Run.\nСоздаёт пользователей, типы событий, метрики, флаги, 2 эксперимента (RUNNING), 5 decisions и события для EXP_REPORTS.\nПосле прогона подождите ~5 сек перед запросом отчётов.",
+      "item": [
+        {
+          "name": "0.01 Login admin",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('ADMIN_TOKEN', pm.response.json().accessToken);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@mail.ru\",\n  \"password\": \"123123123aA!\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/auth/login", "host": ["{{BASE_URL}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "0.02 Create user: experimenter",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b6_experimenter@demo.com\",\n  \"password\": \"Demo1234!x\",\n  \"role\": \"EXPERIMENTER\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/users", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"] }
+          }
+        },
+        {
+          "name": "0.03 Create user: approver",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b6_approver@demo.com\",\n  \"password\": \"Demo1234!x\",\n  \"role\": \"APPROVER\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/users", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"] }
+          }
+        },
+        {
+          "name": "0.04 GET users → find IDs",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var users = pm.response.json().items;",
+            "function findId(email) { var u = users.find(function(x){return x.email===email;}); return u ? u.id : null; }",
+            "var expId = findId('b6_experimenter@demo.com');",
+            "var aprId = findId('b6_approver@demo.com');",
+            "if (expId) pm.collectionVariables.set('EXPERIMENTER_ID', expId);",
+            "if (aprId) pm.collectionVariables.set('APPROVER_ID', aprId);"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/users?size=100", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"], "query": [{"key":"size","value":"100"}] }
+          }
+        },
+        {
+          "name": "0.05 Set approver group",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });"
+          ]}}],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"approver_ids\": [\"{{APPROVER_ID}}\"],\n  \"min_approvals\": 1\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/users/{{EXPERIMENTER_ID}}/approvers", "host": ["{{BASE_URL}}"], "path": ["api","v1","users","{{EXPERIMENTER_ID}}","approvers"] }
+          }
+        },
+        {
+          "name": "0.06 Event type: b6_page_view",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"b6_page_view\",\n  \"description\": \"Просмотр страницы\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/types", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","types"] }
+          }
+        },
+        {
+          "name": "0.07 Event type: b6_click",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"b6_click\",\n  \"description\": \"Клик по элементу\",\n  \"payload_schema\": {\"element\": \"string\"}\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/types", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","types"] }
+          }
+        },
+        {
+          "name": "0.08 Event type: b6_purchase (requires b6_click)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"b6_purchase\",\n  \"description\": \"Покупка\",\n  \"requires_event_type\": \"b6_click\",\n  \"payload_schema\": {\"amount\": \"number\"}\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/types", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","types"] }
+          }
+        },
+        {
+          "name": "0.09 Metric: b6_views_count",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b6_views_count\",\n  \"name\": \"Число просмотров\",\n  \"description\": \"COUNT b6_page_view\",\n  \"event_type\": \"b6_page_view\",\n  \"aggregation\": \"COUNT\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/metrics", "host": ["{{BASE_URL}}"], "path": ["api","v1","metrics"] }
+          }
+        },
+        {
+          "name": "0.10 Metric: b6_clicks_count",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b6_clicks_count\",\n  \"name\": \"Число кликов\",\n  \"description\": \"COUNT b6_click\",\n  \"event_type\": \"b6_click\",\n  \"aggregation\": \"COUNT\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/metrics", "host": ["{{BASE_URL}}"], "path": ["api","v1","metrics"] }
+          }
+        },
+        {
+          "name": "0.11 Metric: b6_conversion (ratio)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b6_conversion\",\n  \"name\": \"Конверсия (покупки / клики)\",\n  \"description\": \"COUNT b6_purchase / COUNT b6_click\",\n  \"event_type\": \"b6_purchase\",\n  \"aggregation\": \"COUNT\",\n  \"denominator_event_type\": \"b6_click\",\n  \"denominator_aggregation\": \"COUNT\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/metrics", "host": ["{{BASE_URL}}"], "path": ["api","v1","metrics"] }
+          }
+        },
+        {
+          "name": "0.12 Metric: b6_avg_revenue (AVG payload)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b6_avg_revenue\",\n  \"name\": \"Средний чек (amount)\",\n  \"description\": \"AVG b6_purchase.amount\",\n  \"event_type\": \"b6_purchase\",\n  \"aggregation\": \"AVG\",\n  \"payload_field\": \"amount\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/metrics", "host": ["{{BASE_URL}}"], "path": ["api","v1","metrics"] }
+          }
+        },
+        {
+          "name": "0.13 Flag: b6_reports",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b6_reports\",\n  \"type\": \"string\",\n  \"default_value\": \"old_design\",\n  \"description\": \"B6: эксперимент для проверки отчётов\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"] }
+          }
+        },
+        {
+          "name": "0.14 Flag: b6_finish",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b6_finish\",\n  \"type\": \"string\",\n  \"default_value\": \"baseline\",\n  \"description\": \"B6: эксперимент для проверки фиксации решения\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"] }
+          }
+        },
+        {
+          "name": "0.15 Login experimenter",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('EXPERIMENTER_TOKEN', pm.response.json().accessToken);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b6_experimenter@demo.com\",\n  \"password\": \"Demo1234!x\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/auth/login", "host": ["{{BASE_URL}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "0.16 Login approver",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('APPROVER_TOKEN', pm.response.json().accessToken);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b6_approver@demo.com\",\n  \"password\": \"Demo1234!x\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/auth/login", "host": ["{{BASE_URL}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "0.17 EXP_REPORTS: create",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201', function () { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('EXP_REPORTS_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"B6: отчёты (views, clicks, conversion)\",\n  \"feature_flag_key\": \"b6_reports\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    { \"name\": \"control\", \"value\": \"old_design\", \"weight\": 50, \"is_control\": true },\n    { \"name\": \"treatment\", \"value\": \"new_design\", \"weight\": 50, \"is_control\": false }\n  ],\n  \"metrics\": [\n    { \"metric_key\": \"b6_views_count\", \"type\": \"PRIMARY\" },\n    { \"metric_key\": \"b6_clicks_count\", \"type\": \"SECONDARY\" },\n    { \"metric_key\": \"b6_conversion\", \"type\": \"SECONDARY\" },\n    { \"metric_key\": \"b6_avg_revenue\", \"type\": \"SECONDARY\" }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"] }
+          }
+        },
+        {
+          "name": "0.18 EXP_REPORTS: submit",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('200', function () { pm.response.to.have.status(200); });"]}}],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }], "body": { "mode": "raw", "raw": "" }, "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_REPORTS_ID}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_REPORTS_ID}}","submit"] } }
+        },
+        {
+          "name": "0.19 EXP_REPORTS: approve",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('200', function () { pm.response.to.have.status(200); });"]}}],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{APPROVER_TOKEN}}" }], "body": { "mode": "raw", "raw": "{\"decision\": \"ACCEPT\", \"comment\": \"Seed B6\"}" }, "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_REPORTS_ID}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_REPORTS_ID}}","review"] } }
+        },
+        {
+          "name": "0.20 EXP_REPORTS: start",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('200', function () { pm.response.to.have.status(200); });"]}}],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }], "body": { "mode": "raw", "raw": "" }, "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_REPORTS_ID}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_REPORTS_ID}}","start"] } }
+        },
+        {
+          "name": "0.21 EXP_FINISH: create",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201', function () { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('EXP_FINISH_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"B6: фиксация решения (finish)\",\n  \"feature_flag_key\": \"b6_finish\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    { \"name\": \"control\", \"value\": \"baseline\", \"weight\": 50, \"is_control\": true },\n    { \"name\": \"treatment\", \"value\": \"experiment_v\", \"weight\": 50, \"is_control\": false }\n  ],\n  \"metrics\": [\n    { \"metric_key\": \"b6_views_count\", \"type\": \"PRIMARY\" }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"] }
+          }
+        },
+        {
+          "name": "0.22 EXP_FINISH: submit",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('200', function () { pm.response.to.have.status(200); });"]}}],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }], "body": { "mode": "raw", "raw": "" }, "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_FINISH_ID}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_FINISH_ID}}","submit"] } }
+        },
+        {
+          "name": "0.23 EXP_FINISH: approve",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('200', function () { pm.response.to.have.status(200); });"]}}],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{APPROVER_TOKEN}}" }], "body": { "mode": "raw", "raw": "{\"decision\": \"ACCEPT\", \"comment\": \"Seed B6\"}" }, "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_FINISH_ID}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_FINISH_ID}}","review"] } }
+        },
+        {
+          "name": "0.24 EXP_FINISH: start",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('200', function () { pm.response.to.have.status(200); });"]}}],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }], "body": { "mode": "raw", "raw": "" }, "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_FINISH_ID}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_FINISH_ID}}","start"] } }
+        },
+        {
+          "name": "0.25 Decision: b6-user-001",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('D1', pm.response.json()[0].id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"b6-user-001\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b6_reports\"]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/decision", "host": ["{{BASE_URL}}"], "path": ["api","v1","decision"] }
+          }
+        },
+        {
+          "name": "0.26 Decision: b6-user-002",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('D2', pm.response.json()[0].id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"b6-user-002\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b6_reports\"]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/decision", "host": ["{{BASE_URL}}"], "path": ["api","v1","decision"] }
+          }
+        },
+        {
+          "name": "0.27 Decision: b6-user-003",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('D3', pm.response.json()[0].id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"b6-user-003\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b6_reports\"]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/decision", "host": ["{{BASE_URL}}"], "path": ["api","v1","decision"] }
+          }
+        },
+        {
+          "name": "0.28 Decision: b6-user-004",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('D4', pm.response.json()[0].id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"b6-user-004\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b6_reports\"]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/decision", "host": ["{{BASE_URL}}"], "path": ["api","v1","decision"] }
+          }
+        },
+        {
+          "name": "0.29 Decision: b6-user-005",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('D5', pm.response.json()[0].id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"b6-user-005\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b6_reports\"]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/decision", "host": ["{{BASE_URL}}"], "path": ["api","v1","decision"] }
+          }
+        },
+        {
+          "name": "0.30 Events: page_view (все 5 пользователей)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('207', function () { pm.response.to.have.status(207); });",
+            "var results = pm.response.json().results;",
+            "pm.test('Все 5 page_view приняты', function () {",
+            "    results.forEach(function(r) { pm.expect(r.status_code).to.eql(201); });",
+            "});"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"events\": [\n    { \"event_type\": \"b6_page_view\", \"decision_id\": \"{{D1}}\" },\n    { \"event_type\": \"b6_page_view\", \"decision_id\": \"{{D2}}\" },\n    { \"event_type\": \"b6_page_view\", \"decision_id\": \"{{D3}}\" },\n    { \"event_type\": \"b6_page_view\", \"decision_id\": \"{{D4}}\" },\n    { \"event_type\": \"b6_page_view\", \"decision_id\": \"{{D5}}\" }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/batch", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","batch"] }
+          }
+        },
+        {
+          "name": "0.31 Events: click (3 из 5 пользователей)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('207', function () { pm.response.to.have.status(207); });",
+            "var results = pm.response.json().results;",
+            "pm.test('Все 3 click приняты', function () {",
+            "    results.forEach(function(r) { pm.expect(r.status_code).to.eql(201); });",
+            "});"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"events\": [\n    { \"event_type\": \"b6_click\", \"decision_id\": \"{{D1}}\", \"payload\": {\"element\": \"buy-btn\"} },\n    { \"event_type\": \"b6_click\", \"decision_id\": \"{{D2}}\", \"payload\": {\"element\": \"buy-btn\"} },\n    { \"event_type\": \"b6_click\", \"decision_id\": \"{{D3}}\", \"payload\": {\"element\": \"buy-btn\"} }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/batch", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","batch"] }
+          }
+        },
+        {
+          "name": "0.32 Events: purchase (2 из кликнувших)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('207', function () { pm.response.to.have.status(207); });",
+            "var results = pm.response.json().results;",
+            "pm.test('Обе покупки приняты', function () {",
+            "    results.forEach(function(r) { pm.expect(r.status_code).to.eql(201); });",
+            "});",
+            "",
+            "console.log('');",
+            "console.log('══════════════════════════════════════════════');",
+            "console.log('  DATA GENERATOR COMPLETE');",
+            "console.log('──────────────────────────────────────────────');",
+            "console.log('  EXP_REPORTS_ID = ' + pm.collectionVariables.get('EXP_REPORTS_ID'));",
+            "console.log('  EXP_FINISH_ID  = ' + pm.collectionVariables.get('EXP_FINISH_ID'));",
+            "console.log('──────────────────────────────────────────────');",
+            "console.log('  Events sent: 5x page_view, 3x click, 2x purchase');",
+            "console.log('  Подождите ~5 сек, затем выполняйте B6-1..B6-5');",
+            "console.log('══════════════════════════════════════════════');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"events\": [\n    { \"event_type\": \"b6_purchase\", \"decision_id\": \"{{D1}}\", \"payload\": {\"amount\": 79.90} },\n    { \"event_type\": \"b6_purchase\", \"decision_id\": \"{{D2}}\", \"payload\": {\"amount\": 129.90} }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/batch", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","batch"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B6-1. Фильтр отчёта по периоду",
+      "description": "Отчёт принимает date_from/date_to. Разные периоды — разные результаты.",
+      "item": [
+        {
+          "name": "B6-1a: Отчёт без фильтра (весь период)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('date_from присутствует', function () { pm.expect(json.date_from).to.be.a('string'); });",
+            "pm.test('date_to присутствует', function () { pm.expect(json.date_to).to.be.a('string'); });",
+            "pm.test('total_subjects > 0 — есть данные', function () { pm.expect(json.total_subjects).to.be.above(0); });",
+            "pm.test('Есть варианты', function () { pm.expect(json.variants).to.be.an('array').with.lengthOf(2); });",
+            "console.log('B6-1a: period ' + json.date_from + ' — ' + json.date_to);",
+            "console.log('B6-1a: total_subjects=' + json.total_subjects);"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_REPORTS_ID}}/reports", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_REPORTS_ID}}","reports"] }
+          }
+        },
+        {
+          "name": "B6-1b: Отчёт с периодом в далёком прошлом (данных нет)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('date_from = 2020-01-01 (запрошенный)', function () {",
+            "    pm.expect(json.date_from).to.include('2020-01-01');",
+            "});",
+            "pm.test('total_subjects = 0 (нет данных за этот период)', function () {",
+            "    pm.expect(json.total_subjects).to.eql(0);",
+            "});",
+            "console.log('B6-1b: total_subjects=' + json.total_subjects + ' (ожидали 0)');"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_REPORTS_ID}}/reports?date_from=2020-01-01T00:00:00Z&date_to=2020-01-02T00:00:00Z",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api","v1","experiments","{{EXP_REPORTS_ID}}","reports"],
+              "query": [
+                { "key": "date_from", "value": "2020-01-01T00:00:00Z" },
+                { "key": "date_to", "value": "2020-01-02T00:00:00Z" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B6-2. Отчёт в разрезе вариантов",
+      "description": "В отчёте 2 варианта, каждый со своими метриками и subject_count.",
+      "item": [
+        {
+          "name": "B6-2: Отчёт по вариантам",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "",
+            "pm.test('2 варианта в отчёте', function () {",
+            "    pm.expect(json.variants).to.be.an('array').with.lengthOf(2);",
+            "});",
+            "",
+            "var ctrl = json.variants.find(function(v){return v.is_control===true;});",
+            "var treat = json.variants.find(function(v){return v.is_control===false;});",
+            "",
+            "pm.test('Есть control (is_control=true)', function () { pm.expect(ctrl).to.not.be.undefined; });",
+            "pm.test('Есть treatment (is_control=false)', function () { pm.expect(treat).to.not.be.undefined; });",
+            "pm.test('У каждого варианта есть метрики', function () {",
+            "    pm.expect(ctrl.metrics.length).to.be.above(0);",
+            "    pm.expect(treat.metrics.length).to.be.above(0);",
+            "});",
+            "pm.test('Есть total_metrics', function () { pm.expect(json.total_metrics).to.be.an('array'); });",
+            "",
+            "console.log('=== ОТЧЁТ ПО ВАРИАНТАМ ===');",
+            "json.variants.forEach(function(v) {",
+            "    console.log('--- ' + v.variant_name + ' (' + v.variant_value + ') subjects=' + v.subject_count + ' ---');",
+            "    v.metrics.forEach(function(m) { console.log('  ' + m.metric_key + ' = ' + m.value); });",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_REPORTS_ID}}/reports", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_REPORTS_ID}}","reports"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B6-3. Все метрики в отчёте",
+      "description": "Проверяем что все 4 метрики (PRIMARY + SECONDARY) из конфигурации присутствуют в отчёте.",
+      "item": [
+        {
+          "name": "B6-3a: GET конфиг эксперимента (метрики)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "var keys = json.metrics.map(function(m){return m.metric_key;});",
+            "pm.test('b6_views_count в конфиге', function () { pm.expect(keys).to.include('b6_views_count'); });",
+            "pm.test('b6_clicks_count в конфиге', function () { pm.expect(keys).to.include('b6_clicks_count'); });",
+            "pm.test('b6_conversion в конфиге', function () { pm.expect(keys).to.include('b6_conversion'); });",
+            "pm.test('b6_avg_revenue в конфиге', function () { pm.expect(keys).to.include('b6_avg_revenue'); });",
+            "console.log('B6-3a: метрики в конфиге: ' + keys.join(', '));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_REPORTS_ID}}", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_REPORTS_ID}}"] }
+          }
+        },
+        {
+          "name": "B6-3b: GET отчёт — все 4 метрики присутствуют",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "var variant = json.variants[0];",
+            "var reportKeys = variant.metrics.map(function(m){return m.metric_key;});",
+            "",
+            "pm.test('b6_views_count в отчёте', function () { pm.expect(reportKeys).to.include('b6_views_count'); });",
+            "pm.test('b6_clicks_count в отчёте', function () { pm.expect(reportKeys).to.include('b6_clicks_count'); });",
+            "pm.test('b6_conversion в отчёте', function () { pm.expect(reportKeys).to.include('b6_conversion'); });",
+            "pm.test('b6_avg_revenue в отчёте', function () { pm.expect(reportKeys).to.include('b6_avg_revenue'); });",
+            "",
+            "console.log('B6-3b: метрики в отчёте (' + variant.variant_name + '):');",
+            "variant.metrics.forEach(function(m) { console.log('  ' + m.metric_key + ' = ' + m.value); });"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_REPORTS_ID}}/reports", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_REPORTS_ID}}","reports"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B6-4. Фиксация исхода эксперимента",
+      "description": "Завершаем EXP_FINISH с result=ROLLOUT и проверяем что исход зафиксирован.",
+      "item": [
+        {
+          "name": "B6-4a: Finish с result=ROLLOUT",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('status = finished', function () { pm.expect(json.status).to.eql('finished'); });",
+            "pm.test('result = ROLLOUT', function () { pm.expect(json.result).to.eql('ROLLOUT'); });",
+            "pm.test('result_description не пустой', function () {",
+            "    pm.expect(json.result_description).to.be.a('string').and.not.empty;",
+            "});",
+            "console.log('B6-4a: status=' + json.status + ' result=' + json.result);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"result\": \"ROLLOUT\",\n  \"result_description\": \"Тестовый вариант показал рост конверсии на 15%, раскатываем на всех.\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_FINISH_ID}}/finish", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_FINISH_ID}}","finish"] }
+          }
+        },
+        {
+          "name": "B6-4b: Проверка — GET эксперимент после финиша",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('status = finished', function () { pm.expect(json.status).to.eql('finished'); });",
+            "pm.test('result = ROLLOUT', function () { pm.expect(json.result).to.eql('ROLLOUT'); });",
+            "console.log('B6-4b: result_description = ' + json.result_description);"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_FINISH_ID}}", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_FINISH_ID}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B6-5. result_description обязателен",
+      "description": "Без result_description — 422. С ним — успех. Используем EXP_REPORTS (ещё в RUNNING).",
+      "item": [
+        {
+          "name": "B6-5a: Finish БЕЗ result_description (→ 422)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('422 — result_description обязателен', function () {",
+            "    pm.response.to.have.status(422);",
+            "});",
+            "console.log('B6-5a: 422 — поле result_description обязательно');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"result\": \"NO_EFFECT\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_REPORTS_ID}}/finish", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_REPORTS_ID}}","finish"] }
+          }
+        },
+        {
+          "name": "B6-5b: Finish С result_description (→ 200)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 — с обоснованием принято', function () {",
+            "    pm.response.to.have.status(200);",
+            "});",
+            "var json = pm.response.json();",
+            "pm.test('status = finished', function () { pm.expect(json.status).to.eql('finished'); });",
+            "pm.test('result = NO_EFFECT', function () { pm.expect(json.result).to.eql('NO_EFFECT'); });",
+            "pm.test('result_description сохранён', function () {",
+            "    pm.expect(json.result_description).to.include('статистической значимости');",
+            "});",
+            "console.log('B6-5b: status=' + json.status + ' result=' + json.result);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"result\": \"NO_EFFECT\",\n  \"result_description\": \"Разница между вариантами не достигла статистической значимости (p > 0.05). Рекомендуем продлить тест или увеличить выборку.\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_REPORTS_ID}}/finish", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_REPORTS_ID}}","finish"] }
+          }
+        }
+      ]
+    }
+  ]
+}

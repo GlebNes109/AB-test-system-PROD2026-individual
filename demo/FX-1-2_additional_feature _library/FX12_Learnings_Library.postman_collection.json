@@ -1,0 +1,1184 @@
+{
+  "info": {
+    "name": "FX-1-2. Learnings Library",
+    "description": "Коллекция для проверки Learnings Library (FX-1-2).\n\nПодготовка:\n1. docker compose up -d\n2. Запустить «0. Data Generator» через Collection Runner (ПКМ → Run folder → Run)\n3. После генерации запросы FX-1…FX-7 используют переменные коллекции автоматически\n\n---\n## Карта тестовых данных\n\n| # | Эксперимент | Flag | Результат | Метрика | Теги | Платформа |\n|---|-------------|------|-----------|---------|------|-----------|\n| EXP_1 | Редизайн чекаута | ll_checkout_flow | ROLLOUT | ll_conversion | checkout, conversion, redesign, mobile | web |\n| EXP_2 | Автозаполнение адреса | ll_checkout_flow_v2 | NO_EFFECT | ll_conversion | checkout, conversion, autofill, address | web |\n| EXP_3 | ML-ранжирование поиска | ll_search_ranking | ROLLOUT | ll_clicks | search, ranking, ml, relevance | — |\n| EXP_4 | Подсказки в поиске | ll_search_suggest | ROLLOUT | ll_clicks | search, suggest, ux, conversion | — |\n| EXP_5 | Онбординг интерактивный | ll_onboarding | ROLLBACK | ll_views | onboarding, retention, ux, mobile | ios |\n| EXP_6 | Push 2 раза в неделю | ll_push_frequency | ROLLOUT | ll_views | push, notifications, retention, engagement | android |\n| EXP_7 | Персональные рекомендации | ll_rec_algorithm | ROLLOUT | ll_clicks | recommendations, ml, personalization, conversion | — |\n| EXP_8 | Промокод на чекауте | ll_checkout_flow | ROLLBACK | ll_avg_revenue | checkout, promo, revenue, conversion | web |\n\n---\n## Ключи для проверки похожих (similar)\n- checkout: EXP_1, EXP_2, EXP_8 (EXP_1 и EXP_8 — один флаг ll_checkout_flow)\n- search: EXP_3, EXP_4\n- ml: EXP_3, EXP_7\n- ll_clicks (метрика): EXP_3, EXP_4, EXP_7\n- ll_views (метрика): EXP_5, EXP_6\n- retention: EXP_5, EXP_6",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "BASE_URL", "value": "http://localhost", "type": "string"},
+    {"key": "ADMIN_TOKEN", "value": "", "type": "string"},
+    {"key": "EXPERIMENTER_TOKEN", "value": "", "type": "string"},
+    {"key": "APPROVER_TOKEN", "value": "", "type": "string"},
+    {"key": "EXPERIMENTER_ID", "value": "", "type": "string"},
+    {"key": "APPROVER_ID", "value": "", "type": "string"},
+    {"key": "EXP_1_ID", "value": "", "type": "string"},
+    {"key": "EXP_2_ID", "value": "", "type": "string"},
+    {"key": "EXP_3_ID", "value": "", "type": "string"},
+    {"key": "EXP_4_ID", "value": "", "type": "string"},
+    {"key": "EXP_5_ID", "value": "", "type": "string"},
+    {"key": "EXP_6_ID", "value": "", "type": "string"},
+    {"key": "EXP_7_ID", "value": "", "type": "string"},
+    {"key": "EXP_8_ID", "value": "", "type": "string"},
+    {"key": "LEARNING_1_ID", "value": "", "type": "string"},
+    {"key": "LEARNING_2_ID", "value": "", "type": "string"},
+    {"key": "LEARNING_3_ID", "value": "", "type": "string"},
+    {"key": "LEARNING_4_ID", "value": "", "type": "string"},
+    {"key": "LEARNING_5_ID", "value": "", "type": "string"},
+    {"key": "LEARNING_6_ID", "value": "", "type": "string"},
+    {"key": "LEARNING_7_ID", "value": "", "type": "string"},
+    {"key": "LEARNING_8_ID", "value": "", "type": "string"}
+  ],
+  "item": [
+    {
+      "name": "0. Data Generator",
+      "description": "Запустить через Collection Runner: ПКМ на папке → Run folder → Run.\nСоздаёт: 2 пользователя, approver group, 3 event type, 5 metric, 7 feature flags, 8 экспериментов (FINISHED) + 8 learnings.\nВсе переменные коллекции заполняются автоматически.",
+      "item": [
+        {
+          "name": "1. Login (admin)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('ADMIN_TOKEN', pm.response.json().accessToken);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"email\": \"admin@mail.ru\",\n  \"password\": \"123123123aA!\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/auth/login", "host": ["{{BASE_URL}}"], "path": ["api","v1","auth","login"]}
+          }
+        },
+        {
+          "name": "2. Создать ll_experimenter",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"email\": \"ll_experimenter@demo.com\",\n  \"password\": \"Demo1234!x\",\n  \"role\": \"EXPERIMENTER\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/users", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"]}
+          }
+        },
+        {
+          "name": "3. Создать ll_approver",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"email\": \"ll_approver@demo.com\",\n  \"password\": \"Demo1234!x\",\n  \"role\": \"APPROVER\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/users", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"]}
+          }
+        },
+        {
+          "name": "4. GET users → save IDs",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var users = pm.response.json().items || [];",
+            "var exp = users.find(function(u) { return u.email === 'll_experimenter@demo.com'; });",
+            "var app = users.find(function(u) { return u.email === 'll_approver@demo.com'; });",
+            "if (exp) { pm.collectionVariables.set('EXPERIMENTER_ID', exp.id); console.log('EXPERIMENTER_ID:', exp.id); }",
+            "if (app) { pm.collectionVariables.set('APPROVER_ID', app.id); console.log('APPROVER_ID:', app.id); }"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/users?size=100", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"], "query": [{"key": "size", "value": "100"}]}
+          }
+        },
+        {
+          "name": "5. SET approver group",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });"
+          ]}}],
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"approver_ids\": [\"{{APPROVER_ID}}\"],\n  \"min_approvals\": 1\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/users/{{EXPERIMENTER_ID}}/approvers", "host": ["{{BASE_URL}}"], "path": ["api","v1","users","{{EXPERIMENTER_ID}}","approvers"]}
+          }
+        },
+        {
+          "name": "6. Create event type ll_page_view",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"type\": \"ll_page_view\",\n  \"description\": \"Просмотр страницы\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/events/types", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","types"]}
+          }
+        },
+        {
+          "name": "7. Create event type ll_click",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"type\": \"ll_click\",\n  \"description\": \"Клик по элементу\",\n  \"payload_schema\": {\"element\": \"string\"}\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/events/types", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","types"]}
+          }
+        },
+        {
+          "name": "8. Create event type ll_purchase (requires ll_click)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"type\": \"ll_purchase\",\n  \"description\": \"Покупка\",\n  \"payload_schema\": {\"amount\": \"number\", \"currency\": \"string\"},\n  \"prerequisite_event_type\": \"ll_click\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/events/types", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","types"]}
+          }
+        },
+        {
+          "name": "9. Create metric ll_views",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"key\": \"ll_views\",\n  \"name\": \"Число просмотров\",\n  \"description\": \"COUNT ll_page_view\",\n  \"event_type\": \"ll_page_view\",\n  \"aggregation\": \"COUNT\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/metrics", "host": ["{{BASE_URL}}"], "path": ["api","v1","metrics"]}
+          }
+        },
+        {
+          "name": "10. Create metric ll_clicks",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"key\": \"ll_clicks\",\n  \"name\": \"Число кликов\",\n  \"description\": \"COUNT ll_click\",\n  \"event_type\": \"ll_click\",\n  \"aggregation\": \"COUNT\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/metrics", "host": ["{{BASE_URL}}"], "path": ["api","v1","metrics"]}
+          }
+        },
+        {
+          "name": "11. Create metric ll_conversion",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"key\": \"ll_conversion\",\n  \"name\": \"Конверсия\",\n  \"description\": \"COUNT ll_purchase / COUNT ll_click\",\n  \"event_type\": \"ll_purchase\",\n  \"aggregation\": \"COUNT\",\n  \"denominator_event_type\": \"ll_click\",\n  \"denominator_aggregation\": \"COUNT\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/metrics", "host": ["{{BASE_URL}}"], "path": ["api","v1","metrics"]}
+          }
+        },
+        {
+          "name": "12. Create metric ll_avg_revenue",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"key\": \"ll_avg_revenue\",\n  \"name\": \"Средний чек\",\n  \"description\": \"AVG ll_purchase.amount\",\n  \"event_type\": \"ll_purchase\",\n  \"aggregation\": \"AVG\",\n  \"payload_field\": \"amount\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/metrics", "host": ["{{BASE_URL}}"], "path": ["api","v1","metrics"]}
+          }
+        },
+        {
+          "name": "13. Create metric ll_bounce_rate",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"key\": \"ll_bounce_rate\",\n  \"name\": \"Bounce rate\",\n  \"description\": \"COUNT ll_page_view / COUNT ll_click\",\n  \"event_type\": \"ll_page_view\",\n  \"aggregation\": \"COUNT\",\n  \"denominator_event_type\": \"ll_click\",\n  \"denominator_aggregation\": \"COUNT\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/metrics", "host": ["{{BASE_URL}}"], "path": ["api","v1","metrics"]}
+          }
+        },
+        {
+          "name": "14. Create flag ll_checkout_flow",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"key\": \"ll_checkout_flow\",\n  \"type\": \"string\",\n  \"default_value\": \"classic\",\n  \"description\": \"Дизайн страницы оформления заказа\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"]}
+          }
+        },
+        {
+          "name": "15. Create flag ll_checkout_flow_v2",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"key\": \"ll_checkout_flow_v2\",\n  \"type\": \"string\",\n  \"default_value\": \"one_page\",\n  \"description\": \"Второй эксперимент на чекауте: автозаполнение адреса\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"]}
+          }
+        },
+        {
+          "name": "16. Create flag ll_search_ranking",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"key\": \"ll_search_ranking\",\n  \"type\": \"string\",\n  \"default_value\": \"bm25\",\n  \"description\": \"Алгоритм ранжирования поиска\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"]}
+          }
+        },
+        {
+          "name": "17. Create flag ll_search_suggest",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"key\": \"ll_search_suggest\",\n  \"type\": \"string\",\n  \"default_value\": \"off\",\n  \"description\": \"Подсказки в строке поиска\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"]}
+          }
+        },
+        {
+          "name": "18. Create flag ll_onboarding",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"key\": \"ll_onboarding\",\n  \"type\": \"string\",\n  \"default_value\": \"standard\",\n  \"description\": \"Тип онбординга для новых пользователей\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"]}
+          }
+        },
+        {
+          "name": "19. Create flag ll_push_frequency",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"key\": \"ll_push_frequency\",\n  \"type\": \"string\",\n  \"default_value\": \"daily\",\n  \"description\": \"Частота push-уведомлений\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"]}
+          }
+        },
+        {
+          "name": "20. Create flag ll_rec_algorithm",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Создан или существует', function() { pm.expect([201, 409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"key\": \"ll_rec_algorithm\",\n  \"type\": \"string\",\n  \"default_value\": \"collaborative\",\n  \"description\": \"Алгоритм рекомендаций на главной\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"]}
+          }
+        },
+        {
+          "name": "21. Login experimenter → EXPERIMENTER_TOKEN",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('EXPERIMENTER_TOKEN', pm.response.json().accessToken);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"email\": \"ll_experimenter@demo.com\",\n  \"password\": \"Demo1234!x\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/auth/login", "host": ["{{BASE_URL}}"], "path": ["api","v1","auth","login"]}
+          }
+        },
+        {
+          "name": "22. Login approver → APPROVER_TOKEN",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('APPROVER_TOKEN', pm.response.json().accessToken);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"email\": \"ll_approver@demo.com\",\n  \"password\": \"Demo1234!x\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/auth/login", "host": ["{{BASE_URL}}"], "path": ["api","v1","auth","login"]}
+          }
+        },
+        {
+          "name": "23. EXP_1: Создать (DRAFT) — Редизайн чекаута",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('EXP_1_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Редизайн чекаута: одностраничная форма\",\n  \"feature_flag_key\": \"ll_checkout_flow\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    {\"name\": \"control\",   \"value\": \"classic\",  \"weight\": 50, \"is_control\": true},\n    {\"name\": \"treatment\", \"value\": \"one_page\", \"weight\": 50, \"is_control\": false}\n  ],\n  \"metrics\": [{\"metric_key\": \"ll_conversion\", \"type\": \"PRIMARY\"}]\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"]}
+          }
+        },
+        {
+          "name": "24. EXP_1: Submit → REVIEW",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_1_ID}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_1_ID}}","submit"]}
+          }
+        },
+        {
+          "name": "25. EXP_1: Review → APPROVED",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{APPROVER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"decision\": \"ACCEPT\",\n  \"comment\": \"Seed FX-1-2.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_1_ID}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_1_ID}}","review"]}
+          }
+        },
+        {
+          "name": "26. EXP_1: Start → RUNNING",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_1_ID}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_1_ID}}","start"]}
+          }
+        },
+        {
+          "name": "27. EXP_1: Finish → FINISHED (ROLLOUT)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"result\": \"ROLLOUT\",\n  \"result_description\": \"Конверсия выросла на 12% (p<0.01). Одностраничная форма значительно упростила процесс.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_1_ID}}/finish", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_1_ID}}","finish"]}
+          }
+        },
+        {
+          "name": "28. EXP_1: Создать learning → LEARNING_1_ID",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('LEARNING_1_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"experiment_id\": \"{{EXP_1_ID}}\",\n  \"hypothesis\": \"Одностраничная форма оформления заказа снизит отток на этапе чекаута и повысит конверсию\",\n  \"primary_metric_key\": \"ll_conversion\",\n  \"tags\": [\"checkout\", \"conversion\", \"redesign\", \"mobile\"],\n  \"platform\": \"web\",\n  \"segment\": \"Все пользователи\",\n  \"notes\": \"Одностраничная форма показала рост конверсии на 12%. Особенно сильный эффект на мобильных устройствах (+18%). Рекомендуется раскатывать.\",\n  \"dashboard_link\": \"http://localhost/metabase/dashboard/1\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"]}
+          }
+        },
+        {
+          "name": "29. EXP_2: Создать (DRAFT) — Автозаполнение адреса",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('EXP_2_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Чекаут: автозаполнение адреса через DaData\",\n  \"feature_flag_key\": \"ll_checkout_flow_v2\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    {\"name\": \"control\",   \"value\": \"one_page\", \"weight\": 50, \"is_control\": true},\n    {\"name\": \"treatment\", \"value\": \"autofill\", \"weight\": 50, \"is_control\": false}\n  ],\n  \"metrics\": [{\"metric_key\": \"ll_conversion\", \"type\": \"PRIMARY\"}]\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"]}
+          }
+        },
+        {
+          "name": "30. EXP_2: Submit → REVIEW",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_2_ID}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_2_ID}}","submit"]}
+          }
+        },
+        {
+          "name": "31. EXP_2: Review → APPROVED",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{APPROVER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"decision\": \"ACCEPT\",\n  \"comment\": \"Seed FX-1-2.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_2_ID}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_2_ID}}","review"]}
+          }
+        },
+        {
+          "name": "32. EXP_2: Start → RUNNING",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_2_ID}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_2_ID}}","start"]}
+          }
+        },
+        {
+          "name": "33. EXP_2: Finish → FINISHED (NO_EFFECT)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"result\": \"NO_EFFECT\",\n  \"result_description\": \"Статистически значимой разницы не обнаружено (p=0.42). Автозаполнение не повлияло на конверсию.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_2_ID}}/finish", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_2_ID}}","finish"]}
+          }
+        },
+        {
+          "name": "34. EXP_2: Создать learning → LEARNING_2_ID",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('LEARNING_2_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"experiment_id\": \"{{EXP_2_ID}}\",\n  \"hypothesis\": \"Автозаполнение адреса через DaData ускорит заполнение формы и повысит конверсию чекаута\",\n  \"primary_metric_key\": \"ll_conversion\",\n  \"tags\": [\"checkout\", \"conversion\", \"autofill\", \"address\"],\n  \"platform\": \"web\",\n  \"segment\": \"Все пользователи\",\n  \"notes\": \"Автозаполнение не повлияло на конверсию. Вероятно, большинство пользователей уже сохраняют адрес в профиле. Не рекомендуется тратить ресурсы на интеграцию.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"]}
+          }
+        },
+        {
+          "name": "35. EXP_3: Создать (DRAFT) — ML-ранжирование поиска",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('EXP_3_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Поиск: ML-ранжирование vs BM25\",\n  \"feature_flag_key\": \"ll_search_ranking\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    {\"name\": \"control\",   \"value\": \"bm25\",  \"weight\": 50, \"is_control\": true},\n    {\"name\": \"treatment\", \"value\": \"ml_v1\", \"weight\": 50, \"is_control\": false}\n  ],\n  \"metrics\": [{\"metric_key\": \"ll_clicks\", \"type\": \"PRIMARY\"}]\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"]}
+          }
+        },
+        {
+          "name": "36. EXP_3: Submit → REVIEW",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_3_ID}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_3_ID}}","submit"]}
+          }
+        },
+        {
+          "name": "37. EXP_3: Review → APPROVED",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{APPROVER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"decision\": \"ACCEPT\",\n  \"comment\": \"Seed FX-1-2.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_3_ID}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_3_ID}}","review"]}
+          }
+        },
+        {
+          "name": "38. EXP_3: Start → RUNNING",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_3_ID}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_3_ID}}","start"]}
+          }
+        },
+        {
+          "name": "39. EXP_3: Finish → FINISHED (ROLLOUT)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"result\": \"ROLLOUT\",\n  \"result_description\": \"CTR поиска вырос на 8% (p<0.05). ML-ранжирование лучше учитывает контекст.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_3_ID}}/finish", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_3_ID}}","finish"]}
+          }
+        },
+        {
+          "name": "40. EXP_3: Создать learning → LEARNING_3_ID",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('LEARNING_3_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"experiment_id\": \"{{EXP_3_ID}}\",\n  \"hypothesis\": \"ML-модель ранжирования с учётом поведения пользователя покажет более релевантные результаты поиска\",\n  \"primary_metric_key\": \"ll_clicks\",\n  \"tags\": [\"search\", \"ranking\", \"ml\", \"relevance\"],\n  \"segment\": \"Все пользователи\",\n  \"notes\": \"ML-ранжирование дало +8% CTR. Модель особенно хорошо работает для длинных запросов (>3 слов). Короткие запросы почти не отличаются от BM25.\",\n  \"ticket_link\": \"https://jira.example.com/SEARCH-1234\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"]}
+          }
+        },
+        {
+          "name": "41. EXP_4: Создать (DRAFT) — Подсказки в поиске",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('EXP_4_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Поиск: автоподсказки при наборе запроса\",\n  \"feature_flag_key\": \"ll_search_suggest\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    {\"name\": \"control\",   \"value\": \"off\",        \"weight\": 50, \"is_control\": true},\n    {\"name\": \"treatment\", \"value\": \"suggest_v1\", \"weight\": 50, \"is_control\": false}\n  ],\n  \"metrics\": [{\"metric_key\": \"ll_clicks\", \"type\": \"PRIMARY\"}]\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"]}
+          }
+        },
+        {
+          "name": "42. EXP_4: Submit → REVIEW",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_4_ID}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_4_ID}}","submit"]}
+          }
+        },
+        {
+          "name": "43. EXP_4: Review → APPROVED",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{APPROVER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"decision\": \"ACCEPT\",\n  \"comment\": \"Seed FX-1-2.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_4_ID}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_4_ID}}","review"]}
+          }
+        },
+        {
+          "name": "44. EXP_4: Start → RUNNING",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_4_ID}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_4_ID}}","start"]}
+          }
+        },
+        {
+          "name": "45. EXP_4: Finish → FINISHED (ROLLOUT)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"result\": \"ROLLOUT\",\n  \"result_description\": \"Конверсия поиска +15% (p<0.001). Пользователи быстрее находят нужный товар.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_4_ID}}/finish", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_4_ID}}","finish"]}
+          }
+        },
+        {
+          "name": "46. EXP_4: Создать learning → LEARNING_4_ID",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('LEARNING_4_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"experiment_id\": \"{{EXP_4_ID}}\",\n  \"hypothesis\": \"Подсказки в поиске ускорят нахождение товара и повысят конверсию поиска\",\n  \"primary_metric_key\": \"ll_clicks\",\n  \"tags\": [\"search\", \"suggest\", \"ux\", \"conversion\"],\n  \"segment\": \"Все пользователи\",\n  \"notes\": \"Подсказки дали +15% конверсии поиска и -22% отказов. Сильный позитивный эффект. Раскатано на 100%.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"]}
+          }
+        },
+        {
+          "name": "47. EXP_5: Создать (DRAFT) — Онбординг интерактивный",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('EXP_5_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Онбординг: интерактивный тур vs статичные подсказки\",\n  \"feature_flag_key\": \"ll_onboarding\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    {\"name\": \"control\",   \"value\": \"standard\",    \"weight\": 50, \"is_control\": true},\n    {\"name\": \"treatment\", \"value\": \"interactive\", \"weight\": 50, \"is_control\": false}\n  ],\n  \"metrics\": [{\"metric_key\": \"ll_views\", \"type\": \"PRIMARY\"}]\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"]}
+          }
+        },
+        {
+          "name": "48. EXP_5: Submit → REVIEW",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_5_ID}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_5_ID}}","submit"]}
+          }
+        },
+        {
+          "name": "49. EXP_5: Review → APPROVED",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{APPROVER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"decision\": \"ACCEPT\",\n  \"comment\": \"Seed FX-1-2.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_5_ID}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_5_ID}}","review"]}
+          }
+        },
+        {
+          "name": "50. EXP_5: Start → RUNNING",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_5_ID}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_5_ID}}","start"]}
+          }
+        },
+        {
+          "name": "51. EXP_5: Finish → FINISHED (ROLLBACK)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"result\": \"ROLLBACK\",\n  \"result_description\": \"Retention D7 упал на 5% (p<0.05). Интерактивный тур раздражал пользователей.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_5_ID}}/finish", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_5_ID}}","finish"]}
+          }
+        },
+        {
+          "name": "52. EXP_5: Создать learning → LEARNING_5_ID",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('LEARNING_5_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"experiment_id\": \"{{EXP_5_ID}}\",\n  \"hypothesis\": \"Интерактивный онбординг-тур повысит retention новых пользователей за счёт лучшего понимания продукта\",\n  \"primary_metric_key\": \"ll_views\",\n  \"tags\": [\"onboarding\", \"retention\", \"ux\", \"mobile\"],\n  \"platform\": \"ios\",\n  \"segment\": \"Новые пользователи (регистрация < 7 дней)\",\n  \"notes\": \"Интерактивный тур УХУДШИЛ retention на 5%. Пользователи закрывали тур, не дочитав. Многие жаловались в отзывах. Возврат к статичным подсказкам.\",\n  \"ticket_link\": \"https://jira.example.com/ONBOARD-567\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"]}
+          }
+        },
+        {
+          "name": "53. EXP_6: Создать (DRAFT) — Push 2 раза в неделю",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('EXP_6_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Push-уведомления: ежедневные vs 2 раза в неделю\",\n  \"feature_flag_key\": \"ll_push_frequency\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    {\"name\": \"control\",   \"value\": \"daily\",        \"weight\": 50, \"is_control\": true},\n    {\"name\": \"treatment\", \"value\": \"twice_weekly\", \"weight\": 50, \"is_control\": false}\n  ],\n  \"metrics\": [{\"metric_key\": \"ll_views\", \"type\": \"PRIMARY\"}]\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"]}
+          }
+        },
+        {
+          "name": "54. EXP_6: Submit → REVIEW",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_6_ID}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_6_ID}}","submit"]}
+          }
+        },
+        {
+          "name": "55. EXP_6: Review → APPROVED",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{APPROVER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"decision\": \"ACCEPT\",\n  \"comment\": \"Seed FX-1-2.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_6_ID}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_6_ID}}","review"]}
+          }
+        },
+        {
+          "name": "56. EXP_6: Start → RUNNING",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_6_ID}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_6_ID}}","start"]}
+          }
+        },
+        {
+          "name": "57. EXP_6: Finish → FINISHED (ROLLOUT)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"result\": \"ROLLOUT\",\n  \"result_description\": \"Отписки от push сократились на 30% при сохранении DAU. Менее частые push = меньше раздражения.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_6_ID}}/finish", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_6_ID}}","finish"]}
+          }
+        },
+        {
+          "name": "58. EXP_6: Создать learning → LEARNING_6_ID",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('LEARNING_6_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"experiment_id\": \"{{EXP_6_ID}}\",\n  \"hypothesis\": \"Снижение частоты push-уведомлений уменьшит число отписок без потери вовлечённости\",\n  \"primary_metric_key\": \"ll_views\",\n  \"tags\": [\"push\", \"notifications\", \"retention\", \"engagement\"],\n  \"platform\": \"android\",\n  \"segment\": \"Пользователи с включёнными push-уведомлениями\",\n  \"notes\": \"Снижение частоты push с ежедневных до 2 раз в неделю сократило отписки на 30%. DAU не изменился. Вывод: пользователи не открывали каждый push, но отписывались от раздражения.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"]}
+          }
+        },
+        {
+          "name": "59. EXP_7: Создать (DRAFT) — Персональные рекомендации",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('EXP_7_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Рекомендации: персональные vs коллаборативная фильтрация\",\n  \"feature_flag_key\": \"ll_rec_algorithm\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    {\"name\": \"control\",   \"value\": \"collaborative\", \"weight\": 50, \"is_control\": true},\n    {\"name\": \"treatment\", \"value\": \"personal_v2\",   \"weight\": 50, \"is_control\": false}\n  ],\n  \"metrics\": [{\"metric_key\": \"ll_clicks\", \"type\": \"PRIMARY\"}]\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"]}
+          }
+        },
+        {
+          "name": "60. EXP_7: Submit → REVIEW",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_7_ID}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_7_ID}}","submit"]}
+          }
+        },
+        {
+          "name": "61. EXP_7: Review → APPROVED",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{APPROVER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"decision\": \"ACCEPT\",\n  \"comment\": \"Seed FX-1-2.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_7_ID}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_7_ID}}","review"]}
+          }
+        },
+        {
+          "name": "62. EXP_7: Start → RUNNING",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_7_ID}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_7_ID}}","start"]}
+          }
+        },
+        {
+          "name": "63. EXP_7: Finish → FINISHED (ROLLOUT)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"result\": \"ROLLOUT\",\n  \"result_description\": \"CTR рекомендаций +22% (p<0.001). Персональный алгоритм значительно точнее.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_7_ID}}/finish", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_7_ID}}","finish"]}
+          }
+        },
+        {
+          "name": "64. EXP_7: Создать learning → LEARNING_7_ID",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('LEARNING_7_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"experiment_id\": \"{{EXP_7_ID}}\",\n  \"hypothesis\": \"Персональные рекомендации на основе истории покупок покажут более высокий CTR, чем коллаборативная фильтрация\",\n  \"primary_metric_key\": \"ll_clicks\",\n  \"tags\": [\"recommendations\", \"ml\", \"personalization\", \"conversion\"],\n  \"segment\": \"Пользователи с >= 3 покупками\",\n  \"notes\": \"Персональный алгоритм дал +22% CTR в сегменте 3+ покупок. Для новых пользователей (без истории) разницы нет — оставляем коллаборативную фильтрацию как fallback.\",\n  \"dashboard_link\": \"http://localhost/metabase/dashboard/2\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"]}
+          }
+        },
+        {
+          "name": "65. EXP_8: Создать (DRAFT) — Промокод на чекауте",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('EXP_8_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Чекаут: промокод на первой странице\",\n  \"feature_flag_key\": \"ll_checkout_flow\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    {\"name\": \"control\",   \"value\": \"classic\",   \"weight\": 50, \"is_control\": true},\n    {\"name\": \"treatment\", \"value\": \"promo_top\", \"weight\": 50, \"is_control\": false}\n  ],\n  \"metrics\": [{\"metric_key\": \"ll_avg_revenue\", \"type\": \"PRIMARY\"}]\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"]}
+          }
+        },
+        {
+          "name": "66. EXP_8: Submit → REVIEW",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_8_ID}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_8_ID}}","submit"]}
+          }
+        },
+        {
+          "name": "67. EXP_8: Review → APPROVED",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{APPROVER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"decision\": \"ACCEPT\",\n  \"comment\": \"Seed FX-1-2.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_8_ID}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_8_ID}}","review"]}
+          }
+        },
+        {
+          "name": "68. EXP_8: Start → RUNNING",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_8_ID}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_8_ID}}","start"]}
+          }
+        },
+        {
+          "name": "69. EXP_8: Finish → FINISHED (ROLLBACK)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status 200', function() { pm.response.to.have.status(200); });"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"result\": \"ROLLBACK\",\n  \"result_description\": \"Средний чек упал на 8% — пользователи стали активнее искать промокоды. Негативный эффект.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_8_ID}}/finish", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_8_ID}}","finish"]}
+          }
+        },
+        {
+          "name": "70. EXP_8: Создать learning → LEARNING_8_ID",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('LEARNING_8_ID', pm.response.json().id);",
+            "console.log('══════════════════════════════════════════════════');",
+            "console.log('  FX-1-2 Data Generator завершён!');",
+            "console.log('══════════════════════════════════════════════════');",
+            "console.log('  EXP_1 (Редизайн чекаута):         ' + pm.collectionVariables.get('EXP_1_ID'));",
+            "console.log('  EXP_3 (ML-ранжирование):          ' + pm.collectionVariables.get('EXP_3_ID'));",
+            "console.log('  EXP_5 (Онбординг):                ' + pm.collectionVariables.get('EXP_5_ID'));",
+            "console.log('  LEARNING_1_ID:                    ' + pm.collectionVariables.get('LEARNING_1_ID'));",
+            "console.log('  Все переменные сохранены. Запускайте FX-1…FX-7.');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"experiment_id\": \"{{EXP_8_ID}}\",\n  \"hypothesis\": \"Размещение поля промокода на первом экране чекаута повысит конверсию за счёт удобства\",\n  \"primary_metric_key\": \"ll_avg_revenue\",\n  \"tags\": [\"checkout\", \"promo\", \"revenue\", \"conversion\"],\n  \"platform\": \"web\",\n  \"segment\": \"Все пользователи\",\n  \"notes\": \"Промокод на первом экране привёл к ПАДЕНИЮ среднего чека на 8%. Пользователи уходили искать промокоды в Google. Убрали поле обратно. Важный вывод: видимость промокода провоцирует coupon hunting.\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "FX-1. Список и пагинация",
+      "description": "Ожидаемый результат: total = 8, 8 learnings отсортированы по created_at DESC.",
+      "item": [
+        {
+          "name": "FX-1a: GET /learnings (все, по умолчанию)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('total = 8', function() { pm.expect(json.total).to.eql(8); });",
+            "pm.test('items содержит 8 записей', function() { pm.expect(json.items).to.have.lengthOf(8); });"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"]}
+          }
+        },
+        {
+          "name": "FX-1b: GET /learnings?page=0&size=3 (первая страница)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('items = 3 (первая страница из 3)', function() { pm.expect(json.items).to.have.lengthOf(3); });",
+            "pm.test('total по-прежнему 8', function() { pm.expect(json.total).to.eql(8); });"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings?page=0&size=3", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"], "query": [{"key": "page", "value": "0"}, {"key": "size", "value": "3"}]}
+          }
+        },
+        {
+          "name": "FX-1c: GET /learnings?page=1&size=3 (вторая страница)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('items = 3 (вторая страница из 3)', function() { pm.expect(json.items).to.have.lengthOf(3); });"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings?page=1&size=3", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"], "query": [{"key": "page", "value": "1"}, {"key": "size", "value": "3"}]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "FX-2. Полнотекстовый поиск",
+      "description": "Результаты ранжируются по релевантности (ts_rank).\n- q=конверсия → несколько learnings (в notes/hypothesis упоминается конверсия)\n- q=push → EXP_6 (push-уведомления)\n- q=чекаут → EXP_1, EXP_2, EXP_8",
+      "item": [
+        {
+          "name": "FX-2a: поиск q=конверсия",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('Найдены результаты (релевантные learnings)', function() { pm.expect(json.total).to.be.above(0); });"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings?q=конверсия", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"], "query": [{"key": "q", "value": "конверсия"}]}
+          }
+        },
+        {
+          "name": "FX-2b: поиск q=push",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('Найден learning EXP_6 (push-уведомления)', function() { pm.expect(json.total).to.be.above(0); });",
+            "pm.test('В результатах есть learning с push в notes/hypothesis', function() {",
+            "    var hasPush = json.items.some(function(i) {",
+            "        return (i.notes || '').toLowerCase().includes('push') || (i.hypothesis || '').toLowerCase().includes('push');",
+            "    });",
+            "    pm.expect(hasPush).to.be.true;",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings?q=push", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"], "query": [{"key": "q", "value": "push"}]}
+          }
+        },
+        {
+          "name": "FX-2c: поиск q=чекаут",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('Найдены learnings связанные с чекаутом (EXP_1, EXP_2, EXP_8)', function() { pm.expect(json.total).to.be.above(0); });"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings?q=чекаут", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"], "query": [{"key": "q", "value": "чекаут"}]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "FX-3. Фильтрация по полям",
+      "item": [
+        {
+          "name": "FX-3.1: по feature_flag_key=ll_checkout_flow",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('Ровно 2 learning (EXP_1 и EXP_8 — один флаг ll_checkout_flow)', function() { pm.expect(json.total).to.eql(2); });"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings?feature_flag_key=ll_checkout_flow", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"], "query": [{"key": "feature_flag_key", "value": "ll_checkout_flow"}]}
+          }
+        },
+        {
+          "name": "FX-3.2a: по result=ROLLOUT",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('5 learnings с результатом ROLLOUT (EXP_1,3,4,6,7)', function() { pm.expect(json.total).to.eql(5); });"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings?result=ROLLOUT", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"], "query": [{"key": "result", "value": "ROLLOUT"}]}
+          }
+        },
+        {
+          "name": "FX-3.2b: по result=ROLLBACK",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('2 learnings с результатом ROLLBACK (EXP_5 онбординг, EXP_8 промокод)', function() { pm.expect(json.total).to.eql(2); });"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings?result=ROLLBACK", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"], "query": [{"key": "result", "value": "ROLLBACK"}]}
+          }
+        },
+        {
+          "name": "FX-3.3a: по тегу tags=checkout",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('3 learnings с тегом checkout (EXP_1, EXP_2, EXP_8)', function() { pm.expect(json.total).to.eql(3); });"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings?tags=checkout", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"], "query": [{"key": "tags", "value": "checkout"}]}
+          }
+        },
+        {
+          "name": "FX-3.3b: по тегам tags=ml&tags=relevance (AND)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('Только 1 learning — EXP_3 (ml+relevance одновременно)', function() { pm.expect(json.total).to.eql(1); });"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings?tags=ml&tags=relevance", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"], "query": [{"key": "tags", "value": "ml"}, {"key": "tags", "value": "relevance"}]}
+          }
+        },
+        {
+          "name": "FX-3.4: по platform=ios",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('Только 1 learning с platform=ios (EXP_5 онбординг)', function() { pm.expect(json.total).to.eql(1); });"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings?platform=ios", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"], "query": [{"key": "platform", "value": "ios"}]}
+          }
+        },
+        {
+          "name": "FX-3.5: по primary_metric_key=ll_clicks",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('3 learnings с метрикой ll_clicks (EXP_3, EXP_4, EXP_7)', function() { pm.expect(json.total).to.eql(3); });"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings?primary_metric_key=ll_clicks", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"], "query": [{"key": "primary_metric_key", "value": "ll_clicks"}]}
+          }
+        },
+        {
+          "name": "FX-3.6: комбо q=поиск&result=ROLLOUT&tags=search",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('2 learning — EXP_3 и EXP_4 (поиск + ROLLOUT + тег search)', function() { pm.expect(json.total).to.eql(2); });"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings?q=поиск&result=ROLLOUT&tags=search", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"], "query": [{"key": "q", "value": "поиск"}, {"key": "result", "value": "ROLLOUT"}, {"key": "tags", "value": "search"}]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "FX-4. Learning по ID",
+      "description": "Получить learning по ID, сохранённому генератором в LEARNING_1_ID.\nОжидаемый результат: полный объект с experiment_name и feature_flag_key.",
+      "item": [
+        {
+          "name": "FX-4: GET /learnings/{{LEARNING_1_ID}}",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('id совпадает', function() { pm.expect(json.id).to.eql(pm.collectionVariables.get('LEARNING_1_ID')); });",
+            "pm.test('experiment_name присутствует', function() { pm.expect(json.experiment_name).to.be.a('string').and.not.empty; });",
+            "pm.test('feature_flag_key = ll_checkout_flow', function() { pm.expect(json.feature_flag_key).to.eql('ll_checkout_flow'); });"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings/{{LEARNING_1_ID}}", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings","{{LEARNING_1_ID}}"]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "FX-5. Обновление learning (PATCH)",
+      "description": "Обновить notes и tags у LEARNING_1_ID.\nОжидаемый результат: updated_at изменился, notes и tags обновились.",
+      "item": [
+        {
+          "name": "FX-5: PATCH /learnings/{{LEARNING_1_ID}}",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('notes обновлены', function() { pm.expect(json.notes).to.include('Обновлённые заметки'); });",
+            "pm.test('tags обновлены (включает updated)', function() { pm.expect(json.tags).to.include('updated'); });",
+            "pm.test('updated_at присутствует', function() { pm.expect(json.updated_at).to.be.a('string').and.not.empty; });"
+          ]}}],
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"notes\": \"Обновлённые заметки после дополнительного анализа. Рост конверсии подтверждён на расширенной выборке.\",\n  \"tags\": [\"checkout\", \"conversion\", \"updated\"]\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings/{{LEARNING_1_ID}}", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings","{{LEARNING_1_ID}}"]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "FX-6. Похожие learnings (/similar)",
+      "description": "Критерии сходства (similarity_reason):\n- same_feature_flag — тот же feature flag (вес 3)\n- same_primary_metric — та же основная метрика (вес 2)\n- common_tags:... — общие теги (вес 1)\n\nEXP_1 → EXP_8 (same_feature_flag), EXP_2 (same_primary_metric ll_conversion)\nEXP_3 → EXP_4 (same_primary_metric ll_clicks, common_tags: search)\nEXP_5 → EXP_6 (same_primary_metric ll_views, common_tags: retention)",
+      "item": [
+        {
+          "name": "FX-6.1: похожие для EXP_1 (Редизайн чекаута)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('Есть похожие learnings', function() { pm.expect(json).to.be.an('array').with.length.above(0); });",
+            "pm.test('EXP_8 в результатах (same_feature_flag ll_checkout_flow)', function() {",
+            "    var exp8 = json.find(function(r) {",
+            "        return r.similarity_reason && r.similarity_reason.includes('same_feature_flag');",
+            "    });",
+            "    pm.expect(exp8).to.not.be.undefined;",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings/similar/{{EXP_1_ID}}", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings","similar","{{EXP_1_ID}}"]}
+          }
+        },
+        {
+          "name": "FX-6.2: похожие для EXP_3 (ML-ранжирование поиска)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('Есть похожие learnings', function() { pm.expect(json).to.be.an('array').with.length.above(0); });",
+            "pm.test('EXP_4 в результатах (same_primary_metric ll_clicks + common_tags: search)', function() {",
+            "    var hasMetric = json.some(function(r) {",
+            "        return r.similarity_reason && r.similarity_reason.includes('same_primary_metric');",
+            "    });",
+            "    pm.expect(hasMetric).to.be.true;",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings/similar/{{EXP_3_ID}}", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings","similar","{{EXP_3_ID}}"]}
+          }
+        },
+        {
+          "name": "FX-6.3: похожие для EXP_5 (Онбординг)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('Есть похожие learnings', function() { pm.expect(json).to.be.an('array').with.length.above(0); });",
+            "pm.test('EXP_6 в результатах (same_primary_metric ll_views + common_tags: retention)', function() {",
+            "    var hasMetric = json.some(function(r) {",
+            "        return r.similarity_reason && r.similarity_reason.includes('same_primary_metric');",
+            "    });",
+            "    pm.expect(hasMetric).to.be.true;",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings/similar/{{EXP_5_ID}}", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings","similar","{{EXP_5_ID}}"]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "FX-7. Проверка ошибок",
+      "description": "7.1 Невалидный result → 400\n7.2 Несуществующий experiment_id → 404\n7.3 Пустая hypothesis → 422",
+      "item": [
+        {
+          "name": "FX-7.1: GET /learnings?result=INVALID → 400",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 400 — невалидное значение result', function() { pm.response.to.have.status(400); });"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings?result=INVALID", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"], "query": [{"key": "result", "value": "INVALID"}]}
+          }
+        },
+        {
+          "name": "FX-7.2: POST /learnings — несуществующий experiment_id → 404",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 404 — эксперимент не найден', function() { pm.response.to.have.status(404); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"experiment_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"hypothesis\": \"Тест несуществующего эксперимента\",\n  \"primary_metric_key\": \"ll_views\",\n  \"notes\": \"test\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"]}
+          }
+        },
+        {
+          "name": "FX-7.3: POST /learnings — пустая hypothesis → 422",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Status 422 — hypothesis не должна быть пустой', function() { pm.response.to.have.status(422); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}"}],
+            "body": {"mode": "raw", "raw": "{\n  \"experiment_id\": \"{{EXP_1_ID}}\",\n  \"hypothesis\": \"   \",\n  \"primary_metric_key\": \"ll_views\",\n  \"notes\": \"test\"\n}"},
+            "url": {"raw": "{{BASE_URL}}/api/v1/learnings", "host": ["{{BASE_URL}}"], "path": ["api","v1","learnings"]}
+          }
+        }
+      ]
+    }
+  ]
+}

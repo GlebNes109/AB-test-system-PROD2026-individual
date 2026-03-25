@@ -1,0 +1,25 @@
+opencollection: 1.0.0
+
+info:
+  name: B2. Feature Flags и выдача вариантов
+
+request:
+  variables:
+    - name: BASE_URL
+      value: http://localhost
+
+docs:
+  content: |-
+    Коллекция для проверки критериев B2 (Feature Flags и выдача вариантов).
+
+    Подготовка:
+    1. docker compose up -d
+    2. pip install requests && python demo/B2/data_generator.py
+    3. Задать переменную коллекции BASE_URL (по умолчанию http://localhost)
+  type: text/markdown
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

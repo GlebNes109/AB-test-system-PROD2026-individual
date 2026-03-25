@@ -1,0 +1,36 @@
+info:
+  name: "B3-5d: APPROVER из группы (Alpha) — РАЗРЕШЕНО"
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_ROLE_POLICY}}/review"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{APPROVER_ALPHA_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "decision": "ACCEPT",
+        "comment": "Одобрено назначенным аппрувером Alpha"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200 — назначенный аппрувер может ревьюить', function () {
+            expect(res.getStatus()).to.equal(200);
+        });
+        console.log('B3-5d: Alpha из группы одобрил — OK');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

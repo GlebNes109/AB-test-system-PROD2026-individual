@@ -1,0 +1,11 @@
+info:
+  name: B5-5. История срабатываний guardrail-triggers
+  type: folder
+  seq: 6
+
+request:
+  auth: inherit
+
+docs:
+  content: После B5-3 и B5-4 проверяем что записи о срабатывании сохранились.
+  type: text/markdown

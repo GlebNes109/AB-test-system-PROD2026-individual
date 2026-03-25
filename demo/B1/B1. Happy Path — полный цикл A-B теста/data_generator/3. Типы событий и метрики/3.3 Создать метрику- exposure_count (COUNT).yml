@@ -1,0 +1,39 @@
+info:
+  name: "3.3 Создать метрику: exposure_count (COUNT)"
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/metrics"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "key": "b1_exposure_count",
+        "name": "Число показов",
+        "description": "COUNT всех exposure событий",
+        "event_type": "b1_exposure",
+        "aggregation": "COUNT"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        var code = res.getStatus();
+        test('Status 201 или 409', function () {
+            expect([201, 409]).to.include(code);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

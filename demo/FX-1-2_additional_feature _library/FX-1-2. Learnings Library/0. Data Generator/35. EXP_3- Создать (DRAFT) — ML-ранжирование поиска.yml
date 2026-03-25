@@ -1,0 +1,40 @@
+info:
+  name: "35. EXP_3: Создать (DRAFT) — ML-ранжирование поиска"
+  type: http
+  seq: 35
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Поиск: ML-ранжирование vs BM25",
+        "feature_flag_key": "ll_search_ranking",
+        "audience_percentage": 100,
+        "variants": [
+          {"name": "control",   "value": "bm25",  "weight": 50, "is_control": true},
+          {"name": "treatment", "value": "ml_v1", "weight": 50, "is_control": false}
+        ],
+        "metrics": [{"metric_key": "ll_clicks", "type": "PRIMARY"}]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 201', function() { expect(res.getStatus()).to.equal(201); });
+        bru.setVar('EXP_3_ID', res.getBody().id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

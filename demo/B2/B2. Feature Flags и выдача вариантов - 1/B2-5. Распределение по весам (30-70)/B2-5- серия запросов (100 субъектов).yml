@@ -1,0 +1,94 @@
+info:
+  name: "B2-5: серия запросов (100 субъектов)"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/decision"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id": "weight-test-{{subjectIndex}}",
+        "subject_attr": {},
+        "flags_keys": ["b2_weights"]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        // // pm.info.iteration — 0-based индекс текущей итерации в Collection Runner
+        // var i = pm.info.iteration;
+
+        // Устанавливаем номер для подстановки в тело запроса (1-based)
+        bru.setVar('subjectIndex', i + 1);
+
+        // Сброс счётчиков на первой итерации
+        if (i === 0) {
+            bru.setGlobalEnvVar('b2_control', 0);
+            bru.setGlobalEnvVar('b2_treatment', 0);
+            bru.setGlobalEnvVar('b2_other', 0);
+        }
+    - type: after-response
+      code: |-
+        test('Status 200', function () {
+            expect(res.getStatus()).to.equal(200);
+        });
+
+        var json = res.getBody();
+        var val = json[0].value;
+
+        // Обновляем счётчики в globals (они сохраняются между итерациями)
+        if (val === 'control_val') {
+            bru.setGlobalEnvVar('b2_control', parseInt(bru.getGlobalEnvVar('b2_control') || '0') + 1);
+        } else if (val === 'treatment_val') {
+            bru.setGlobalEnvVar('b2_treatment', parseInt(bru.getGlobalEnvVar('b2_treatment') || '0') + 1);
+        } else {
+            bru.setGlobalEnvVar('b2_other', parseInt(bru.getGlobalEnvVar('b2_other') || '0') + 1);
+        }
+
+        // На последней итерации — проверяем распределение и выводим результат
+        // var isLast = pm.info.iteration === pm.info.iterationCount - 1;
+        if (isLast) {
+            var control   = parseInt(bru.getGlobalEnvVar('b2_control'));
+            var treatment = parseInt(bru.getGlobalEnvVar('b2_treatment'));
+            var other     = parseInt(bru.getGlobalEnvVar('b2_other'));
+            var total     = control + treatment;
+            var controlPct   = total > 0 ? (control / total) * 100 : 0;
+            var treatmentPct = total > 0 ? (treatment / total) * 100 : 0;
+
+            // Результат виден в Console (View → Show Postman Console)
+            console.log('══════════════════════════════════════');
+            console.log('  РЕЗУЛЬТАТ B2-5: Распределение по весам');
+            console.log('──────────────────────────────────────');
+            console.log('  control_val   (вес 30): ' + control + '  (' + controlPct.toFixed(1) + '%)');
+            console.log('  treatment_val (вес 70): ' + treatment + '  (' + treatmentPct.toFixed(1) + '%)');
+            if (other > 0) console.log('  other (default/cooldown): ' + other);
+            console.log('══════════════════════════════════════');
+
+            // Результат виден в Test Results (зелёные/красные тесты)
+            test('control_val: ' + control + ' из ' + total + ' (' + controlPct.toFixed(1) + '%) — ожидание 20-40%', function () {
+                expect(controlPct).to.be.within(20, 40);
+            });
+
+            test('treatment_val: ' + treatment + ' из ' + total + ' (' + treatmentPct.toFixed(1) + '%) — ожидание 60-80%', function () {
+                expect(treatmentPct).to.be.within(60, 80);
+            });
+
+            // Очистка временных globals
+        //     pm.globals.unset('b2_control');
+        //     pm.globals.unset('b2_treatment');
+        //     pm.globals.unset('b2_other');
+        }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

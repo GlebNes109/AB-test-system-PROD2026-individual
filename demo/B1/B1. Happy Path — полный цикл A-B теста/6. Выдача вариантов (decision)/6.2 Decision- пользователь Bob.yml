@@ -1,0 +1,44 @@
+info:
+  name: "6.2 Decision: пользователь Bob"
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/decision"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id": "bob-002",
+        "subject_attr": {},
+        "flags_keys": ["b1_button_color"]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function () {
+            expect(res.getStatus()).to.equal(200);
+        });
+
+        var json = res.getBody();
+        test('id != null — попал в эксперимент', function () {
+            expect(json[0].id).to.not.be.null;
+        });
+
+        bru.setVar('DECISION_ID_BOB', json[0].id);
+        bru.setVar('VARIANT_BOB', json[0].value);
+
+        console.log('Bob получил вариант: ' + json[0].value);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

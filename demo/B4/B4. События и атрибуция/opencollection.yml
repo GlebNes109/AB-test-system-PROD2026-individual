@@ -1,0 +1,46 @@
+opencollection: 1.0.0
+
+info:
+  name: B4. События и атрибуция
+
+request:
+  variables:
+    - name: BASE_URL
+      value: http://localhost
+    - name: ADMIN_TOKEN
+      value: ""
+    - name: EXPERIMENTER_TOKEN
+      value: ""
+    - name: APPROVER_TOKEN
+      value: ""
+    - name: EXPERIMENTER_ID
+      value: ""
+    - name: APPROVER_ID
+      value: ""
+    - name: EXP_ID
+      value: ""
+    - name: DECISION_ID
+      value: ""
+    - name: DECISION_ALPHA_VALUE
+      value: ""
+    - name: DECISION_BETA
+      value: ""
+    - name: DECISION_GAMMA
+      value: ""
+
+docs:
+  content: |-
+    Коллекция для проверки критериев B4 (валидация событий, дедупликация, атрибуция конверсий).
+
+    Порядок работы:
+    1. Запустить папку «0. Data Generator» через Collection Runner (ПКМ → Run folder) — создаст эксперимент, decision и сохранит все ID/токены
+    2. Выполнять запросы B4-1 … B4-5 вручную по одному сверху вниз
+
+    Подготовка: docker compose up -d
+  type: text/markdown
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

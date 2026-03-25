@@ -1,0 +1,34 @@
+info:
+  name: 14. Create flag ll_checkout_flow
+  type: http
+  seq: 14
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/feature-flags"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{ADMIN_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "key": "ll_checkout_flow",
+        "type": "string",
+        "default_value": "classic",
+        "description": "Дизайн страницы оформления заказа"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: test('Создан или существует', function() { expect([201, 409]).to.include(res.getStatus()); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

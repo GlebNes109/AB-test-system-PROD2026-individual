@@ -1,0 +1,40 @@
+info:
+  name: "28. EXP_1: Создать learning → LEARNING_1_ID"
+  type: http
+  seq: 28
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/learnings"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "experiment_id": "{{EXP_1_ID}}",
+        "hypothesis": "Одностраничная форма оформления заказа снизит отток на этапе чекаута и повысит конверсию",
+        "primary_metric_key": "ll_conversion",
+        "tags": ["checkout", "conversion", "redesign", "mobile"],
+        "platform": "web",
+        "segment": "Все пользователи",
+        "notes": "Одностраничная форма показала рост конверсии на 12%. Особенно сильный эффект на мобильных устройствах (+18%). Рекомендуется раскатывать.",
+        "dashboard_link": "http://localhost/metabase/dashboard/1"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 201', function() { expect(res.getStatus()).to.equal(201); });
+        bru.setVar('LEARNING_1_ID', res.getBody().id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,14 @@
+info:
+  name: 0. Data Generator (Run folder)
+  type: folder
+  seq: 1
+
+request:
+  auth: inherit
+
+docs:
+  content: |-
+    ПКМ → Run folder → Run.
+    Создаёт пользователей, типы событий, метрики (включая ratio и AVG), 4 флага, 4 эксперимента (RUNNING) с guardrail-метриками.
+    Все ID и токены сохраняются в переменные коллекции.
+  type: text/markdown

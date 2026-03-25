@@ -1,0 +1,33 @@
+info:
+  name: "0.27 Decision: b6-user-003"
+  type: http
+  seq: 27
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/decision"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id": "b6-user-003",
+        "subject_attr": {},
+        "flags_keys": ["b6_reports"]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200', function () { expect(res.getStatus()).to.equal(200); });
+        bru.setVar('D3', res.getBody()[0].id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

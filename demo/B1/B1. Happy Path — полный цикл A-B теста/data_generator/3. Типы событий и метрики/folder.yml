@@ -1,0 +1,7 @@
+info:
+  name: 3. Типы событий и метрики
+  type: folder
+  seq: 3
+
+request:
+  auth: inherit

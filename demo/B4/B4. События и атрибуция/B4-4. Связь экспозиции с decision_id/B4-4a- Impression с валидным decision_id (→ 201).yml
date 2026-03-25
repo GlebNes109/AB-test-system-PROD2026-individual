@@ -1,0 +1,43 @@
+info:
+  name: "B4-4a: Impression с валидным decision_id (→ 201)"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/events/batch"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "events": [
+          {
+            "event_type": "b4_impression",
+            "decision_id": "{{DECISION_ID}}"
+          }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 207', function () { expect(res.getStatus()).to.equal(207); });
+        var r = res.getBody().results[0];
+        test('status_code = 201 — принято', function () {
+            expect(r.status_code).to.eql(201);
+        });
+        test('event_id не null', function () {
+            expect(r.event_id).to.not.be.null;
+        });
+        console.log('B4-4a: Impression принят, event_id=' + r.event_id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

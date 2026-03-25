@@ -1,0 +1,32 @@
+info:
+  name: "57. EXP_6: Finish → FINISHED (ROLLOUT)"
+  type: http
+  seq: 57
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_6_ID}}/finish"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "result": "ROLLOUT",
+        "result_description": "Отписки от push сократились на 30% при сохранении DAU. Менее частые push = меньше раздражения."
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: test('Status 200', function() { expect(res.getStatus()).to.equal(200); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

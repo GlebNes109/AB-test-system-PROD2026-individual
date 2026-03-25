@@ -1,0 +1,43 @@
+info:
+  name: "B4-4b: Impression с несуществующим decision_id (→ 404)"
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/events/batch"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "events": [
+          {
+            "event_type": "b4_impression",
+            "decision_id": "00000000-0000-0000-0000-000000000000"
+          }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 207', function () { expect(res.getStatus()).to.equal(207); });
+        var r = res.getBody().results[0];
+        test('status_code = 404 — decision не найден', function () {
+            expect(r.status_code).to.eql(404);
+        });
+        test('event_status = REJECTED', function () {
+            expect(r.event_status).to.eql('REJECTED');
+        });
+        console.log('B4-4b: Несуществующий decision отклонён — OK');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

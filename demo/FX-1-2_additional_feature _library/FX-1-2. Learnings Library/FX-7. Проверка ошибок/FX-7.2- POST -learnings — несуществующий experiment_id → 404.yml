@@ -1,0 +1,34 @@
+info:
+  name: "FX-7.2: POST /learnings — несуществующий experiment_id → 404"
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/learnings"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "experiment_id": "00000000-0000-0000-0000-000000000000",
+        "hypothesis": "Тест несуществующего эксперимента",
+        "primary_metric_key": "ll_views",
+        "notes": "test"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: test('Status 404 — эксперимент не найден', function() { expect(res.getStatus()).to.equal(404); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

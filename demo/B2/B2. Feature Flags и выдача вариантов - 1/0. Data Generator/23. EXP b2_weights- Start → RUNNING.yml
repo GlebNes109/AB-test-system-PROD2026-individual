@@ -1,0 +1,29 @@
+info:
+  name: "23. EXP b2_weights: Start → RUNNING"
+  type: http
+  seq: 23
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_WEIGHTS_ID}}/start"
+  headers:
+    - name: Authorization
+      value: Bearer {{ADMIN_TOKEN}}
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function() { expect(res.getStatus()).to.equal(200); });
+        console.log('✓ B2 Data Generator завершён.');
+        console.log('  b2_no_experiment  — без эксперимента, default = fallback_value');
+        console.log('  b2_targeting      — таргетинг country == RU, 50/50');
+        console.log('  b2_variant        — без таргетинга, 50/50');
+        console.log('  b2_weights        — веса 30/70 (control/treatment)');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

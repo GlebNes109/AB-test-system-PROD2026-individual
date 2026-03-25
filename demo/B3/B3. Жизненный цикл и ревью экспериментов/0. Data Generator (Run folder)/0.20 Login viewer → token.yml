@@ -1,0 +1,33 @@
+info:
+  name: 0.20 Login viewer → token
+  type: http
+  seq: 20
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/auth/login"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "b3_viewer@demo.com",
+        "password": "Demo1234!x"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function () { expect(res.getStatus()).to.equal(200); });
+        bru.setVar('VIEWER_TOKEN', res.getBody().accessToken);
+        console.log('[gen] Viewer token saved');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,42 @@
+info:
+  name: "0.21 EXP_FINISH: create"
+  type: http
+  seq: 21
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "name": "B6: фиксация решения (finish)",
+        "feature_flag_key": "b6_finish",
+        "audience_percentage": 100,
+        "variants": [
+          { "name": "control", "value": "control", "weight": 50, "is_control": true },
+          { "name": "treatment", "value": "treatment", "weight": 50, "is_control": false }
+        ],
+        "metrics": [
+          { "metric_key": "b6_views_count", "type": "PRIMARY" }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('201', function () { expect(res.getStatus()).to.equal(201); });
+        bru.setVar('EXP_FINISH_ID', res.getBody().id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

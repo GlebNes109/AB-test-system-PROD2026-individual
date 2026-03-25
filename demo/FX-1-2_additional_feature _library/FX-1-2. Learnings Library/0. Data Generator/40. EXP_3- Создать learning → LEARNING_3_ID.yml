@@ -1,0 +1,39 @@
+info:
+  name: "40. EXP_3: Создать learning → LEARNING_3_ID"
+  type: http
+  seq: 40
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/learnings"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "experiment_id": "{{EXP_3_ID}}",
+        "hypothesis": "ML-модель ранжирования с учётом поведения пользователя покажет более релевантные результаты поиска",
+        "primary_metric_key": "ll_clicks",
+        "tags": ["search", "ranking", "ml", "relevance"],
+        "segment": "Все пользователи",
+        "notes": "ML-ранжирование дало +8% CTR. Модель особенно хорошо работает для длинных запросов (>3 слов). Короткие запросы почти не отличаются от BM25.",
+        "ticket_link": "https://jira.example.com/SEARCH-1234"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 201', function() { expect(res.getStatus()).to.equal(201); });
+        bru.setVar('LEARNING_3_ID', res.getBody().id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

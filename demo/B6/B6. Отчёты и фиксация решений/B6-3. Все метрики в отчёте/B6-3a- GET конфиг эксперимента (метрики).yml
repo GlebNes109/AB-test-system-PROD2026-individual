@@ -1,0 +1,31 @@
+info:
+  name: "B6-3a: GET конфиг эксперимента (метрики)"
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_REPORTS_ID}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200', function () { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        var keys = json.metrics.map(function(m){return m.metric_key;});
+        test('b6_views_count в конфиге', function () { expect(keys).to.include('b6_views_count'); });
+        test('b6_clicks_count в конфиге', function () { expect(keys).to.include('b6_clicks_count'); });
+        test('b6_conversion в конфиге', function () { expect(keys).to.include('b6_conversion'); });
+        test('b6_avg_revenue в конфиге', function () { expect(keys).to.include('b6_avg_revenue'); });
+        console.log('B6-3a: метрики в конфиге: ' + keys.join(', '));
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,677 @@
+{
+  "info": {
+    "name": "B5. Guardrails и cooling period",
+    "description": "Коллекция для проверки критериев B5 (guardrail-метрики, PAUSE/ROLLBACK, cooling period).\n\nПорядок работы:\n1. Запустить папку «0. Data Generator» через Collection Runner (ПКМ → Run folder)\n2. Выполнять запросы B5-1 … B5-6 вручную сверху вниз\n\nПодготовка: docker compose up -d",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "BASE_URL", "value": "http://localhost", "type": "string" },
+    { "key": "ADMIN_TOKEN", "value": "", "type": "string" },
+    { "key": "EXPERIMENTER_TOKEN", "value": "", "type": "string" },
+    { "key": "APPROVER_TOKEN", "value": "", "type": "string" },
+    { "key": "EXPERIMENTER_ID", "value": "", "type": "string" },
+    { "key": "APPROVER_ID", "value": "", "type": "string" },
+    { "key": "EXP_PAUSE_ID", "value": "", "type": "string" },
+    { "key": "EXP_ROLLBACK_ID", "value": "", "type": "string" },
+    { "key": "EXP_COOLING_ID", "value": "", "type": "string" },
+    { "key": "EXP_COOLING2_ID", "value": "", "type": "string" },
+    { "key": "DECISION_PAUSE", "value": "", "type": "string" },
+    { "key": "DECISION_ROLLBACK", "value": "", "type": "string" },
+    { "key": "NEW_EXP_DRAFT_ID", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "0. Data Generator (Run folder)",
+      "description": "ПКМ → Run folder → Run.\nСоздаёт пользователей, типы событий, метрики (включая ratio и AVG), 4 флага, 4 эксперимента (RUNNING) с guardrail-метриками.\nВсе ID и токены сохраняются в переменные коллекции.",
+      "item": [
+        {
+          "name": "0.01 Login admin",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('ADMIN_TOKEN', pm.response.json().accessToken);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@mail.ru\",\n  \"password\": \"123123123aA!\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/auth/login", "host": ["{{BASE_URL}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "0.02 Create user: experimenter",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b5_experimenter@demo.com\",\n  \"password\": \"Demo1234!x\",\n  \"role\": \"EXPERIMENTER\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/users", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"] }
+          }
+        },
+        {
+          "name": "0.03 Create user: approver",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b5_approver@demo.com\",\n  \"password\": \"Demo1234!x\",\n  \"role\": \"APPROVER\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/users", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"] }
+          }
+        },
+        {
+          "name": "0.04 GET users → find IDs",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var users = pm.response.json().items;",
+            "function findId(email) { var u = users.find(function(x){return x.email===email;}); return u ? u.id : null; }",
+            "var expId = findId('b5_experimenter@demo.com');",
+            "var aprId = findId('b5_approver@demo.com');",
+            "if (expId) pm.collectionVariables.set('EXPERIMENTER_ID', expId);",
+            "if (aprId) pm.collectionVariables.set('APPROVER_ID', aprId);"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/users?size=100", "host": ["{{BASE_URL}}"], "path": ["api","v1","users"], "query": [{"key":"size","value":"100"}] }
+          }
+        },
+        {
+          "name": "0.05 Set approver group",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });"
+          ]}}],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"approver_ids\": [\"{{APPROVER_ID}}\"],\n  \"min_approvals\": 1\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/users/{{EXPERIMENTER_ID}}/approvers", "host": ["{{BASE_URL}}"], "path": ["api","v1","users","{{EXPERIMENTER_ID}}","approvers"] }
+          }
+        },
+        {
+          "name": "0.06 Event type: b5_page_view",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"b5_page_view\",\n  \"description\": \"Просмотр страницы\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/types", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","types"] }
+          }
+        },
+        {
+          "name": "0.07 Event type: b5_error",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"b5_error\",\n  \"description\": \"Ошибка на клиенте\",\n  \"payload_schema\": {\"error_code\": \"number\"}\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/types", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","types"] }
+          }
+        },
+        {
+          "name": "0.08 Event type: b5_click",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"b5_click\",\n  \"description\": \"Клик по элементу\",\n  \"payload_schema\": {\"element\": \"string\"}\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/types", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","types"] }
+          }
+        },
+        {
+          "name": "0.09 Event type: b5_latency",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"b5_latency\",\n  \"description\": \"Замер латентности\",\n  \"payload_schema\": {\"ms\": \"number\"}\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/types", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","types"] }
+          }
+        },
+        {
+          "name": "0.10 Metric: b5_page_view_count",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b5_page_view_count\",\n  \"name\": \"Число просмотров\",\n  \"description\": \"COUNT b5_page_view\",\n  \"event_type\": \"b5_page_view\",\n  \"aggregation\": \"COUNT\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/metrics", "host": ["{{BASE_URL}}"], "path": ["api","v1","metrics"] }
+          }
+        },
+        {
+          "name": "0.11 Metric: b5_error_rate (ratio)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b5_error_rate\",\n  \"name\": \"Доля ошибок\",\n  \"description\": \"COUNT b5_error / COUNT b5_page_view\",\n  \"event_type\": \"b5_error\",\n  \"aggregation\": \"COUNT\",\n  \"denominator_event_type\": \"b5_page_view\",\n  \"denominator_aggregation\": \"COUNT\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/metrics", "host": ["{{BASE_URL}}"], "path": ["api","v1","metrics"] }
+          }
+        },
+        {
+          "name": "0.12 Metric: b5_click_count",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b5_click_count\",\n  \"name\": \"Число кликов\",\n  \"description\": \"COUNT b5_click\",\n  \"event_type\": \"b5_click\",\n  \"aggregation\": \"COUNT\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/metrics", "host": ["{{BASE_URL}}"], "path": ["api","v1","metrics"] }
+          }
+        },
+        {
+          "name": "0.13 Metric: b5_avg_latency (AVG, payload_field=ms)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b5_avg_latency\",\n  \"name\": \"Средняя латентность (ms)\",\n  \"description\": \"AVG b5_latency.ms\",\n  \"event_type\": \"b5_latency\",\n  \"aggregation\": \"AVG\",\n  \"payload_field\": \"ms\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/metrics", "host": ["{{BASE_URL}}"], "path": ["api","v1","metrics"] }
+          }
+        },
+        {
+          "name": "0.14 Flag: b5_guardrail_pause",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b5_guardrail_pause\",\n  \"type\": \"string\",\n  \"default_value\": \"old_page\",\n  \"description\": \"B5: guardrail PAUSE\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"] }
+          }
+        },
+        {
+          "name": "0.15 Flag: b5_guardrail_rollback",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b5_guardrail_rollback\",\n  \"type\": \"string\",\n  \"default_value\": \"old_layout\",\n  \"description\": \"B5: guardrail ROLLBACK\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"] }
+          }
+        },
+        {
+          "name": "0.16 Flag: b5_cooling",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b5_cooling\",\n  \"type\": \"string\",\n  \"default_value\": \"baseline\",\n  \"description\": \"B5: cooling period (step 1)\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"] }
+          }
+        },
+        {
+          "name": "0.17 Flag: b5_cooling_second",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 or 409', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{ADMIN_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"key\": \"b5_cooling_second\",\n  \"type\": \"string\",\n  \"default_value\": \"fallback\",\n  \"description\": \"B5: cooling period (step 2)\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/feature-flags", "host": ["{{BASE_URL}}"], "path": ["api","v1","feature-flags"] }
+          }
+        },
+        {
+          "name": "0.18 Login experimenter",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('EXPERIMENTER_TOKEN', pm.response.json().accessToken);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b5_experimenter@demo.com\",\n  \"password\": \"Demo1234!x\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/auth/login", "host": ["{{BASE_URL}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "0.19 Login approver",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('APPROVER_TOKEN', pm.response.json().accessToken);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"b5_approver@demo.com\",\n  \"password\": \"Demo1234!x\"\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/auth/login", "host": ["{{BASE_URL}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "0.20 Create+run EXP_PAUSE: create",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201', function () { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('EXP_PAUSE_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"B5: guardrail PAUSE (error_rate > 0.5)\",\n  \"feature_flag_key\": \"b5_guardrail_pause\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    { \"name\": \"control\", \"value\": \"old_page\", \"weight\": 50, \"is_control\": true },\n    { \"name\": \"treatment\", \"value\": \"new_page\", \"weight\": 50, \"is_control\": false }\n  ],\n  \"metrics\": [\n    { \"metric_key\": \"b5_page_view_count\", \"type\": \"PRIMARY\" },\n    { \"metric_key\": \"b5_error_rate\", \"type\": \"GUARDRAIL\", \"threshold\": 0.5, \"window_minutes\": 60, \"action\": \"PAUSE\" }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"] }
+          }
+        },
+        {
+          "name": "0.21 EXP_PAUSE: submit",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('200', function () { pm.response.to.have.status(200); });"] }}],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }], "body": { "mode": "raw", "raw": "" }, "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_PAUSE_ID}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_PAUSE_ID}}","submit"] } }
+        },
+        {
+          "name": "0.22 EXP_PAUSE: approve",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('200', function () { pm.response.to.have.status(200); });"] }}],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{APPROVER_TOKEN}}" }], "body": { "mode": "raw", "raw": "{\"decision\": \"ACCEPT\", \"comment\": \"Seed B5\"}" }, "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_PAUSE_ID}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_PAUSE_ID}}","review"] } }
+        },
+        {
+          "name": "0.23 EXP_PAUSE: start",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('200', function () { pm.response.to.have.status(200); });"] }}],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }], "body": { "mode": "raw", "raw": "" }, "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_PAUSE_ID}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_PAUSE_ID}}","start"] } }
+        },
+        {
+          "name": "0.24 Create+run EXP_ROLLBACK: create",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201', function () { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('EXP_ROLLBACK_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"B5: guardrail ROLLBACK (avg_latency > 500ms)\",\n  \"feature_flag_key\": \"b5_guardrail_rollback\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    { \"name\": \"control\", \"value\": \"old_layout\", \"weight\": 50, \"is_control\": true },\n    { \"name\": \"treatment\", \"value\": \"new_layout\", \"weight\": 50, \"is_control\": false }\n  ],\n  \"metrics\": [\n    { \"metric_key\": \"b5_click_count\", \"type\": \"PRIMARY\" },\n    { \"metric_key\": \"b5_avg_latency\", \"type\": \"GUARDRAIL\", \"threshold\": 500.0, \"window_minutes\": 60, \"action\": \"ROLLBACK\" }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"] }
+          }
+        },
+        {
+          "name": "0.25 EXP_ROLLBACK: submit",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('200', function () { pm.response.to.have.status(200); });"] }}],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }], "body": { "mode": "raw", "raw": "" }, "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_ROLLBACK_ID}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_ROLLBACK_ID}}","submit"] } }
+        },
+        {
+          "name": "0.26 EXP_ROLLBACK: approve",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('200', function () { pm.response.to.have.status(200); });"] }}],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{APPROVER_TOKEN}}" }], "body": { "mode": "raw", "raw": "{\"decision\": \"ACCEPT\", \"comment\": \"Seed B5\"}" }, "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_ROLLBACK_ID}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_ROLLBACK_ID}}","review"] } }
+        },
+        {
+          "name": "0.27 EXP_ROLLBACK: start",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('200', function () { pm.response.to.have.status(200); });"] }}],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }], "body": { "mode": "raw", "raw": "" }, "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_ROLLBACK_ID}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_ROLLBACK_ID}}","start"] } }
+        },
+        {
+          "name": "0.28 Create+run EXP_COOLING: create",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201', function () { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('EXP_COOLING_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"B5: cooling period (step 1)\",\n  \"feature_flag_key\": \"b5_cooling\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    { \"name\": \"control\", \"value\": \"baseline\", \"weight\": 50, \"is_control\": true },\n    { \"name\": \"treatment\", \"value\": \"experiment_v\", \"weight\": 50, \"is_control\": false }\n  ],\n  \"metrics\": [\n    { \"metric_key\": \"b5_page_view_count\", \"type\": \"PRIMARY\" }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"] }
+          }
+        },
+        {
+          "name": "0.29 EXP_COOLING: submit",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('200', function () { pm.response.to.have.status(200); });"] }}],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }], "body": { "mode": "raw", "raw": "" }, "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_COOLING_ID}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_COOLING_ID}}","submit"] } }
+        },
+        {
+          "name": "0.30 EXP_COOLING: approve",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('200', function () { pm.response.to.have.status(200); });"] }}],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{APPROVER_TOKEN}}" }], "body": { "mode": "raw", "raw": "{\"decision\": \"ACCEPT\", \"comment\": \"Seed B5\"}" }, "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_COOLING_ID}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_COOLING_ID}}","review"] } }
+        },
+        {
+          "name": "0.31 EXP_COOLING: start",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('200', function () { pm.response.to.have.status(200); });"] }}],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }], "body": { "mode": "raw", "raw": "" }, "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_COOLING_ID}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_COOLING_ID}}","start"] } }
+        },
+        {
+          "name": "0.32 Create+run EXP_COOLING_2: create",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201', function () { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('EXP_COOLING2_ID', pm.response.json().id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"B5: cooling period (step 2)\",\n  \"feature_flag_key\": \"b5_cooling_second\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    { \"name\": \"control\", \"value\": \"fallback\", \"weight\": 50, \"is_control\": true },\n    { \"name\": \"treatment\", \"value\": \"new_feature\", \"weight\": 50, \"is_control\": false }\n  ],\n  \"metrics\": [\n    { \"metric_key\": \"b5_click_count\", \"type\": \"PRIMARY\" }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"] }
+          }
+        },
+        {
+          "name": "0.33 EXP_COOLING_2: submit",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('200', function () { pm.response.to.have.status(200); });"] }}],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }], "body": { "mode": "raw", "raw": "" }, "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_COOLING2_ID}}/submit", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_COOLING2_ID}}","submit"] } }
+        },
+        {
+          "name": "0.34 EXP_COOLING_2: approve",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('200', function () { pm.response.to.have.status(200); });"] }}],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{APPROVER_TOKEN}}" }], "body": { "mode": "raw", "raw": "{\"decision\": \"ACCEPT\", \"comment\": \"Seed B5\"}" }, "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_COOLING2_ID}}/review", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_COOLING2_ID}}","review"] } }
+        },
+        {
+          "name": "0.35 EXP_COOLING_2: start",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "",
+            "console.log('');",
+            "console.log('══════════════════════════════════════════════');",
+            "console.log('  DATA GENERATOR COMPLETE');",
+            "console.log('──────────────────────────────────────────────');",
+            "console.log('  EXP_PAUSE_ID    = ' + pm.collectionVariables.get('EXP_PAUSE_ID'));",
+            "console.log('  EXP_ROLLBACK_ID = ' + pm.collectionVariables.get('EXP_ROLLBACK_ID'));",
+            "console.log('  EXP_COOLING_ID  = ' + pm.collectionVariables.get('EXP_COOLING_ID'));",
+            "console.log('  EXP_COOLING2_ID = ' + pm.collectionVariables.get('EXP_COOLING2_ID'));",
+            "console.log('──────────────────────────────────────────────');",
+            "console.log('  All 4 experiments RUNNING. Ready for B5-1..B5-6');",
+            "console.log('══════════════════════════════════════════════');"
+          ]}}],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }], "body": { "mode": "raw", "raw": "" }, "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_COOLING2_ID}}/start", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_COOLING2_ID}}","start"] } }
+        }
+      ]
+    },
+    {
+      "name": "B5-1. Привязка guardrail-метрики к эксперименту",
+      "description": "Проверяем что guardrail-параметры (threshold, window_minutes, action) сохранились при создании.",
+      "item": [
+        {
+          "name": "B5-1a: GET EXP_PAUSE — guardrail PAUSE",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "var g = json.metrics.find(function(m){return m.type==='GUARDRAIL';});",
+            "pm.test('Есть GUARDRAIL метрика', function () { pm.expect(g).to.not.be.undefined; });",
+            "pm.test('metric_key = b5_error_rate', function () { pm.expect(g.metric_key).to.eql('b5_error_rate'); });",
+            "pm.test('threshold = 0.5', function () { pm.expect(g.threshold).to.eql(0.5); });",
+            "pm.test('window_minutes = 60', function () { pm.expect(g.window_minutes).to.eql(60); });",
+            "pm.test('action = PAUSE', function () { pm.expect(g.action).to.eql('PAUSE'); });",
+            "console.log('B5-1a: GUARDRAIL b5_error_rate > 0.5 → PAUSE, window=60min');"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_PAUSE_ID}}", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_PAUSE_ID}}"] }
+          }
+        },
+        {
+          "name": "B5-1b: GET EXP_ROLLBACK — guardrail ROLLBACK",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "var g = json.metrics.find(function(m){return m.type==='GUARDRAIL';});",
+            "pm.test('Есть GUARDRAIL метрика', function () { pm.expect(g).to.not.be.undefined; });",
+            "pm.test('metric_key = b5_avg_latency', function () { pm.expect(g.metric_key).to.eql('b5_avg_latency'); });",
+            "pm.test('threshold = 500', function () { pm.expect(g.threshold).to.eql(500); });",
+            "pm.test('action = ROLLBACK', function () { pm.expect(g.action).to.eql('ROLLBACK'); });",
+            "console.log('B5-1b: GUARDRAIL b5_avg_latency > 500 → ROLLBACK, window=60min');"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_ROLLBACK_ID}}", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_ROLLBACK_ID}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B5-2. Сохранение guardrail при редактировании",
+      "description": "Создаём DRAFT эксперимент с guardrail, обновляем threshold/action, проверяем.",
+      "item": [
+        {
+          "name": "B5-2a: Create DRAFT с guardrail (threshold=0.3, PAUSE)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201', function () { pm.response.to.have.status(201); });",
+            "var json = pm.response.json();",
+            "pm.collectionVariables.set('NEW_EXP_DRAFT_ID', json.id);",
+            "var g = json.metrics.find(function(m){return m.type==='GUARDRAIL';});",
+            "pm.test('threshold = 0.3', function () { pm.expect(g.threshold).to.eql(0.3); });",
+            "pm.test('action = PAUSE', function () { pm.expect(g.action).to.eql('PAUSE'); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"B5-2: проверка обновления guardrail\",\n  \"feature_flag_key\": \"b5_guardrail_pause\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    { \"name\": \"control\", \"value\": \"old_page\", \"weight\": 50, \"is_control\": true },\n    { \"name\": \"treatment\", \"value\": \"new_page\", \"weight\": 50, \"is_control\": false }\n  ],\n  \"metrics\": [\n    { \"metric_key\": \"b5_page_view_count\", \"type\": \"PRIMARY\" },\n    { \"metric_key\": \"b5_error_rate\", \"type\": \"GUARDRAIL\", \"threshold\": 0.3, \"window_minutes\": 30, \"action\": \"PAUSE\" }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments"] }
+          }
+        },
+        {
+          "name": "B5-2b: PATCH — обновить threshold→0.8, action→ROLLBACK",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "var g = json.metrics.find(function(m){return m.type==='GUARDRAIL';});",
+            "pm.test('threshold обновлён до 0.8', function () { pm.expect(g.threshold).to.eql(0.8); });",
+            "pm.test('window_minutes обновлён до 120', function () { pm.expect(g.window_minutes).to.eql(120); });",
+            "pm.test('action обновлён до ROLLBACK', function () { pm.expect(g.action).to.eql('ROLLBACK'); });",
+            "console.log('B5-2: threshold 0.3→0.8, window 30→120, action PAUSE→ROLLBACK');"
+          ]}}],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"metrics\": [\n    { \"metric_key\": \"b5_page_view_count\", \"type\": \"PRIMARY\" },\n    { \"metric_key\": \"b5_error_rate\", \"type\": \"GUARDRAIL\", \"threshold\": 0.8, \"window_minutes\": 120, \"action\": \"ROLLBACK\" }\n  ]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{NEW_EXP_DRAFT_ID}}", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{NEW_EXP_DRAFT_ID}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B5-3. Guardrail PAUSE (error_rate > 0.5)",
+      "description": "Отправляем events чтобы error_rate превысил 0.5 → эксперимент автоматически ставится на PAUSE.\nПосле отправки событий подождите ~10 секунд перед проверкой статуса.",
+      "item": [
+        {
+          "name": "B5-3a: Decision для b5-user-pause-01",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.collectionVariables.set('DECISION_PAUSE', json[0].id);",
+            "console.log('B5-3: DECISION_PAUSE=' + json[0].id + ' value=' + json[0].value);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"b5-user-pause-01\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b5_guardrail_pause\"]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/decision", "host": ["{{BASE_URL}}"], "path": ["api","v1","decision"] }
+          }
+        },
+        {
+          "name": "B5-3b: Event: page_view",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('207', function () { pm.response.to.have.status(207); });",
+            "pm.test('201', function () { pm.expect(pm.response.json().results[0].status_code).to.eql(201); });"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"events\": [{\n    \"event_type\": \"b5_page_view\",\n    \"decision_id\": \"{{DECISION_PAUSE}}\"\n  }]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/batch", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","batch"] }
+          }
+        },
+        {
+          "name": "B5-3c: Event: error (error_rate = 1/1 = 1.0 > 0.5)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('207', function () { pm.response.to.have.status(207); });",
+            "pm.test('201', function () { pm.expect(pm.response.json().results[0].status_code).to.eql(201); });",
+            "console.log('B5-3: error_rate = 1.0 > 0.5. Подождите ~10 сек и выполните следующий запрос.');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"events\": [{\n    \"event_type\": \"b5_error\",\n    \"decision_id\": \"{{DECISION_PAUSE}}\",\n    \"payload\": {\"error_code\": 500}\n  }]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/batch", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","batch"] }
+          }
+        },
+        {
+          "name": "B5-3d: Проверка — status = paused",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('status = paused (guardrail сработал)', function () {",
+            "    pm.expect(json.status).to.eql('paused');",
+            "});",
+            "console.log('B5-3: status=' + json.status + ' result=' + json.result);"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_PAUSE_ID}}", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_PAUSE_ID}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B5-4. Guardrail ROLLBACK (avg_latency > 500ms)",
+      "description": "Отправляем latency event с ms=1200 → эксперимент автоматически финишируется с ROLLBACK.\nПодождите ~10 сек между отправкой события и проверкой статуса.",
+      "item": [
+        {
+          "name": "B5-4a: Decision для b5-user-rollback-01",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.collectionVariables.set('DECISION_ROLLBACK', json[0].id);",
+            "console.log('B5-4: DECISION_ROLLBACK=' + json[0].id + ' value=' + json[0].value);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"b5-user-rollback-01\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b5_guardrail_rollback\"]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/decision", "host": ["{{BASE_URL}}"], "path": ["api","v1","decision"] }
+          }
+        },
+        {
+          "name": "B5-4b: Event: latency ms=1200 (> 500 порог)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('207', function () { pm.response.to.have.status(207); });",
+            "pm.test('201', function () { pm.expect(pm.response.json().results[0].status_code).to.eql(201); });",
+            "console.log('B5-4: latency=1200ms > 500ms. Подождите ~10 сек и проверьте статус.');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"events\": [{\n    \"event_type\": \"b5_latency\",\n    \"decision_id\": \"{{DECISION_ROLLBACK}}\",\n    \"payload\": {\"ms\": 1200}\n  }]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/events/batch", "host": ["{{BASE_URL}}"], "path": ["api","v1","events","batch"] }
+          }
+        },
+        {
+          "name": "B5-4c: Проверка — status=finished, result=ROLLBACK",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('status = finished', function () { pm.expect(json.status).to.eql('finished'); });",
+            "pm.test('result = ROLLBACK', function () { pm.expect(json.result).to.eql('ROLLBACK'); });",
+            "pm.test('result_description не пустой', function () { pm.expect(json.result_description).to.be.a('string').and.not.empty; });",
+            "console.log('B5-4: status=' + json.status + ' result=' + json.result);",
+            "console.log('B5-4: ' + json.result_description);"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_ROLLBACK_ID}}", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_ROLLBACK_ID}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B5-5. История срабатываний guardrail-triggers",
+      "description": "После B5-3 и B5-4 проверяем что записи о срабатывании сохранились.",
+      "item": [
+        {
+          "name": "B5-5a: Triggers для EXP_PAUSE",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('Есть хотя бы 1 trigger', function () { pm.expect(json.length).to.be.above(0); });",
+            "var t = json[0];",
+            "pm.test('threshold = 0.5', function () { pm.expect(t.threshold).to.eql(0.5); });",
+            "pm.test('actual_value > threshold', function () { pm.expect(t.actual_value).to.be.above(0.5); });",
+            "pm.test('action_taken = PAUSE', function () { pm.expect(t.action_taken).to.eql('PAUSE'); });",
+            "console.log('B5-5a: PAUSE trigger — actual=' + t.actual_value + ' > threshold=' + t.threshold);"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_PAUSE_ID}}/guardrail-triggers", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_PAUSE_ID}}","guardrail-triggers"] }
+          }
+        },
+        {
+          "name": "B5-5b: Triggers для EXP_ROLLBACK",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('Есть хотя бы 1 trigger', function () { pm.expect(json.length).to.be.above(0); });",
+            "var t = json[0];",
+            "pm.test('threshold = 500', function () { pm.expect(t.threshold).to.eql(500); });",
+            "pm.test('actual_value > threshold', function () { pm.expect(t.actual_value).to.be.above(500); });",
+            "pm.test('action_taken = ROLLBACK', function () { pm.expect(t.action_taken).to.eql('ROLLBACK'); });",
+            "console.log('B5-5b: ROLLBACK trigger — actual=' + t.actual_value + ' > threshold=' + t.threshold);"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{EXPERIMENTER_TOKEN}}" }],
+            "url": { "raw": "{{BASE_URL}}/api/v1/experiments/{{EXP_ROLLBACK_ID}}/guardrail-triggers", "host": ["{{BASE_URL}}"], "path": ["api","v1","experiments","{{EXP_ROLLBACK_ID}}","guardrail-triggers"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B5-6. Cooling period",
+      "description": "Субъект попадает в EXP_COOLING, затем при запросе к EXP_COOLING_2 получает default (cooling period не прошёл).",
+      "item": [
+        {
+          "name": "B5-6a: Decision в b5_cooling (попадает в эксперимент)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('id != null — попал в эксперимент', function () {",
+            "    pm.expect(json[0].id).to.not.be.null;",
+            "});",
+            "console.log('B5-6a: b5_cooling value=' + json[0].value + ' id=' + json[0].id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"b5-user-cooling-test\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b5_cooling\"]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/decision", "host": ["{{BASE_URL}}"], "path": ["api","v1","decision"] }
+          }
+        },
+        {
+          "name": "B5-6b: Decision в b5_cooling_second (должен получить default)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "pm.test('id = null — cooling period, не попал в эксперимент', function () {",
+            "    pm.expect(json[0].id).to.be.null;",
+            "});",
+            "pm.test('value = fallback (default флага)', function () {",
+            "    pm.expect(json[0].value).to.eql('fallback');",
+            "});",
+            "console.log('B5-6b: b5_cooling_second value=' + json[0].value + ' id=' + json[0].id + ' (cooling!)');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"b5-user-cooling-test\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b5_cooling_second\"]\n}" },
+            "url": { "raw": "{{BASE_URL}}/api/v1/decision", "host": ["{{BASE_URL}}"], "path": ["api","v1","decision"] }
+          }
+        }
+      ]
+    }
+  ]
+}

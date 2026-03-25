@@ -1,0 +1,46 @@
+info:
+  name: "B6-2: Отчёт по вариантам"
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_REPORTS_ID}}/reports"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200', function () { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+
+        test('2 варианта в отчёте', function () {
+            expect(json.variants).to.be.an('array').with.lengthOf(2);
+        });
+
+        var ctrl = json.variants.find(function(v){return v.is_control===true;});
+        var treat = json.variants.find(function(v){return v.is_control===false;});
+
+        test('Есть control (is_control=true)', function () { expect(ctrl).to.not.be.undefined; });
+        test('Есть treatment (is_control=false)', function () { expect(treat).to.not.be.undefined; });
+        test('У каждого варианта есть метрики', function () {
+            expect(ctrl.metrics.length).to.be.above(0);
+            expect(treat.metrics.length).to.be.above(0);
+        });
+        test('Есть total_metrics', function () { expect(json.total_metrics).to.be.an('array'); });
+
+        console.log('=== ОТЧЁТ ПО ВАРИАНТАМ ===');
+        json.variants.forEach(function(v) {
+            console.log('--- ' + v.variant_name + ' (' + v.variant_value + ') subjects=' + v.subject_count + ' ---');
+            v.metrics.forEach(function(m) { console.log('  ' + m.metric_key + ' = ' + m.value); });
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

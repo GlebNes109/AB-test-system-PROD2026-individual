@@ -1,0 +1,11 @@
+info:
+  name: B6-2. Отчёт в разрезе вариантов
+  type: folder
+  seq: 3
+
+request:
+  auth: inherit
+
+docs:
+  content: В отчёте 2 варианта, каждый со своими метриками и subject_count.
+  type: text/markdown

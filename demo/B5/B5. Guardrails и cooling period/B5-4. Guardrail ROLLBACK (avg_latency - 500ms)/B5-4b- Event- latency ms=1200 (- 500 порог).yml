@@ -1,0 +1,36 @@
+info:
+  name: "B5-4b: Event: latency ms=1200 (> 500 порог)"
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/events/batch"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "events": [{
+          "event_type": "b5_latency",
+          "decision_id": "{{DECISION_ROLLBACK}}",
+          "payload": {"ms": 1200}
+        }]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('207', function () { expect(res.getStatus()).to.equal(207); });
+        test('201', function () { expect(res.getBody().results[0].status_code).to.eql(201); });
+        console.log('B5-4: latency=1200ms > 500ms. Подождите ~10 сек и проверьте статус.');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

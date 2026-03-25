@@ -1,0 +1,11 @@
+info:
+  name: B6-5. result_description обязателен
+  type: folder
+  seq: 6
+
+request:
+  auth: inherit
+
+docs:
+  content: Без result_description — 422. С ним — успех. Используем EXP_REPORTS (ещё в RUNNING).
+  type: text/markdown

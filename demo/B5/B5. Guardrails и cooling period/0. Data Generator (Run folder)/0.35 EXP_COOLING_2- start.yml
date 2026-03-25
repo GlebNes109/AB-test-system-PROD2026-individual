@@ -1,0 +1,39 @@
+info:
+  name: "0.35 EXP_COOLING_2: start"
+  type: http
+  seq: 35
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_COOLING2_ID}}/start"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: text
+    data: ""
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('200', function () { expect(res.getStatus()).to.equal(200); });
+
+        console.log('');
+        console.log('══════════════════════════════════════════════');
+        console.log('  DATA GENERATOR COMPLETE');
+        console.log('──────────────────────────────────────────────');
+        console.log('  EXP_PAUSE_ID    = ' + bru.getVar('EXP_PAUSE_ID'));
+        console.log('  EXP_ROLLBACK_ID = ' + bru.getVar('EXP_ROLLBACK_ID'));
+        console.log('  EXP_COOLING_ID  = ' + bru.getVar('EXP_COOLING_ID'));
+        console.log('  EXP_COOLING2_ID = ' + bru.getVar('EXP_COOLING2_ID'));
+        console.log('──────────────────────────────────────────────');
+        console.log('  All 4 experiments RUNNING. Ready for B5-1..B5-6');
+        console.log('══════════════════════════════════════════════');
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

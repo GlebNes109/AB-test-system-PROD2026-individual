@@ -1,0 +1,1004 @@
+{
+  "info": {
+    "name": "B1. Happy Path — полный цикл A/B теста",
+    "description": "Пошаговый сценарий: логин → создание сущностей → запуск эксперимента → выдача вариантов → отправка событий → просмотр метрик.\n\nЗапросы выполняются **строго по порядку сверху вниз** (каждый следующий использует данные из предыдущего).\n\nПодготовка:\n1. docker compose up -d\n2. Задать переменную BASE_URL если отличается от http://localhost",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Авторизация",
+      "item": [
+        {
+          "name": "1.1 Login (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('TOKEN', json.accessToken);",
+                  "",
+                  "pm.test('Получен accessToken', function () {",
+                  "    pm.expect(json.accessToken).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@mail.ru\",\n  \"password\": \"123123123aA!\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/auth/login",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Пользователи и группа апрувера",
+      "item": [
+        {
+          "name": "2.1 Создать experimenter",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var code = pm.response.code;",
+                  "pm.test('Status 201 или 409 (уже существует)', function () {",
+                  "    pm.expect([201, 409]).to.include(code);",
+                  "});",
+                  "",
+                  "if (code === 201) {",
+                  "    var json = pm.response.json();",
+                  "    pm.collectionVariables.set('EXPERIMENTER_ID', json.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{TOKEN}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"b1_experimenter@demo.com\",\n  \"password\": \"Demo1234!x\",\n  \"role\": \"EXPERIMENTER\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/users",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "users"]
+            }
+          }
+        },
+        {
+          "name": "2.2 Создать approver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var code = pm.response.code;",
+                  "pm.test('Status 201 или 409 (уже существует)', function () {",
+                  "    pm.expect([201, 409]).to.include(code);",
+                  "});",
+                  "",
+                  "if (code === 201) {",
+                  "    var json = pm.response.json();",
+                  "    pm.collectionVariables.set('APPROVER_ID', json.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{TOKEN}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"b1_approver@demo.com\",\n  \"password\": \"Demo1234!x\",\n  \"role\": \"APPROVER\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/users",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "users"]
+            }
+          }
+        },
+        {
+          "name": "2.3 Найти ID пользователей (GET /users)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "var users = json.items;",
+                  "",
+                  "var exp = users.find(function(u) { return u.email === 'b1_experimenter@demo.com'; });",
+                  "var apr = users.find(function(u) { return u.email === 'b1_approver@demo.com'; });",
+                  "",
+                  "if (exp) pm.collectionVariables.set('EXPERIMENTER_ID', exp.id);",
+                  "if (apr) pm.collectionVariables.set('APPROVER_ID', apr.id);",
+                  "",
+                  "pm.test('Найден experimenter', function () { pm.expect(exp).to.not.be.undefined; });",
+                  "pm.test('Найден approver', function () { pm.expect(apr).to.not.be.undefined; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/users?size=100",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "users"],
+              "query": [{ "key": "size", "value": "100" }]
+            }
+          }
+        },
+        {
+          "name": "2.4 Назначить approver группу experimenter-у",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{TOKEN}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approver_ids\": [\"{{APPROVER_ID}}\"],\n  \"min_approvals\": 1\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/users/{{EXPERIMENTER_ID}}/approvers",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "users", "{{EXPERIMENTER_ID}}", "approvers"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Типы событий и метрики",
+      "item": [
+        {
+          "name": "3.1 Создать тип события: exposure",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var code = pm.response.code;",
+                  "pm.test('Status 201 или 409', function () {",
+                  "    pm.expect([201, 409]).to.include(code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{TOKEN}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"b1_exposure\",\n  \"description\": \"Показ элемента пользователю\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/events/types",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "events", "types"]
+            }
+          }
+        },
+        {
+          "name": "3.2 Создать тип события: click (зависит от exposure)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var code = pm.response.code;",
+                  "pm.test('Status 201 или 409', function () {",
+                  "    pm.expect([201, 409]).to.include(code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{TOKEN}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"b1_click\",\n  \"description\": \"Клик по кнопке\",\n  \"requires_event_type\": \"b1_exposure\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/events/types",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "events", "types"]
+            }
+          }
+        },
+        {
+          "name": "3.3 Создать метрику: exposure_count (COUNT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var code = pm.response.code;",
+                  "pm.test('Status 201 или 409', function () {",
+                  "    pm.expect([201, 409]).to.include(code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{TOKEN}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"b1_exposure_count\",\n  \"name\": \"Число показов\",\n  \"description\": \"COUNT всех exposure событий\",\n  \"event_type\": \"b1_exposure\",\n  \"aggregation\": \"COUNT\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/metrics",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "metrics"]
+            }
+          }
+        },
+        {
+          "name": "3.4 Создать метрику: click_conversion (ratio)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var code = pm.response.code;",
+                  "pm.test('Status 201 или 409', function () {",
+                  "    pm.expect([201, 409]).to.include(code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{TOKEN}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"b1_click_conversion\",\n  \"name\": \"Конверсия в клик\",\n  \"description\": \"Доля кликнувших после показа\",\n  \"event_type\": \"b1_click\",\n  \"aggregation\": \"COUNT\",\n  \"denominator_event_type\": \"b1_exposure\",\n  \"denominator_aggregation\": \"COUNT\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/metrics",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "metrics"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Feature flag",
+      "item": [
+        {
+          "name": "4.1 Создать feature flag: b1_button_color",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var code = pm.response.code;",
+                  "pm.test('Status 201 или 409', function () {",
+                  "    pm.expect([201, 409]).to.include(code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{TOKEN}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"b1_button_color\",\n  \"type\": \"string\",\n  \"default_value\": \"white\",\n  \"description\": \"Цвет кнопки оформления заказа\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/feature-flags",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "feature-flags"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Эксперимент: создание и запуск",
+      "item": [
+        {
+          "name": "5.1 Создать эксперимент (DRAFT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('EXPERIMENT_ID', json.id);",
+                  "",
+                  "pm.test('Статус = draft', function () {",
+                  "    pm.expect(json.status).to.eql('draft');",
+                  "});",
+                  "",
+                  "pm.test('2 варианта создано', function () {",
+                  "    pm.expect(json.variants).to.have.lengthOf(2);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{TOKEN}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"B1 Happy Path: цвет кнопки\",\n  \"feature_flag_key\": \"b1_button_color\",\n  \"audience_percentage\": 100,\n  \"variants\": [\n    {\n      \"name\": \"white (control)\",\n      \"value\": \"white\",\n      \"weight\": 50,\n      \"is_control\": true\n    },\n    {\n      \"name\": \"green (treatment)\",\n      \"value\": \"green\",\n      \"weight\": 50,\n      \"is_control\": false\n    }\n  ],\n  \"metrics\": [\n    { \"metric_key\": \"b1_exposure_count\", \"type\": \"PRIMARY\" },\n    { \"metric_key\": \"b1_click_conversion\", \"type\": \"SECONDARY\" }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/experiments",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "experiments"]
+            }
+          }
+        },
+        {
+          "name": "5.2 Submit на ревью (DRAFT → REVIEW)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Статус = review', function () {",
+                  "    pm.expect(pm.response.json().status).to.eql('review');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{TOKEN}}" }
+            ],
+            "body": { "mode": "raw", "raw": "" },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/experiments/{{EXPERIMENT_ID}}/submit",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "experiments", "{{EXPERIMENT_ID}}", "submit"]
+            }
+          }
+        },
+        {
+          "name": "5.3 Approve (REVIEW → APPROVED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{TOKEN}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"ACCEPT\",\n  \"comment\": \"Happy path demo — approved\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/experiments/{{EXPERIMENT_ID}}/review",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "experiments", "{{EXPERIMENT_ID}}", "review"]
+            }
+          }
+        },
+        {
+          "name": "5.4 Start (APPROVED → RUNNING)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "pm.test('Статус = running', function () {",
+                  "    pm.expect(json.status).to.eql('running');",
+                  "});",
+                  "",
+                  "pm.test('started_at заполнен', function () {",
+                  "    pm.expect(json.started_at).to.not.be.null;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{TOKEN}}" }
+            ],
+            "body": { "mode": "raw", "raw": "" },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/experiments/{{EXPERIMENT_ID}}/start",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "experiments", "{{EXPERIMENT_ID}}", "start"]
+            }
+          }
+        },
+        {
+          "name": "5.5 Проверить эксперимент (GET)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "pm.test('Статус = running', function () {",
+                  "    pm.expect(json.status).to.eql('running');",
+                  "});",
+                  "pm.test('Есть 2 варианта', function () {",
+                  "    pm.expect(json.variants).to.have.lengthOf(2);",
+                  "});",
+                  "pm.test('Есть метрики', function () {",
+                  "    pm.expect(json.metrics.length).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/experiments/{{EXPERIMENT_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "experiments", "{{EXPERIMENT_ID}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Выдача вариантов (decision)",
+      "item": [
+        {
+          "name": "6.1 Decision: пользователь Alice",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "pm.test('Получен 1 результат', function () {",
+                  "    pm.expect(json).to.be.an('array').with.lengthOf(1);",
+                  "});",
+                  "",
+                  "pm.test('id != null — попала в эксперимент', function () {",
+                  "    pm.expect(json[0].id).to.not.be.null;",
+                  "});",
+                  "",
+                  "var allowed = ['white', 'green'];",
+                  "pm.test('value = white или green', function () {",
+                  "    pm.expect(allowed).to.include(json[0].value);",
+                  "});",
+                  "",
+                  "// Сохраняем decision_id для отправки событий",
+                  "pm.collectionVariables.set('DECISION_ID_ALICE', json[0].id);",
+                  "pm.collectionVariables.set('VARIANT_ALICE', json[0].value);",
+                  "",
+                  "console.log('Alice получила вариант: ' + json[0].value);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"alice-001\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b1_button_color\"]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/decision",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "decision"]
+            }
+          }
+        },
+        {
+          "name": "6.2 Decision: пользователь Bob",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "pm.test('id != null — попал в эксперимент', function () {",
+                  "    pm.expect(json[0].id).to.not.be.null;",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('DECISION_ID_BOB', json[0].id);",
+                  "pm.collectionVariables.set('VARIANT_BOB', json[0].value);",
+                  "",
+                  "console.log('Bob получил вариант: ' + json[0].value);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"bob-002\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b1_button_color\"]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/decision",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "decision"]
+            }
+          }
+        },
+        {
+          "name": "6.3 Decision: пользователь Carol",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "pm.test('id != null — попала в эксперимент', function () {",
+                  "    pm.expect(json[0].id).to.not.be.null;",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('DECISION_ID_CAROL', json[0].id);",
+                  "pm.collectionVariables.set('VARIANT_CAROL', json[0].value);",
+                  "",
+                  "console.log('Carol получила вариант: ' + json[0].value);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"carol-003\",\n  \"subject_attr\": {},\n  \"flags_keys\": [\"b1_button_color\"]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/decision",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "decision"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Отправка событий",
+      "item": [
+        {
+          "name": "7.1 Events: Alice — exposure + click (конверсия)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 207 (Multi-Status)', function () {",
+                  "    pm.response.to.have.status(207);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "pm.test('Оба события приняты (201)', function () {",
+                  "    json.results.forEach(function(r) {",
+                  "        pm.expect(r.status_code).to.eql(201);",
+                  "    });",
+                  "});",
+                  "",
+                  "console.log('Alice: exposure + click отправлены');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"events\": [\n    {\n      \"event_type\": \"b1_exposure\",\n      \"decision_id\": \"{{DECISION_ID_ALICE}}\",\n      \"payload\": null\n    },\n    {\n      \"event_type\": \"b1_click\",\n      \"decision_id\": \"{{DECISION_ID_ALICE}}\",\n      \"payload\": null\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/events/batch",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "events", "batch"]
+            }
+          }
+        },
+        {
+          "name": "7.2 Events: Bob — только exposure (без клика)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 207', function () {",
+                  "    pm.response.to.have.status(207);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "pm.test('Событие принято', function () {",
+                  "    pm.expect(json.results[0].status_code).to.eql(201);",
+                  "});",
+                  "",
+                  "console.log('Bob: только exposure (без клика)');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"events\": [\n    {\n      \"event_type\": \"b1_exposure\",\n      \"decision_id\": \"{{DECISION_ID_BOB}}\",\n      \"payload\": null\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/events/batch",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "events", "batch"]
+            }
+          }
+        },
+        {
+          "name": "7.3 Events: Carol — exposure + click (конверсия)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 207', function () {",
+                  "    pm.response.to.have.status(207);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "pm.test('Оба события приняты', function () {",
+                  "    json.results.forEach(function(r) {",
+                  "        pm.expect(r.status_code).to.eql(201);",
+                  "    });",
+                  "});",
+                  "",
+                  "console.log('Carol: exposure + click отправлены');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"events\": [\n    {\n      \"event_type\": \"b1_exposure\",\n      \"decision_id\": \"{{DECISION_ID_CAROL}}\",\n      \"payload\": null\n    },\n    {\n      \"event_type\": \"b1_click\",\n      \"decision_id\": \"{{DECISION_ID_CAROL}}\",\n      \"payload\": null\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/events/batch",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "events", "batch"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Отчёты и метрики",
+      "item": [
+        {
+          "name": "8.1 Summary report",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "",
+                  "pm.test('Есть варианты в отчёте', function () {",
+                  "    pm.expect(json.variants).to.be.an('array');",
+                  "    pm.expect(json.variants.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('total_subjects > 0 — есть участники', function () {",
+                  "    pm.expect(json.total_subjects).to.be.above(0);",
+                  "});",
+                  "",
+                  "// Выводим результаты в консоль для наглядности",
+                  "console.log('=== SUMMARY REPORT ===');",
+                  "console.log('Всего участников: ' + json.total_subjects);",
+                  "json.variants.forEach(function(v) {",
+                  "    console.log(v.variant_name + ' (' + v.variant_value + '): ' + v.subject_count + ' чел.');",
+                  "    v.metrics.forEach(function(m) {",
+                  "        console.log('  ' + m.metric_name + ': ' + m.value);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/experiments/{{EXPERIMENT_ID}}/reports",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "experiments", "{{EXPERIMENT_ID}}", "reports"]
+            }
+          }
+        },
+        {
+          "name": "8.2 Timeseries report (granularity=hour)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "pm.test('Есть метрики в таймсерии', function () {",
+                  "    pm.expect(json.metrics).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/experiments/{{EXPERIMENT_ID}}/reports/timeseries?granularity=hour",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "experiments", "{{EXPERIMENT_ID}}", "reports", "timeseries"],
+              "query": [{ "key": "granularity", "value": "hour" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Завершение эксперимента",
+      "item": [
+        {
+          "name": "9.1 Finish (RUNNING → FINISHED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "pm.test('Статус = finished', function () {",
+                  "    pm.expect(json.status).to.eql('finished');",
+                  "});",
+                  "",
+                  "pm.test('result = ROLLOUT', function () {",
+                  "    pm.expect(json.result).to.eql('ROLLOUT');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{TOKEN}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"result\": \"ROLLOUT\",\n  \"result_description\": \"Green button показала лучшую конверсию\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/experiments/{{EXPERIMENT_ID}}/finish",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "experiments", "{{EXPERIMENT_ID}}", "finish"]
+            }
+          }
+        },
+        {
+          "name": "9.2 Финальная проверка (GET experiment)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "pm.test('Статус = finished', function () {",
+                  "    pm.expect(json.status).to.eql('finished');",
+                  "});",
+                  "",
+                  "console.log('=== ЭКСПЕРИМЕНТ ЗАВЕРШЁН ===');",
+                  "console.log('ID: ' + json.id);",
+                  "console.log('Результат: ' + json.result);",
+                  "console.log('Описание: ' + json.result_description);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/api/v1/experiments/{{EXPERIMENT_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "v1", "experiments", "{{EXPERIMENT_ID}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+info:
+  name: "FX-5: PATCH /learnings/{{LEARNING_1_ID}}"
+  type: http
+  seq: 1
+
+http:
+  method: PATCH
+  url: "{{BASE_URL}}/api/v1/learnings/{{LEARNING_1_ID}}"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "notes": "Обновлённые заметки после дополнительного анализа. Рост конверсии подтверждён на расширенной выборке.",
+        "tags": ["checkout", "conversion", "updated"]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function() { expect(res.getStatus()).to.equal(200); });
+        var json = res.getBody();
+        test('notes обновлены', function() { expect(json.notes).to.include('Обновлённые заметки'); });
+        test('tags обновлены (включает updated)', function() { expect(json.tags).to.include('updated'); });
+        test('updated_at присутствует', function() { expect(json.updated_at).to.be.a('string').and.not.empty; });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

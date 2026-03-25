@@ -1,0 +1,38 @@
+info:
+  name: "0.31 Events: click (3 из 5 пользователей)"
+  type: http
+  seq: 31
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/events/batch"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "events": [
+          { "event_type": "b6_click", "decision_id": "{{D1}}", "payload": {"element": "buy-btn"} },
+          { "event_type": "b6_click", "decision_id": "{{D2}}", "payload": {"element": "buy-btn"} },
+          { "event_type": "b6_click", "decision_id": "{{D3}}", "payload": {"element": "buy-btn"} }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('207', function () { expect(res.getStatus()).to.equal(207); });
+        var results = res.getBody().results;
+        test('Все 3 click приняты', function () {
+            results.forEach(function(r) { expect(r.status_code).to.eql(201); });
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

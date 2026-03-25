@@ -1,0 +1,46 @@
+info:
+  name: "B2-3: decision (b2_variant)"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/decision"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id": "user-exp-001",
+        "subject_attr": {},
+        "flags_keys": ["b2_variant"]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function () {
+            expect(res.getStatus()).to.equal(200);
+        });
+
+        test('id != null — создано решение (decision)', function () {
+            var json = res.getBody();
+            expect(json).to.be.an('array').with.lengthOf(1);
+            expect(json[0].id).to.not.be.null;
+        });
+
+        test('value — один из вариантов эксперимента', function () {
+            var json = res.getBody();
+            var allowed = ['old_design_variant', 'new_design_variant'];
+            expect(allowed).to.include(json[0].value);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

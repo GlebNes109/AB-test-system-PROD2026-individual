@@ -1,0 +1,30 @@
+info:
+  name: "B3-3: Попытка start (должна быть отклонена)"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXP_BLOCK_START}}/start"
+  headers:
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: text
+    data: ""
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 409 — запуск заблокирован', function () {
+            expect(res.getStatus()).to.equal(409);
+        });
+        console.log('B3-3: Start отклонён — ' + res.getBody().message);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,42 @@
+info:
+  name: "0.32 Create+run EXP_COOLING_2: create"
+  type: http
+  seq: 32
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{EXPERIMENTER_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "name": "B5: cooling period (step 2)",
+        "feature_flag_key": "b5_cooling_second",
+        "audience_percentage": 100,
+        "variants": [
+          { "name": "control", "value": "fallback", "weight": 50, "is_control": true },
+          { "name": "treatment", "value": "new_feature", "weight": 50, "is_control": false }
+        ],
+        "metrics": [
+          { "metric_key": "b5_click_count", "type": "PRIMARY" }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('201', function () { expect(res.getStatus()).to.equal(201); });
+        bru.setVar('EXP_COOLING2_ID', res.getBody().id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

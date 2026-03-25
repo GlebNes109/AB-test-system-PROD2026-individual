@@ -1,0 +1,54 @@
+opencollection: 1.0.0
+
+info:
+  name: B3. Жизненный цикл и ревью экспериментов
+
+request:
+  variables:
+    - name: BASE_URL
+      value: http://localhost
+    - name: ADMIN_TOKEN
+      value: ""
+    - name: EXPERIMENTER_TOKEN
+      value: ""
+    - name: APPROVER_ALPHA_TOKEN
+      value: ""
+    - name: APPROVER_BETA_TOKEN
+      value: ""
+    - name: APPROVER_OUTSIDER_TOKEN
+      value: ""
+    - name: VIEWER_TOKEN
+      value: ""
+    - name: EXPERIMENTER_ID
+      value: ""
+    - name: APPROVER_ALPHA_ID
+      value: ""
+    - name: APPROVER_BETA_ID
+      value: ""
+    - name: EXP_LIFECYCLE
+      value: ""
+    - name: EXP_APPROVAL
+      value: ""
+    - name: EXP_BLOCK_START
+      value: ""
+    - name: EXP_BAD_TRANSITION
+      value: ""
+    - name: EXP_ROLE_POLICY
+      value: ""
+
+docs:
+  content: |-
+    Коллекция для проверки критериев B3.
+
+    Порядок работы:
+    1. Запустить папку «0. Data Generator» через Collection Runner (ПКМ → Run folder) — создаст все сущности и сохранит ID/токены в переменные
+    2. Выполнять запросы B3-1 … B3-5 вручную по одному
+
+    Подготовка: docker compose up -d
+  type: text/markdown
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

@@ -1,0 +1,11 @@
+info:
+  name: B3-3. Блокировка запуска без одобрений
+  type: folder
+  seq: 4
+
+request:
+  auth: inherit
+
+docs:
+  content: Эксперимент b3_block_start в REVIEW, ни одного одобрения. Попытка /start должна быть отклонена.
+  type: text/markdown

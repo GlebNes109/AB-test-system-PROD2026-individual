@@ -1,0 +1,41 @@
+info:
+  name: "16. EXP b2_variant: Создать (DRAFT)"
+  type: http
+  seq: 16
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Authorization
+      value: Bearer {{ADMIN_TOKEN}}
+  body:
+    type: json
+    data: |-
+      {
+        "name": "B2-3: вариант без таргетинга",
+        "feature_flag_key": "b2_variant",
+        "audience_percentage": 100,
+        "variants": [
+          {"name": "control",    "value": "old_design_variant", "weight": 50, "is_control": true},
+          {"name": "new_design", "value": "new_design_variant", "weight": 50, "is_control": false}
+        ],
+        "metrics": [{"metric_key": "exposure_count", "type": "PRIMARY"}]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 201', function() { expect(res.getStatus()).to.equal(201); });
+        bru.setVar('EXP_VARIANT_ID', res.getBody().id);
+        console.log('EXP_VARIANT_ID:', res.getBody().id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

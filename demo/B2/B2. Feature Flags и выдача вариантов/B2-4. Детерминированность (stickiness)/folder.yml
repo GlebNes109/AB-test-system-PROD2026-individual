@@ -1,0 +1,7 @@
+info:
+  name: B2-4. Детерминированность (stickiness)
+  type: folder
+  seq: 4
+
+request:
+  auth: inherit

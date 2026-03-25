@@ -1,0 +1,38 @@
+info:
+  name: 5.4 Start (APPROVED → RUNNING)
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/api/v1/experiments/{{EXPERIMENT_ID}}/start"
+  headers:
+    - name: Authorization
+      value: Bearer {{TOKEN}}
+  body:
+    type: text
+    data: ""
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200', function () {
+            expect(res.getStatus()).to.equal(200);
+        });
+
+        var json = res.getBody();
+        test('Статус = running', function () {
+            expect(json.status).to.eql('running');
+        });
+
+        test('started_at заполнен', function () {
+            expect(json.started_at).to.not.be.null;
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
