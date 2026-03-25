@@ -30,7 +30,7 @@
 
 ## Архитектура
 
-4-слойная архитектура: `api/routes/` (HTTP) → `application/` (бизнес-логика) → `infra/` (репозитории, Redis) → `models/` (ORM).
+4-слойная архитектура: `api/routes/` (HTTP) -> `application/` (бизнес-логика) -> `infra/` (репозитории, Redis) -> `models/` (ORM).
 
 ### C4 Level 1 — System Context
 ![C4 L1](demo/B7/C4L1.png)
@@ -69,7 +69,7 @@ curl http://localhost/ready
 docker compose --profile test up --abort-on-container-exit
 ```
 
-Интеграционные тесты (Tavern) проходят полный путь через API: создание эксперимента → ревью → запуск → выдача вариантов → события → отчёт. Включают негативные сценарии (400/403/404/409/422). Отчёт покрытия сохраняется в `ab_test_platform/coverage_html/`.
+Интеграционные тесты (Tavern) проходят полный путь через API и включают негативные сценарии (400/403/404/409/422). Отчёт покрытия сохраняется в `ab_test_platform/coverage_html/`.
 
 ## Структура репозитория
 
